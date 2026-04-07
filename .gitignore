@@ -1,0 +1,6 @@
+.env
+.credentials/
+.mcp.json
+.claude/settings.local.json
+*.key
+*.pem

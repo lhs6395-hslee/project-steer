@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Auto MCP Toggle",
+  "description": "프롬프트에서 모듈 키워드를 감지하여 필요한 MCP 서버만 자동으로 켜고 불필요한 서버는 끕니다.",
+  "version": "1",
+  "when": {
+    "type": "promptSubmit"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "사용자 메시지에서 어떤 모듈이 필요한지 판단하세요. 모듈-MCP 매핑: pptx→pptx, docx→docx, trello→trello, dooray→dooray, datadog→datadog, gdrive→google-workspace. 필요한 MCP 서버만 `bash scripts/mcp-toggle.sh <server> on`으로 켜고, 이번 작업에 불필요한 서버는 `bash scripts/mcp-toggle.sh <server> off`로 끄세요. 판단이 어려우면 현재 상태를 유지하세요."
+  }
+}

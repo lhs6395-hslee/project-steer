@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Validate Plan Output",
+  "description": "Planner가 생성한 plan JSON 파일의 구조를 자동 검증합니다.",
+  "version": "1",
+  "when": {
+    "type": "fileCreated",
+    "patterns": [
+      "**/plan*.json"
+    ]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "bash skills/planner/scripts/validate_plan.sh"
+  }
+}

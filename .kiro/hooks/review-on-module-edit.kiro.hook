@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Review on Module Edit",
+  "description": "모듈 파일 수정 시 Reviewer 스킬 기반으로 자동 리뷰를 트리거합니다.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "modules/**/*"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "이 파일 변경에 대해 skills/reviewer/SKILL.md의 적대적 리뷰 기준으로 검토해주세요. 체크리스트 평가, 이슈 목록, 점수(0.0~1.0), 판정(approved/needs_revision/rejected)을 JSON 형식으로 출력하세요."
+  }
+}

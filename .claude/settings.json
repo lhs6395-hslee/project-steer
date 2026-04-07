@@ -1,0 +1,46 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/sync-to-platforms.sh && echo 'Multi-Agent Harness Pipeline active. Primary: Claude Code. Sync targets: Kiro, Antigravity. Run: bash scripts/orchestrate.sh \"<task>\" <module>'"
+          }
+        ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Reminder: Adversarial review pipeline (Planner→Executor→Reviewer). Reviewer MUST NOT see Executor reasoning. Config: .mcp.json (primary) → .kiro/settings/mcp.json (sync)'"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(cat | jq -r '.tool_input.file_path // empty'); if [[ \"$FILE\" == .mcp.json ]] || [[ \"$FILE\" == .claude/settings* ]]; then \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/sync-to-platforms.sh; fi; if [[ \"$FILE\" == modules/* ]]; then echo \"[Review needed] Module file edited: $FILE\"; fi"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); CMD=$(echo \"$INPUT\" | jq -r '.tool_input.command // empty'); if echo \"$CMD\" | grep -qE 'rm -rf /|drop table|DROP TABLE'; then echo \"Blocked: dangerous command\" >&2; exit 2; fi; exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}

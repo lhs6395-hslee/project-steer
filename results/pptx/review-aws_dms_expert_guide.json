@@ -1,0 +1,82 @@
+{
+  "review_metadata": {
+    "file": "results/pptx/AWS_DMS_Expert_Guide.pptx",
+    "plan": "results/pptx/plan-aws_dms_expert_guide.json",
+    "reviewer": "reviewer-agent",
+    "review_date": "2025-07-15",
+    "total_slides": 14
+  },
+  "checklist_results": {
+    "completeness": {
+      "pass": true,
+      "score": 0.9,
+      "evidence": "TOC에 10개 섹션 모두 나열됨. 본문 슬라이드 11장에 10개 섹션 주제가 모두 반영됨 (섹션 1은 2슬라이드). TOC 번호(1~10)와 본문 제목 번호(1-1, 1-2, 2-1, 3-1, 4-1, 5-1, 6-1, 7-1, 8-1, 9-1, 10-1)가 내부적으로 일치함.",
+      "issues": [
+        "Plan 원본 TOC 순서(4=Source/Target Endpoint, 5=Migration Task)와 실제 PPTX TOC 순서(4=Migration Task, 5=Source/Target Endpoint)가 다름. 단, PPTX 내부에서 TOC↔본문 간 일관성은 유지됨.",
+        "Plan에서 섹션 2는 '핵심 구성요소'로 2슬라이드(2-1 구성요소 테이블 + 2-2 인스턴스 사이징)를 계획했으나, 실제 PPTX에서는 2-1만 존재하고 인스턴스 사이징은 '3-1. Replication Instance 설정'으로 독립 섹션화됨. 결과적으로 10개 섹션 커버리지는 충족하나 Plan 대비 섹션 재구성이 발생함."
+      ]
+    },
+    "slide_structure": {
+      "pass": true,
+      "score": 0.95,
+      "evidence": "표지(슬라이드0, layout:표지) → 목차(슬라이드1, layout:대목차) → 본문(슬라이드2~12, layout:내지) → Thank You(슬라이드13, layout:감사합니다) 순서 정확. 총 14슬라이드로 Plan 요구사항 충족.",
+      "issues": []
+    },
+    "content_accuracy": {
+      "pass": true,
+      "score": 0.95,
+      "evidence": "DMS 기술 내용 전반적으로 정확함. 인스턴스 클래스(dms.r5.large~4xlarge) 스펙 정확, CDC 설정 요구사항(Oracle LogMiner/Supplemental Logging, MySQL binlog_format=ROW, PostgreSQL wal_level=logical) 정확, CloudWatch 메트릭명(CDCLatencySource/Target, CDCIncomingChanges, FreeStorageSpace) 정확, Table Mapping JSON 구조 유효(selection/transformation rule 포함), 트러블슈팅 6개 증상/원인/해결 기술적으로 적절.",
+      "issues": [
+        "슬라이드 8(Table Mapping)의 JSON 코드 예시가 텍스트 박스 내에 표시되는데, TextBox 8의 left 좌표(5577840)가 Rounded Rectangle 7의 left(5760720)보다 작아 코드 텍스트가 배경 shape 밖으로 약 0.2인치 삐져나올 수 있음. 코드 가독성에 경미한 영향."
+      ]
+    },
+    "visual_consistency": {
+      "pass": true,
+      "score": 0.85,
+      "evidence": "본문 슬라이드(2~12) 헤더 구조 일관: 제목 TextBox(left=457200, top=548640) + 설명 TextBox(top=594360) + 구분선 Rectangle(top=1097280, width=11274552). 본문 콘텐츠 시작 Y좌표 약 1828800 EMU(≈2.0인치)로 통일. 슬라이드 크기 12192000×6858000 EMU 유지.",
+      "issues": [
+        "슬라이드 8: TextBox 8(left=5577840, width=5029200)이 Rounded Rectangle 7(left=5760720) 경계를 182880 EMU(≈0.2인치) 초과하여 shape 겹침/삐져나옴 발생.",
+        "슬라이드 3(네트워크 아키텍처): TextBox 10(left=457200, top=1828800, height=2926080)과 Rounded Rectangle 5(left=457200, top=1371600, height=4389120)가 동일 left에서 겹침. TextBox가 shape 위에 올라가는 구조이나, 의도적 레이어링인지 불명확.",
+        "일부 본문 슬라이드에서 제목 TextBox width가 다름: 슬라이드 2~4,6,10~12는 width=4572000이나, 슬라이드 5,7~9는 width=5029200. 경미한 불일치."
+      ]
+    },
+    "template_compliance": {
+      "pass": true,
+      "score": 0.95,
+      "evidence": "4개 템플릿 레이아웃 올바르게 활용: 표지(layout_index=0), 대목차(layout_index=4), 내지(layout_index=1), 감사합니다(layout_index=7). 슬라이드 크기 유지. 본문 슬라이드 모두 '내지' 레이아웃 사용. 제목 형식 'N-N. 제목' 패턴 준수.",
+      "issues": []
+    }
+  },
+  "issues": [
+    {
+      "severity": "low",
+      "slide": 8,
+      "description": "TextBox 8(JSON 코드)의 left 좌표(5577840)가 배경 Rounded Rectangle 7의 left(5760720)보다 작아 텍스트가 shape 경계 밖으로 약 0.2인치 삐져나옴",
+      "recommendation": "TextBox 8의 left를 5760720 이상으로 조정하거나, Rounded Rectangle 7의 left를 5577840으로 확장"
+    },
+    {
+      "severity": "low",
+      "slide": "2-12",
+      "description": "본문 슬라이드 제목 TextBox width가 일부 슬라이드에서 4572000 vs 5029200으로 불일치",
+      "recommendation": "모든 본문 슬라이드의 제목 TextBox width를 동일 값으로 통일"
+    },
+    {
+      "severity": "info",
+      "slide": "TOC vs Plan",
+      "description": "Plan 원본 대비 섹션 4/5 순서가 변경됨 (Migration Task ↔ Source/Target Endpoint). PPTX 내부 일관성은 유지되므로 기능적 문제 없음.",
+      "recommendation": "의도적 변경이라면 문제 없음. Plan과의 정합성이 중요하다면 순서 복원 필요."
+    },
+    {
+      "severity": "info",
+      "slide": "Plan vs PPTX",
+      "description": "Plan의 섹션 2 '핵심 구성요소'가 2슬라이드(2-1, 2-2)로 계획되었으나, 실제로는 2-1만 존재하고 인스턴스 사이징이 섹션 3으로 독립됨. 전체 10개 섹션 커버리지는 충족.",
+      "recommendation": "섹션 재구성이 콘텐츠 흐름상 합리적이므로 수용 가능."
+    }
+  ],
+  "suggestions": [
+    "슬라이드 8의 TextBox/Shape 좌표 정렬을 수정하면 코드 블록 가독성이 향상됨",
+    "본문 슬라이드 제목 TextBox width를 통일하면 시각적 일관성이 더 높아짐"
+  ],
+  "score": 0.88,
+  "verdict": "approved"
+}

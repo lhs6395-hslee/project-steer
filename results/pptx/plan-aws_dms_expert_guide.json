@@ -1,0 +1,495 @@
+{
+  "task": "전문가 대상 AWS DMS 사용법 프레젠테이션 생성 (아키텍처 포함)",
+  "module": "pptx",
+  "method": "mcp_pptx_tools",
+  "template": "templates/pptx_template.pptx",
+  "output": "results/pptx/AWS_DMS_Expert_Guide.pptx",
+  "template_info": {
+    "slide_size_emu": [12192000, 6858000],
+    "slide_size_inches": [13.333, 7.5],
+    "layouts": {
+      "0_표지": "Cover slide — title, subtitle, company, date",
+      "1_내지": "Body slide — main content layout",
+      "4_대목차": "TOC slide — CONTENTS + numbered sections",
+      "7_감사합니다": "Thank You ending slide"
+    }
+  },
+  "style_consistency": {
+    "title_format": "N-N. 제목 (예: 1-1. DMS 전체 아키텍처)",
+    "font_head_title": "프리젠테이션 7 Bold, 28pt",
+    "font_head_desc": "프리젠테이션 5 Medium, 12pt",
+    "font_body": "Freesentation",
+    "color_primary": [0, 67, 218],
+    "color_black": [0, 0, 0],
+    "color_bg_box": [248, 249, 250],
+    "margin_x": 0.5,
+    "body_start_y": 2.0,
+    "body_limit_y": 7.2
+  },
+  "slide_plan": [
+    {
+      "index": 0,
+      "type": "cover",
+      "layout": "표지 (layout_index: 0)",
+      "title": "AWS Database\nMigration Service",
+      "subtitle": "Expert Guide — 아키텍처 · 설정 · 운영 · 트러블슈팅",
+      "company": "신성통상",
+      "date": "2026년 4월",
+      "method": "템플릿 슬라이드 0 재사용, manage_text로 텍스트 업데이트"
+    },
+    {
+      "index": 1,
+      "type": "toc",
+      "layout": "대목차 (layout_index: 4)",
+      "title": "CONTENTS",
+      "sections": [
+        "1. 아키텍처 개요",
+        "2. 핵심 구성요소",
+        "3. Replication Instance 설정",
+        "4. Source / Target Endpoint 구성",
+        "5. Migration Task 유형 및 설정",
+        "6. Table Mapping & Transformation",
+        "7. CDC (Change Data Capture) 운영",
+        "8. 모니터링 및 검증",
+        "9. 트러블슈팅 가이드",
+        "10. Best Practices"
+      ],
+      "method": "템플릿 슬라이드 1 재사용 또는 add_slide(layout_index=4), manage_text로 목차 항목 배치"
+    },
+    {
+      "index": 2,
+      "type": "body",
+      "layout": "내지 (layout_index: 1)",
+      "section": "1. 아키텍처 개요",
+      "title": "1-1. DMS 전체 아키텍처",
+      "description": "Source → Replication Instance → Target 데이터 흐름",
+      "content_structure": {
+        "type": "architecture_diagram",
+        "elements": [
+          "Source DB 박스 (Oracle, MySQL, PostgreSQL 등)",
+          "화살표 → Replication Instance 중앙 박스",
+          "화살표 → Target DB 박스 (Aurora, RDS, S3, Redshift 등)",
+          "하단 3열: Source 지원 DB / Replication Instance 구성 / Target 지원 DB"
+        ]
+      },
+      "method": "add_slide(layout_index=1) → manage_text(제목/설명) → add_shape(3개 박스 + 화살표) → manage_text(하단 설명)"
+    },
+    {
+      "index": 3,
+      "type": "body",
+      "layout": "내지 (layout_index: 1)",
+      "section": "1. 아키텍처 개요",
+      "title": "1-2. 네트워크 아키텍처",
+      "description": "VPC 내 배치 및 연결 구성",
+      "content_structure": {
+        "type": "layered_diagram",
+        "elements": [
+          "VPC 외곽 박스",
+          "Replication Subnet Group (2+ AZ) 레이어",
+          "Replication Instance + Security Group 레이어",
+          "Source/Target Endpoint 연결 레이어",
+          "좌측 텍스트: 네트워크 구성 설명"
+        ]
+      },
+      "method": "add_slide(layout_index=1) → add_shape(계층 박스 4단) → manage_text(설명 텍스트)"
+    },
+    {
+      "index": 4,
+      "type": "body",
+      "layout": "내지 (layout_index: 1)",
+      "section": "2. 핵심 구성요소",
+      "title": "2-1. DMS 핵심 구성요소",
+      "description": "Replication Instance, Endpoint, Task, Subnet Group",
+      "content_structure": {
+        "type": "table",
+        "columns": ["구성요소", "역할", "주요 설정", "고려사항"],
+        "rows": 5,
+        "data_source": "Replication Instance, Source/Target Endpoint, Migration Task, Subnet Group"
+      },
+      "method": "add_slide(layout_index=1) → manage_text(제목) → add_table(6행×4열, 헤더 포함)"
+    },
+    {
+      "index": 5,
+      "type": "body",
+      "layout": "내지 (layout_index: 1)",
+      "section": "2. 핵심 구성요소",
+      "title": "2-2. Replication Instance 사이징",
+      "description": "워크로드별 권장 인스턴스 클래스",
+      "content_structure": {
+        "type": "grid_2x2",
+        "items": [
+          "dms.r5.large — 2 vCPU, 16GB, 소규모",
+          "dms.r5.xlarge — 4 vCPU, 32GB, 중규모",
+          "dms.r5.2xlarge — 8 vCPU, 64GB, 대규모",
+          "dms.r5.4xlarge — 16 vCPU, 128GB, 대용량"
+        ]
+      },
+      "method": "add_slide(layout_index=1) → manage_text(제목) → add_shape(4개 카드 박스 2×2 배치)"
+    },
+    {
+      "index": 6,
+      "type": "body",
+      "layout": "내지 (layout_index: 1)",
+      "section": "3. Migration Task 유형",
+      "title": "3-1. Task 유형 비교",
+      "description": "Full Load / CDC Only / Full Load + CDC",
+      "content_structure": {
+        "type": "3_cards",
+        "cards": [
+          "Full Load Only — 일괄 이관, 다운타임 허용",
+          "CDC Only — 변경분 실시간 복제",
+          "Full Load + CDC ★ — 가장 일반적, 무중단"
+        ]
+      },
+      "method": "add_slide(layout_index=1) → manage_text(제목) → add_shape(3개 카드 박스 가로 배치)"
+    },
+    {
+      "index": 7,
+      "type": "body",
+      "layout": "내지 (layout_index: 1)",
+      "section": "4. Endpoint 구성",
+      "title": "4-1. Source / Target Endpoint",
+      "description": "Endpoint 설정 및 Extra Connection Attributes",
+      "content_structure": {
+        "type": "split_comparison",
+        "left": "Source Endpoint — 호스트, 포트, SSL, CDC 권한",
+        "right": "Target Endpoint — BatchApply, Transactional 모드"
+      },
+      "method": "add_slide(layout_index=1) → manage_text(제목) → add_shape(좌우 2분할 박스)"
+    },
+    {
+      "index": 8,
+      "type": "body",
+      "layout": "내지 (layout_index: 1)",
+      "section": "5. Table Mapping",
+      "title": "5-1. Table Mapping & Transformation",
+      "description": "Selection Rule, Transformation Rule, JSON 구조",
+      "content_structure": {
+        "type": "split_text_code",
+        "left": "Table Mapping 개념 설명 + 불릿 리스트",
+        "right": "JSON 코드 예시 (selection-rule, transformation-rule)"
+      },
+      "method": "add_slide(layout_index=1) → manage_text(좌측 설명) → add_shape(우측 코드 박스, 터미널 스타일)"
+    },
+    {
+      "index": 9,
+      "type": "body",
+      "layout": "내지 (layout_index: 1)",
+      "section": "6. CDC 운영",
+      "title": "6-1. CDC 동작 원리 및 운영",
+      "description": "트랜잭션 로그 기반 실시간 복제",
+      "content_structure": {
+        "type": "process_flow",
+        "steps": [
+          "Source DB 로그 캡처 (binlog/wal/LogMiner)",
+          "Replication Instance 로그 캐시",
+          "변환 및 적용 (Target DB)",
+          "Checkpoint 저장"
+        ],
+        "additional": "하단에 DB별 설정 요구사항 표"
+      },
+      "method": "add_slide(layout_index=1) → add_shape(프로세스 화살표 4단계) → manage_text(하단 설명)"
+    },
+    {
+      "index": 10,
+      "type": "body",
+      "layout": "내지 (layout_index: 1)",
+      "section": "7. 모니터링",
+      "title": "7-1. 모니터링 및 검증",
+      "description": "CloudWatch 메트릭, Validation Task",
+      "content_structure": {
+        "type": "stats_dashboard",
+        "metrics": [
+          "CDCLatencySource — Source 캡처 지연(초)",
+          "CDCLatencyTarget — Target 적용 지연(초)",
+          "CDCIncomingChanges — 미적용 변경 수",
+          "FreeStorageSpace — 잔여 스토리지"
+        ],
+        "additional": "하단에 Validation Task 설명"
+      },
+      "method": "add_slide(layout_index=1) → add_shape(4개 메트릭 카드) → manage_text(하단 Validation 설명)"
+    },
+    {
+      "index": 11,
+      "type": "body",
+      "layout": "내지 (layout_index: 1)",
+      "section": "8. 트러블슈팅",
+      "title": "8-1. 트러블슈팅 가이드",
+      "description": "주요 증상별 원인 및 해결 방법",
+      "content_structure": {
+        "type": "table",
+        "columns": ["증상", "원인", "해결"],
+        "rows": 6,
+        "data_source": "Task 실패, CDC 지연, 스토리지 부족, Full Load 느림, LOB 유실, 데이터 불일치"
+      },
+      "method": "add_slide(layout_index=1) → manage_text(제목) → add_table(7행×3열, 헤더 포함)"
+    },
+    {
+      "index": 12,
+      "type": "body",
+      "layout": "내지 (layout_index: 1)",
+      "section": "9. Best Practices",
+      "title": "9-1. Best Practices",
+      "description": "사전 준비 · Full Load 최적화 · CDC 안정 운영 · 컷오버",
+      "content_structure": {
+        "type": "numbered_checklist",
+        "sections": [
+          "사전 준비 — DMS 전용 계정, 네트워크 테스트, 로그 설정, 스키마 생성",
+          "Full Load 최적화 — 인덱스 제거/재생성, 병렬도 조절, LOB 모드",
+          "CDC 안정 운영 — CloudWatch 알람, 모니터링, 로그 보존",
+          "컷오버 체크리스트 — 지연 0 확인, Validation, 연결 전환, 롤백 계획"
+        ]
+      },
+      "method": "add_slide(layout_index=1) → manage_text(제목) → add_shape(4개 섹션 박스 + 체크마크 아이콘)"
+    },
+    {
+      "index": 13,
+      "type": "ending",
+      "layout": "감사합니다 (layout_index: 7)",
+      "title": "Thank You",
+      "tagline": "신성통상 DB 마이그레이션 프로젝트",
+      "method": "템플릿 마지막 슬라이드 재사용 또는 add_slide(layout_index=7), manage_text로 텍스트 업데이트"
+    }
+  ],
+  "steps": [
+    {
+      "id": 1,
+      "action": "템플릿에서 프레젠테이션 생성",
+      "details": "mcp_pptx_create_presentation_from_template(template_path='templates/pptx_template.pptx')로 시작. 템플릿의 기존 슬라이드 구조(표지, 목차, 본문, 감사합니다)를 활용.",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "프레젠테이션이 성공적으로 생성됨",
+        "슬라이드 크기가 12192000×6858000 EMU (13.333\"×7.500\")",
+        "8개 레이아웃이 사용 가능"
+      ],
+      "estimated_complexity": "low"
+    },
+    {
+      "id": 2,
+      "action": "표지 슬라이드 구성 (슬라이드 0)",
+      "details": "템플릿 슬라이드 0(표지 레이아웃)의 텍스트를 업데이트. manage_text로 제목('AWS Database\\nMigration Service'), 부제('Expert Guide — 아키텍처 · 설정 · 운영 · 트러블슈팅'), 날짜 배치.",
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "제목이 'AWS Database Migration Service'로 표시",
+        "부제가 'Expert Guide — 아키텍처 · 설정 · 운영 · 트러블슈팅'으로 표시",
+        "기존 산출물 스타일(표지 레이아웃)과 일관성 유지"
+      ],
+      "estimated_complexity": "low"
+    },
+    {
+      "id": 3,
+      "action": "목차 슬라이드 구성 (슬라이드 1)",
+      "details": "대목차 레이아웃 활용. 'CONTENTS' 헤더 + 10개 섹션 번호/제목 배치. manage_text로 각 항목을 좌측 번호 + 우측 섹션명 형태로 구성.",
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "10개 섹션이 번호와 함께 나열됨",
+        "'CONTENTS' 헤더가 표시됨",
+        "기존 산출물의 목차 스타일(번호 + 섹션명)과 일치"
+      ],
+      "estimated_complexity": "medium"
+    },
+    {
+      "id": 4,
+      "action": "본문 슬라이드 생성 — 아키텍처 개요 (슬라이드 2~3)",
+      "details": "슬라이드 2: DMS 전체 아키텍처 다이어그램 (Source→Replication Instance→Target 3박스 + 화살표 + 하단 3열 설명). 슬라이드 3: 네트워크 아키텍처 (VPC 계층 다이어그램 4단). add_slide(layout_index=1) + add_shape + manage_text 조합.",
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "아키텍처 다이어그램이 Source/Replication/Target 3단 구조로 표현됨",
+        "네트워크 계층이 VPC→Subnet→Instance→Endpoint 4단으로 표현됨",
+        "제목 형식이 'N-N. 제목' 패턴 준수",
+        "PRIMARY 색상(0,67,218) 사용"
+      ],
+      "estimated_complexity": "high"
+    },
+    {
+      "id": 5,
+      "action": "본문 슬라이드 생성 — 핵심 구성요소 (슬라이드 4~5)",
+      "details": "슬라이드 4: 구성요소 테이블 (4열×6행). 슬라이드 5: 인스턴스 사이징 2×2 그리드. add_table + add_shape 활용.",
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "테이블이 구성요소/역할/주요설정/고려사항 4열 구조",
+        "2×2 그리드에 4개 인스턴스 클래스가 카드 형태로 배치",
+        "테이블 헤더에 PRIMARY 색상 적용"
+      ],
+      "estimated_complexity": "medium"
+    },
+    {
+      "id": 6,
+      "action": "본문 슬라이드 생성 — Task 유형 (슬라이드 6)",
+      "details": "3개 카드 가로 배치: Full Load Only / CDC Only / Full Load + CDC. add_shape로 3개 카드 박스 생성.",
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "3개 카드가 균등 가로 배치",
+        "각 카드에 제목 + 설명 텍스트 포함",
+        "Full Load + CDC에 ★ 강조 표시"
+      ],
+      "estimated_complexity": "medium"
+    },
+    {
+      "id": 7,
+      "action": "본문 슬라이드 생성 — Endpoint 구성 (슬라이드 7)",
+      "details": "좌우 2분할: Source Endpoint vs Target Endpoint. 각 영역에 설정 항목 불릿 리스트.",
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "Source/Target이 좌우 대칭 구조로 배치",
+        "각 Endpoint의 주요 설정 항목이 불릿으로 나열"
+      ],
+      "estimated_complexity": "medium"
+    },
+    {
+      "id": 8,
+      "action": "본문 슬라이드 생성 — Table Mapping (슬라이드 8)",
+      "details": "좌측 설명 텍스트 + 우측 JSON 코드 박스 (터미널 스타일 배경). split_text_code 패턴.",
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "좌측에 Table Mapping 개념 설명",
+        "우측에 JSON 코드 예시가 터미널 스타일 박스에 표시",
+        "터미널 배경색 (48,10,36) 또는 유사 다크 배경 적용"
+      ],
+      "estimated_complexity": "high"
+    },
+    {
+      "id": 9,
+      "action": "본문 슬라이드 생성 — CDC 운영 (슬라이드 9)",
+      "details": "상단 프로세스 화살표 (4단계: 로그캡처→캐시→적용→체크포인트) + 하단 DB별 설정 요구사항.",
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "4단계 프로세스가 화살표로 연결",
+        "DB별(Oracle/MySQL/PostgreSQL) 설정 요구사항 포함"
+      ],
+      "estimated_complexity": "high"
+    },
+    {
+      "id": 10,
+      "action": "본문 슬라이드 생성 — 모니터링 (슬라이드 10)",
+      "details": "4개 메트릭 카드 (CDCLatencySource/Target, CDCIncomingChanges, FreeStorageSpace) + 하단 Validation Task 설명.",
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "4개 핵심 메트릭이 카드 형태로 표시",
+        "각 메트릭에 설명과 정상 범위 포함",
+        "Validation Task 실행 방법 설명 포함"
+      ],
+      "estimated_complexity": "medium"
+    },
+    {
+      "id": 11,
+      "action": "본문 슬라이드 생성 — 트러블슈팅 (슬라이드 11)",
+      "details": "증상/원인/해결 3열 테이블 (7행: 헤더 + 6개 이슈). add_table 활용.",
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "6개 주요 이슈가 증상/원인/해결 구조로 정리",
+        "테이블 헤더에 PRIMARY 색상 적용",
+        "각 셀의 텍스트가 읽기 쉬운 크기"
+      ],
+      "estimated_complexity": "medium"
+    },
+    {
+      "id": 12,
+      "action": "본문 슬라이드 생성 — Best Practices (슬라이드 12)",
+      "details": "4개 섹션 박스 (사전준비/Full Load 최적화/CDC 안정운영/컷오버 체크리스트). 각 박스에 체크마크 불릿.",
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "4개 Best Practice 영역이 구분되어 표시",
+        "각 영역에 구체적 체크리스트 항목 포함",
+        "체크마크(✓) 기호 사용"
+      ],
+      "estimated_complexity": "medium"
+    },
+    {
+      "id": 13,
+      "action": "Thank You 슬라이드 구성 (슬라이드 13)",
+      "details": "감사합니다 레이아웃(layout_index=7) 활용. 'Thank You' + 프로젝트 태그라인.",
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "'Thank You' 텍스트가 중앙에 표시",
+        "기존 산출물의 감사합니다 스타일과 일치"
+      ],
+      "estimated_complexity": "low"
+    },
+    {
+      "id": 14,
+      "action": "불필요한 템플릿 슬라이드 정리",
+      "details": "템플릿에서 가져온 불필요한 슬라이드(인덱스 2~40 중 사용하지 않는 것) 삭제. 표지(0), 목차(1), 본문(2~12), Thank You(13)만 유지.",
+      "dependencies": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+      "acceptance_criteria": [
+        "최종 슬라이드 수가 14장 (표지 + 목차 + 본문 11장 + Thank You)",
+        "불필요한 템플릿 슬라이드가 모두 제거됨"
+      ],
+      "estimated_complexity": "medium"
+    },
+    {
+      "id": 15,
+      "action": "시각적 일관성 검증 및 저장",
+      "details": "전체 슬라이드의 폰트, 색상, 여백, 제목 형식 일관성 확인. mcp_pptx_save_presentation으로 최종 저장.",
+      "dependencies": [14],
+      "acceptance_criteria": [
+        "모든 본문 슬라이드 제목이 'N-N. 제목' 형식",
+        "PRIMARY 색상(0,67,218)이 일관되게 사용됨",
+        "본문 시작 Y좌표가 약 2.0인치로 통일",
+        "파일이 results/pptx/AWS_DMS_Expert_Guide.pptx로 저장됨"
+      ],
+      "estimated_complexity": "low"
+    }
+  ],
+  "risks": [
+    {
+      "id": "R1",
+      "severity": "high",
+      "description": "템플릿 슬라이드 삭제 시 인덱스 변동으로 잘못된 슬라이드 수정 가능",
+      "mitigation": "슬라이드 추가를 먼저 완료한 후, 역순(높은 인덱스부터)으로 불필요 슬라이드 삭제. 삭제 전 get_slide_info로 내용 확인."
+    },
+    {
+      "id": "R2",
+      "severity": "high",
+      "description": "아키텍처 다이어그램을 add_shape로 구성 시 좌표 계산 오류로 요소 겹침/잘림 발생",
+      "mitigation": "슬라이드 크기(13.333\"×7.500\") 기준으로 좌표를 사전 계산. body_start_y=2.0\", body_limit_y=7.2\" 범위 내 배치. 각 요소 간 최소 0.2\" 간격 확보."
+    },
+    {
+      "id": "R3",
+      "severity": "medium",
+      "description": "한글 폰트(프리젠테이션/Freesentation)가 시스템에 없을 경우 대체 폰트로 렌더링",
+      "mitigation": "MCP 도구의 font_name 파라미터로 명시적 지정. 폰트 미설치 시 'Malgun Gothic' 또는 기본 폰트로 폴백."
+    },
+    {
+      "id": "R4",
+      "severity": "medium",
+      "description": "테이블 셀 내 긴 텍스트가 잘리거나 셀 크기 초과",
+      "mitigation": "테이블 너비를 슬라이드 전체 폭(12.333\")으로 설정. body_font_size를 9~10pt로 조절. 텍스트 길이에 따라 약어 사용."
+    },
+    {
+      "id": "R5",
+      "severity": "low",
+      "description": "MCP 도구의 manage_text auto_fit이 예상과 다르게 동작할 수 있음",
+      "mitigation": "auto_fit=true 기본 사용. 텍스트 오버플로우 발생 시 font_size를 수동 지정하여 재시도."
+    },
+    {
+      "id": "R6",
+      "severity": "medium",
+      "description": "기존 산출물(steering 기반)과 MCP 도구 직접 생성 간 시각적 차이 발생 가능",
+      "mitigation": "기존 산출물의 색상/좌표/폰트 값을 정확히 참조. 스타일 가이드의 COLORS/FONTS/LAYOUT 상수를 MCP 도구 파라미터에 동일하게 적용."
+    }
+  ],
+  "constraints": [
+    "MCP 도구(mcp_pptx_*)만 사용하여 프레젠테이션 생성 (python-pptx 직접 코드 아님)",
+    "템플릿 templates/pptx_template.pptx에서 시작 (슬라이드 크기 12192000×6858000 EMU 유지)",
+    "기존 산출물 스타일 준수: 표지→목차→본문(N-N. 제목)→Thank You 구조",
+    "레이아웃 다양성: 동일 레이아웃 최대 3장까지 (테이블 2장, 카드 2장 등 분산)",
+    "본문 영역: body_start_y=2.0\", body_limit_y=7.2\" 범위 내 콘텐츠 배치",
+    "색상 체계: PRIMARY(0,67,218), BLACK(0,0,0), BG_BOX(248,249,250) 일관 사용",
+    "최종 파일: results/pptx/AWS_DMS_Expert_Guide.pptx로 저장"
+  ],
+  "assumptions": [
+    "템플릿 파일 templates/pptx_template.pptx가 정상적으로 접근 가능",
+    "MCP pptx 서버가 활성화되어 있고 모든 도구가 사용 가능",
+    "전문가 대상이므로 기술 용어를 그대로 사용 (DMS, CDC, LOB, VPC 등 약어 설명 불필요)",
+    "아키텍처 다이어그램은 이미지 파일 없이 add_shape로 도형 기반 구성",
+    "총 14장 슬라이드 (표지 1 + 목차 1 + 본문 11 + Thank You 1)"
+  ],
+  "review_checklist": {
+    "completeness": "10개 섹션 주제가 모두 슬라이드에 반영되었는가",
+    "slide_structure": "표지→목차→본문→Thank You 순서가 올바른가",
+    "content_accuracy": "DMS 기술 내용이 정확한가 (인스턴스 클래스, CDC 메트릭 등)",
+    "visual_consistency": "폰트/색상/여백이 기존 산출물 스타일과 일치하는가",
+    "template_compliance": "템플릿 레이아웃(표지/대목차/내지/감사합니다)을 올바르게 활용했는가"
+  }
+}

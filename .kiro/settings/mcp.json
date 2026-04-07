@@ -1,0 +1,96 @@
+{
+  "mcpServers": {
+    "trello": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-server-trello"
+      ],
+      "env": {
+        "TRELLO_API_KEY": "${TRELLO_API_KEY}",
+        "TRELLO_TOKEN": "${TRELLO_TOKEN}"
+      },
+      "disabled": true,
+      "autoApprove": []
+    },
+    "datadog": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@winor30/mcp-server-datadog"
+      ],
+      "env": {
+        "DATADOG_API_KEY": "8942d8cbb233ab8e609002692cf9753b",
+        "DATADOG_APP_KEY": "ddapp_sthy7uWrhWRqJGd5zBkLCEtJ53a20JcZZ4",
+        "DATADOG_SITE": "datadoghq.com"
+      },
+      "disabled": true,
+      "autoApprove": []
+    },
+    "google-workspace": {
+      "command": "uvx",
+      "args": [
+        "workspace-mcp"
+      ],
+      "env": {
+        "GOOGLE_OAUTH_CREDENTIALS": "${GOOGLE_OAUTH_CREDENTIALS}"
+      },
+      "disabled": true,
+      "autoApprove": []
+    },
+    "docx": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "office-word-mcp-server",
+        "word_mcp_server"
+      ],
+      "env": {},
+      "disabled": true,
+      "autoApprove": []
+    },
+    "dooray": {
+      "command": "uvx",
+      "args": [
+        "dooray-mcp"
+      ],
+      "env": {
+        "DOORAY_API_TOKEN": "${DOORAY_API_TOKEN}"
+      },
+      "disabled": true,
+      "autoApprove": []
+    },
+    "pptx": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "office-powerpoint-mcp-server",
+        "ppt_mcp_server"
+      ],
+      "env": {},
+      "disabled": true,
+      "autoApprove": [
+        "create_presentation_from_template",
+        "add_slide",
+        "manage_text",
+        "add_shape",
+        "add_shape",
+        "add_shape",
+        "add_connector",
+        "add_connector",
+        "add_table",
+        "save_presentation",
+        "get_presentation_info",
+        "extract_presentation_text",
+        "get_template_file_info",
+        "open_presentation",
+        "get_slide_info",
+        "get_slide_info",
+        "extract_slide_text",
+        "extract_slide_text",
+        "set_core_properties",
+        "manage_slide_masters"
+      ]
+    }
+  }
+}
