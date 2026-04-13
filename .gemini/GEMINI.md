@@ -13,7 +13,34 @@
 - Reviewer는 Executor의 reasoning을 볼 수 없음
 - 모든 파일 쓰기에 Atomic_Write 패턴
 
-## Pipeline
+## Pipeline Execution (역할 분리 필수)
+
+모듈 작업 요청 시 반드시 아래 3단계를 **별도 컨텍스트**로 분리 실행한다.
+"간단한 작업"이라도 예외 없이 3단계를 거친다.
+
+### Step 1: Planner
+
+`skills/planner/SKILL.md`와 `modules/{module}/SKILL.md`를 참조하여 구조화된 실행 계획(JSON)을 생성한다.
+계획에는 acceptance_criteria, constraints, risks를 포함한다.
+
+### Step 2: Executor
+
+Planner의 계획을 받아 실행한다. 자기 평가를 하지 않는다.
+`skills/executor/SKILL.md`와 `modules/{module}/SKILL.md`를 참조한다.
+
+### Step 3: Reviewer
+
+Executor의 결과를 **계획 + 출력만** 받아 적대적으로 검증한다.
+Executor의 reasoning/의도는 전달하지 않는다.
+`skills/reviewer/SKILL.md`와 `skills/orchestrator/references/module-checklists.md`를 참조한다.
+
+### Step 4: 재시도 또는 완료
+
+- APPROVED (score >= 0.7): 결과 반환
+- NEEDS_REVISION: Reviewer 이슈를 Executor에 피드백하여 Step 2 재실행
+- 최대 재시도: Confidence_Trigger 구간에 따라 3~5회
+
+## Shell Pipeline (대안)
 
 ```bash
 bash scripts/orchestrate.sh "<task>" <module>

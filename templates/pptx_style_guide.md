@@ -64,6 +64,15 @@ PPT 템플릿은 다음 슬라이드 구조를 가져야 함:
 - **Last slide**: Ending slide (끝맺음 - 보존됨)
 - **Slide dimensions**: 13.333" × 7.500"
 
+### Cover Slide Rules
+
+- **서식 보존**: 표지 shape 텍스트 교체 시 `tf.clear()` 금지. 기존 run XML을 복제하여 텍스트만 교체. scheme color(BACKGROUND_1 = 흰색)가 보존되어야 함.
+- **제목 (shape[2])**: 좌우 중앙 배치 (left=1.67", width=10.0"), 높이 2.8" (50pt 3줄 수용), 수직 중앙 (top=1.63")
+- **부제 (shape[5])**: 제목과 동일 좌우 배치, top = 제목 bottom + 0.15" 간격
+- **날짜 (shape[8])**: "MM/DD" 형식 (오늘 날짜 기준)
+- **회사 소개 (shape[3],[4])**: 수정하지 않음 (원본 유지)
+- **섹션(Section)**: 산출물 구조에 맞게 재구성 (표지/목차/본문/끝맺음)
+
 ## Icons (40 Total)
 
 ```

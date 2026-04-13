@@ -1,13 +1,6 @@
 {
-  "files.associations": {
-    "*.schema.json": "json"
-  },
-  "files.exclude": {
-    ".pipeline": true,
-    "**/.DS_Store": true
-  },
-  "search.exclude": {
-    ".pipeline/**": true,
-    "node_modules/**": true
-  }
+  "github.copilot.chat.codeGeneration.instructions": [
+    { "file": "AGENTS.md" }
+  ],
+  "github.copilot.chat.codeGeneration.useInstructionFiles": true
 }

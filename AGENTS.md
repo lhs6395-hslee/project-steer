@@ -70,13 +70,15 @@ bash scripts/agents/sync_pipeline.sh --from claude_code --to all
 ## Cross-Platform
 
 Configuration flow is one-way: Claude Code → Kiro/Antigravity (never reverse).
+Sync는 코드 동기화가 아니라 **파이프라인 동작 방식의 동기화**이다.
+각 IDE에서 Planner→Executor→Reviewer 역할 분리가 동일하게 동작해야 한다.
 
-| Platform | Config Files | Pipeline Entry |
-|----------|-------------|----------------|
-| Claude Code (Primary) | `CLAUDE.md`, `.mcp.json`, `.claude/settings.json` | `bash scripts/orchestrate.sh` |
-| Kiro (Sync) | `.kiro/steering/`, `.kiro/hooks/`, `.kiro/settings/mcp.json` | `invokeSubAgent` + Hook |
-| Antigravity (Sync) | `.gemini/GEMINI.md`, `.agent/rules/`, `.agent/workflows/` | Workflow: `/run-pipeline` |
-| VS Code (Sync) | `.vscode/tasks.json`, `.vscode/settings.json`, `.mcp.json` | Task: "Harness: Run Pipeline" |
+| Platform | Config Files | Pipeline Entry | 역할 분리 방법 |
+|----------|-------------|----------------|--------------|
+| Claude Code (Primary) | `CLAUDE.md`, `.mcp.json`, `.claude/settings.json` | `bash scripts/orchestrate.sh` | `claude --print` 서브프로세스 |
+| Kiro (Sync) | `.kiro/steering/`, `.kiro/hooks/`, `.kiro/settings/mcp.json` | `invokeSubAgent` + Hook | 메인=Planner+Executor, 서브=Reviewer만 분리 |
+| Antigravity (Sync) | `.gemini/GEMINI.md`, `.agent/rules/`, `.agent/workflows/` | Workflow: `/run-pipeline` | 3단계 별도 컨텍스트 (GEMINI.md Step 1/2/3) |
+| VS Code (Sync) | `.vscode/tasks.json`, `.vscode/settings.json`, `.mcp.json` | Task: "Harness: Run Pipeline" | `bash scripts/orchestrate.sh` (터미널) |
 
 Sync: `bash scripts/agents/sync_pipeline.sh --from claude_code --to all`
 

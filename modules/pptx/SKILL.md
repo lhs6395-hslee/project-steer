@@ -7,7 +7,7 @@ description: >
   "프레젠테이션 생성", "슬라이드 수정", or "발표자료".
 metadata:
   author: harness-team
-  version: 1.1.0
+  version: 1.3.0
   module: pptx
   category: document-creation
   mcp-server: pptx
@@ -17,6 +17,9 @@ metadata:
     - content_accuracy
     - visual_consistency
     - template_compliance
+    - text_overflow
+    - format_preservation
+    - design_quality
 ---
 
 # PPTX Module
@@ -33,9 +36,15 @@ metadata:
 
 ### 생성 방식
 
-PPTX는 MCP 도구(mcp_pptx_*)로 JSON 데이터를 직접 전달하여 생성한다.
-Python 스크립트를 작성하여 생성하지 않는다.
-템플릿(`templates/pptx_template.pptx`)에서 시작하여 슬라이드를 추가/수정한다.
+PPTX 생성은 두 가지 방식을 조합한다:
+- **MCP 도구(mcp_pptx_*)**: 새 슬라이드 추가, 새 shape/table/chart 추가, 프레젠테이션 정보 조회, 저장
+- **python-pptx 유틸리티**: 기존 shape 텍스트 교체 (MCP manage_text에 replace 미지원), 템플릿 슬라이드 삭제/이동
+
+규칙:
+- 새 콘텐츠 추가 → MCP 도구 사용
+- 기존 shape 텍스트 교체 (표지/목차/끝맺음) → python-pptx 유틸리티 허용
+- 유틸리티 스크립트는 `scripts/utils/`에 배치
+- 템플릿(`templates/pptx_template.pptx`)에서 시작하여 슬라이드를 추가/수정한다.
 
 ### 참조 파일
 
@@ -45,8 +54,30 @@ Python 스크립트를 작성하여 생성하지 않는다.
 
 ### 필수 규칙
 
-- MCP 도구로 JSON 데이터를 직접 전달하여 생성한다 (Python 스크립트 작성 금지)
+- 새 콘텐츠 추가: MCP 도구(mcp_pptx_*)로 수행
+- 기존 shape 텍스트 교체: python-pptx 유틸리티 허용 (표지/목차/끝맺음 등 템플릿 shape 수정)
+- 유틸리티 스크립트는 `scripts/utils/`에 배치
 - 타이틀 잘림 검증: 타이틀 영역 4.5인치/28pt 기준 ~340pt 초과 시 자연스러운 단어 경계에서 \n 삽입 (단어 중간 금지, 생성 후 검증)
+
+### 표지 규칙
+
+- **서식 보존**: 표지 shape 텍스트 교체 시 `tf.clear()` 금지. 기존 run XML을 복제하여 텍스트만 교체 (`replace_text_preserve_format` / `replace_multiline_preserve_format` 사용). scheme color(흰색)가 보존되어야 함.
+- **제목 텍스트박스**: 좌우 중앙 배치 (left=1.67", width=10.0"), 높이 2.8" (50pt 3줄 수용), 수직 중앙 (top=1.63")
+- **부제 텍스트박스**: 제목과 동일 좌우 배치, top = 제목 bottom + 0.15" 간격
+- **날짜 형식**: "MM/DD" (오늘 날짜 기준, 템플릿 원본 "00/00" 패턴)
+- **회사 소개 shape[3],[4]**: 수정하지 않음 (원본 유지)
+
+### 섹션(Section) 관리
+
+- 템플릿의 기존 8개 섹션(표지/대목차/중목차/가이드라인/본문/차트/이미지영상강조/아이콘)은 산출물 구조에 맞게 재구성
+- 산출물 섹션: 표지 / 목차 / 본문 / 끝맺음 (슬라이드 ID 기반 매핑)
+- 빌드 스크립트에서 sectionLst XML을 직접 조작하여 교체
+
+### 끝맺음 규칙
+
+- **템플릿 그대로 사용**: 끝맺음 슬라이드(index 40)는 수정하지 않음. "Thank You" + 원본 태그라인 유지.
+- 태그라인을 변경해야 하는 특수한 경우에만 `replace_text_preserve_format` 사용 (서식 보존 필수)
+- 끝맺음은 항상 산출물의 마지막 슬라이드에 위치
 
 ### Workflow 1: 주간 계획/완료 프레젠테이션
 

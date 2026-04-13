@@ -1,0 +1,334 @@
+{
+  "task": "전문가 대상 AWS MSK 소개 프레젠테이션 (본문 3장, 표지/목차/끝맺음 포함)",
+  "module": "pptx",
+  "method": "mcp_pptx_tools",
+  "template": "templates/pptx_template.pptx",
+  "output": "results/pptx/AWS_MSK_Expert_Intro.pptx",
+  "template_info": {
+    "slide_size_emu": [12192000, 6858000],
+    "slide_size_inches": [13.333, 7.5],
+    "total_template_slides": 41,
+    "layouts": {
+      "0_표지": "Cover slide — title, subtitle, year, date",
+      "1_본문": "Body slide — header(title+desc) + free content area",
+      "4_목차": "TOC slide — CONTENTS + numbered sections",
+      "7_끝맺음": "Thank You ending slide (index 40)"
+    }
+  },
+  "style_consistency": {
+    "title_format": "N-N. 제목 (예: 1-1. MSK 아키텍처 개요)",
+    "font_head_title": "프리젠테이션 7 Bold, 28pt",
+    "font_head_desc": "프리젠테이션 5 Medium, 12pt",
+    "font_body": "Freesentation",
+    "color_primary": [0, 67, 218],
+    "color_black": [0, 0, 0],
+    "color_dark_gray": [33, 33, 33],
+    "color_gray": [80, 80, 80],
+    "color_bg_box": [248, 249, 250],
+    "color_border": [220, 220, 220],
+    "margin_x": 0.5,
+    "body_start_y": 2.0,
+    "body_limit_y": 7.2
+  },
+  "slide_plan": [
+    {
+      "index": 0,
+      "type": "cover",
+      "layout": "표지 (layout_index: 0)",
+      "title": "Amazon Managed Streaming\nfor Apache Kafka (MSK)",
+      "subtitle": "Expert Introduction — 아키텍처 · 핵심 기능 · 운영 전략",
+      "year": "2026",
+      "date": "2026년 7월",
+      "shapes_to_modify": {
+        "shape[2]": "제목 → 'Amazon Managed Streaming\\nfor Apache Kafka (MSK)'",
+        "shape[5]": "부제 → 'Expert Introduction — 아키텍처 · 핵심 기능 · 운영 전략'",
+        "shape[7]": "연도 → '2026'",
+        "shape[8]": "날짜 → '2026년 7월'"
+      },
+      "method": "open_presentation → get_slide_info(0) → manage_text(operation='replace')로 shape[2], shape[5], shape[7], shape[8] 텍스트 교체"
+    },
+    {
+      "index": 1,
+      "type": "toc",
+      "layout": "목차 (layout_index: 4)",
+      "title": "CONTENTS",
+      "sections": [
+        "1. MSK 아키텍처 및 핵심 개념",
+        "2. MSK 클러스터 구성과 핵심 기능",
+        "3. MSK 운영 전략 및 Best Practices"
+      ],
+      "shapes_to_modify": {
+        "shape[1]": "번호 열 → '1\\n2\\n3'",
+        "shape[2]": "섹션명 열 → 'MSK 아키텍처 및 핵심 개념\\nMSK 클러스터 구성과 핵심 기능\\nMSK 운영 전략 및 Best Practices'"
+      },
+      "method": "get_slide_info(1) → manage_text(operation='replace')로 shape[1](번호), shape[2](섹션명) 텍스트 교체"
+    },
+    {
+      "index": 2,
+      "type": "body",
+      "layout": "본문 (layout_index: 1)",
+      "section": "1. MSK 아키텍처 및 핵심 개념",
+      "title": "1-1. MSK 아키텍처 개요",
+      "description": "Apache Kafka 완전관리형 서비스의 구성 요소와 데이터 흐름",
+      "content_structure": {
+        "type": "architecture_wide",
+        "elements": [
+          "상단 아키텍처: Producer → MSK Cluster (Multi-AZ Brokers) → Consumer 3단 흐름",
+          "MSK Cluster 내부: Broker 노드 3개 (AZ-a, AZ-b, AZ-c) + ZooKeeper/KRaft",
+          "하단 3열 설명:",
+          "  열1: 핵심 구성요소 — Broker, Topic, Partition, Replication Factor",
+          "  열2: 네트워크 구성 — VPC, Subnet, Security Group, ENI, Private Link",
+          "  열3: 스토리지 — EBS Provisioned, Tiered Storage, 자동 확장"
+        ]
+      },
+      "method": "add_slide(layout_index=1) → manage_text(제목: left=0.39\", top=0.61\", 28pt / 설명: left=4.12\", top=0.61\", 12pt) → add_shape(3개 박스: Producer/MSK Cluster/Consumer + 화살표 2개) → add_shape(하단 3열 박스) → manage_text(각 박스 내 텍스트)"
+    },
+    {
+      "index": 3,
+      "type": "body",
+      "layout": "본문 (layout_index: 1)",
+      "section": "2. MSK 클러스터 구성과 핵심 기능",
+      "title": "2-1. 클러스터 구성과 핵심 기능",
+      "description": "Provisioned vs Serverless, 보안, 모니터링, Connect 통합",
+      "content_structure": {
+        "type": "grid_2x2",
+        "items": [
+          {
+            "title": "클러스터 유형",
+            "body": "• Provisioned: 브로커 수/인스턴스 타입 직접 지정\n• Serverless: 자동 스케일링, 용량 관리 불필요\n• Express: 고성능 + 간소화된 운영"
+          },
+          {
+            "title": "보안 체계",
+            "body": "• 인증: IAM / SASL-SCRAM / mTLS\n• 암호화: TLS in-transit, KMS at-rest\n• 네트워크: VPC 내 배치, Private Link"
+          },
+          {
+            "title": "모니터링",
+            "body": "• CloudWatch 메트릭 (Basic/Enhanced/Topic-level)\n• Open Monitoring (Prometheus)\n• Broker 로그 → CloudWatch/S3/Firehose"
+          },
+          {
+            "title": "MSK Connect",
+            "body": "• Kafka Connect 완전관리형\n• Source/Sink Connector 플러그인\n• Auto Scaling, 커스텀 플러그인 지원"
+          }
+        ]
+      },
+      "method": "add_slide(layout_index=1) → manage_text(제목/설명) → add_shape(4개 카드 박스 2×2 배치, BG_BOX 배경) → manage_text(각 카드 제목: PRIMARY 색상 Bold + 본문 텍스트)"
+    },
+    {
+      "index": 4,
+      "type": "body",
+      "layout": "본문 (layout_index: 1)",
+      "section": "3. MSK 운영 전략 및 Best Practices",
+      "title": "3-1. 운영 전략 및 Best Practices",
+      "description": "클러스터 사이징, 파티션 설계, 장애 대응, 비용 최적화",
+      "content_structure": {
+        "type": "numbered_list_with_details",
+        "items": [
+          {
+            "number": "01",
+            "title": "클러스터 사이징",
+            "body": "브로커 수 = (피크 처리량 ÷ 브로커당 처리량) × RF, kafka.m5.large 이상 권장, EBS gp3 기본"
+          },
+          {
+            "number": "02",
+            "title": "파티션 설계",
+            "body": "파티션 수 = max(Producer 처리량 ÷ 파티션당 쓰기, Consumer 처리량 ÷ 파티션당 읽기), 브로커당 4,000개 이하"
+          },
+          {
+            "number": "03",
+            "title": "장애 대응",
+            "body": "Multi-AZ 배포 필수, min.insync.replicas=2, unclean.leader.election=false, 브로커 장애 시 자동 복구"
+          },
+          {
+            "number": "04",
+            "title": "비용 최적화",
+            "body": "Tiered Storage로 장기 보관 비용 절감, Serverless로 변동 워크로드 대응, 불필요 토픽/파티션 정리"
+          }
+        ]
+      },
+      "method": "add_slide(layout_index=1) → manage_text(제목/설명) → add_shape(4개 번호 배지: PRIMARY 원형 + 흰색 텍스트) → add_shape(4개 콘텐츠 박스: BG_BOX 배경) → manage_text(각 항목 제목 Bold + 본문)"
+    },
+    {
+      "index": 5,
+      "type": "ending",
+      "layout": "끝맺음 (layout_index: 7)",
+      "title": "Thank You",
+      "tagline": "Amazon MSK — Fully Managed Apache Kafka",
+      "source_slide": "템플릿 index 40 (41페이지)",
+      "shapes_to_verify": {
+        "shape[0]": "'Thank You' 텍스트 확인 (전체폭 중앙)",
+        "shape[2]": "태그라인 → 'Amazon MSK — Fully Managed Apache Kafka'"
+      },
+      "method": "get_slide_info(40) → shape[0] 'Thank You' 확인 → manage_text(operation='replace')로 shape[2] 태그라인 업데이트"
+    }
+  ],
+  "steps": [
+    {
+      "id": 1,
+      "action": "템플릿에서 프레젠테이션 열기",
+      "details": "mcp_pptx_open_presentation(file_path='templates/pptx_template.pptx')로 템플릿 로드. 41장 슬라이드 구조 확인.",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "프레젠테이션이 성공적으로 로드됨",
+        "슬라이드 수가 41장",
+        "슬라이드 크기가 13.333\"×7.500\""
+      ],
+      "estimated_complexity": "low"
+    },
+    {
+      "id": 2,
+      "action": "표지 슬라이드 수정 (슬라이드 0)",
+      "details": "get_slide_info(0)으로 shape 구조 확인 후, manage_text(operation='replace')로 shape[2](제목), shape[5](부제), shape[7](연도), shape[8](날짜) 텍스트 교체. 제목은 2줄('Amazon Managed Streaming\\nfor Apache Kafka (MSK)').",
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "shape[2] 제목이 'Amazon Managed Streaming\\nfor Apache Kafka (MSK)'로 표시",
+        "shape[5] 부제가 'Expert Introduction — 아키텍처 · 핵심 기능 · 운영 전략'으로 표시",
+        "shape[7] 연도가 '2026'으로 표시",
+        "shape[8] 날짜가 '2026년 7월'로 표시",
+        "기존 배경 이미지/로고/구분선 shape(0,1,3,4,6)은 변경하지 않음"
+      ],
+      "estimated_complexity": "low"
+    },
+    {
+      "id": 3,
+      "action": "목차 슬라이드 수정 (슬라이드 1)",
+      "details": "get_slide_info(1)으로 shape 구조 확인 후, manage_text(operation='replace')로 shape[1](번호 열: '1\\n2\\n3'), shape[2](섹션명 열: 3개 섹션명 \\n 구분) 텍스트 교체. shape[0](CONTENTS 헤더), shape[3](장식), shape[4](상단바)는 유지.",
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "shape[1] 번호가 '1\\n2\\n3'으로 표시",
+        "shape[2] 섹션명이 3개 섹션 제목으로 표시",
+        "CONTENTS 헤더(shape[0])가 유지됨",
+        "장식 그룹(shape[3])이 유지됨"
+      ],
+      "estimated_complexity": "low"
+    },
+    {
+      "id": 4,
+      "action": "본문 슬라이드 1 생성 — MSK 아키텍처 개요 (최종 index 2)",
+      "details": "add_slide(layout_index=1)로 빈 본문 슬라이드 추가. manage_text로 제목('1-1. MSK 아키텍처 개요', left=0.39\", top=0.61\", 28pt, PRIMARY 색상)과 설명('Apache Kafka 완전관리형 서비스의 구성 요소와 데이터 흐름', left=4.12\", top=0.61\", 12pt, GRAY 색상) 배치. 본문 영역(top 2.0\"~7.2\")에 아키텍처 다이어그램 구성: 상단에 Producer→MSK Cluster→Consumer 3박스+화살표, 하단에 3열 설명 박스(핵심 구성요소/네트워크 구성/스토리지).",
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "슬라이드가 layout_index=1(본문)로 추가됨",
+        "제목이 '1-1. MSK 아키텍처 개요' 형식으로 좌측 헤더에 표시",
+        "설명이 우측 헤더에 표시",
+        "아키텍처 다이어그램이 Producer/MSK Cluster/Consumer 3단 구조",
+        "하단 3열에 핵심 구성요소/네트워크/스토리지 설명 포함",
+        "모든 콘텐츠가 body_start_y(2.0\")~body_limit_y(7.2\") 범위 내",
+        "PRIMARY 색상(0,67,218) 사용"
+      ],
+      "estimated_complexity": "high"
+    },
+    {
+      "id": 5,
+      "action": "본문 슬라이드 2 생성 — 클러스터 구성과 핵심 기능 (최종 index 3)",
+      "details": "add_slide(layout_index=1)로 빈 본문 슬라이드 추가. manage_text로 제목/설명 배치. 본문 영역에 2×2 그리드 카드 4개(클러스터 유형/보안 체계/모니터링/MSK Connect) 배치. 각 카드: BG_BOX(248,249,250) 배경 둥근 사각형 + 제목(PRIMARY Bold) + 본문(BLACK).",
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "슬라이드가 layout_index=1(본문)로 추가됨",
+        "제목이 '2-1. 클러스터 구성과 핵심 기능' 형식",
+        "4개 카드가 2×2 균등 배치",
+        "각 카드에 제목(PRIMARY Bold) + 본문 텍스트 포함",
+        "카드 배경이 BG_BOX(248,249,250)",
+        "Provisioned/Serverless/Express 클러스터 유형 설명 포함"
+      ],
+      "estimated_complexity": "medium"
+    },
+    {
+      "id": 6,
+      "action": "본문 슬라이드 3 생성 — 운영 전략 및 Best Practices (최종 index 4)",
+      "details": "add_slide(layout_index=1)로 빈 본문 슬라이드 추가. manage_text로 제목/설명 배치. 본문 영역에 4개 번호형 항목(01~04) 세로 배치: 각 항목은 좌측 PRIMARY 원형 배지(번호) + 우측 콘텐츠 박스(제목 Bold + 본문). 항목: 클러스터 사이징/파티션 설계/장애 대응/비용 최적화.",
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "슬라이드가 layout_index=1(본문)로 추가됨",
+        "제목이 '3-1. 운영 전략 및 Best Practices' 형식",
+        "4개 항목이 번호 배지(01~04)와 함께 세로 배치",
+        "각 항목에 구체적 수치/공식 포함 (브로커 수 공식, 파티션 수 공식 등)",
+        "번호 배지가 PRIMARY 색상 원형",
+        "모든 콘텐츠가 body 영역(2.0\"~7.2\") 내"
+      ],
+      "estimated_complexity": "medium"
+    },
+    {
+      "id": 7,
+      "action": "끝맺음 슬라이드 확인 및 수정 (템플릿 index 40)",
+      "details": "get_slide_info(40)으로 끝맺음 슬라이드 shape 구조 확인. shape[0]이 'Thank You' 텍스트인지 확인. shape[2] 태그라인을 'Amazon MSK — Fully Managed Apache Kafka'로 업데이트. 이 슬라이드는 삭제하지 않고 보존.",
+      "dependencies": [1],
+      "acceptance_criteria": [
+        "shape[0]에 'Thank You' 텍스트 확인",
+        "shape[2] 태그라인이 'Amazon MSK — Fully Managed Apache Kafka'로 업데이트",
+        "로고(shape[1])가 유지됨"
+      ],
+      "estimated_complexity": "low"
+    },
+    {
+      "id": 8,
+      "action": "불필요한 템플릿 슬라이드 삭제 (index 2~39, 역순)",
+      "details": "본문 3장 추가 후 총 슬라이드: 41(템플릿) + 3(추가) = 44장. 보존 대상: index 0(표지), 1(목차), 41(본문1), 42(본문2), 43(본문3), 40(끝맺음→삭제 후 재배치). 삭제 대상: 템플릿 원본 index 2~39 (38장). 반드시 역순(index 39→38→...→2)으로 삭제하여 인덱스 변동 방지. 삭제 후 최종 슬라이드 순서: 표지(0)→목차(1)→본문1(2)→본문2(3)→본문3(4)→끝맺음(5). 총 6장.",
+      "dependencies": [2, 3, 4, 5, 6, 7],
+      "acceptance_criteria": [
+        "템플릿 슬라이드 index 2~39 (38장)이 모두 삭제됨",
+        "최종 슬라이드 수가 6장",
+        "슬라이드 순서: 표지→목차→본문1→본문2→본문3→끝맺음",
+        "끝맺음이 마지막 슬라이드(index 5)에 위치",
+        "삭제가 역순(높은 인덱스부터)으로 수행됨"
+      ],
+      "estimated_complexity": "high"
+    },
+    {
+      "id": 9,
+      "action": "최종 검증 및 저장",
+      "details": "get_presentation_info로 슬라이드 수(6장) 확인. 각 슬라이드 extract_slide_text로 텍스트 검증: 표지 제목/부제, 목차 3개 섹션, 본문 3장 제목(N-N. 형식), 끝맺음 Thank You. 타이틀 잘림 검증(340pt 기준). save_presentation(file_path='results/pptx/AWS_MSK_Expert_Intro.pptx')으로 저장.",
+      "dependencies": [8],
+      "acceptance_criteria": [
+        "총 슬라이드 수가 6장",
+        "모든 본문 슬라이드 제목이 'N-N. 제목' 형식",
+        "타이틀 폭이 340pt 이하 (잘림 없음)",
+        "표지/목차/본문/끝맺음 텍스트가 정확히 배치됨",
+        "파일이 results/pptx/AWS_MSK_Expert_Intro.pptx로 저장됨"
+      ],
+      "estimated_complexity": "low"
+    }
+  ],
+  "acceptance_criteria": [
+    "총 6장 슬라이드: 표지(1) + 목차(1) + 본문(3) + 끝맺음(1)",
+    "표지에 'Amazon Managed Streaming for Apache Kafka (MSK)' 제목 표시",
+    "목차에 3개 섹션이 번호와 함께 나열",
+    "본문 3장이 각각 아키텍처/핵심기능/운영전략 주제를 다룸",
+    "끝맺음에 'Thank You' 텍스트 표시",
+    "모든 본문 제목이 'N-N. 제목' 형식 준수",
+    "PRIMARY 색상(0,67,218)이 일관되게 사용됨",
+    "불필요한 템플릿 슬라이드(38장)가 모두 제거됨",
+    "파일이 results/pptx/AWS_MSK_Expert_Intro.pptx로 저장됨"
+  ],
+  "constraints": [
+    "MCP 도구(mcp_pptx_*)만 사용하여 프레젠테이션 생성 (Python 스크립트 작성 금지)",
+    "템플릿 templates/pptx_template.pptx에서 시작 (슬라이드 크기 12192000×6858000 EMU 유지)",
+    "표지→목차→본문(N-N. 제목)→끝맺음 구조 준수",
+    "본문 영역: body_start_y=2.0\", body_limit_y=7.2\" 범위 내 콘텐츠 배치",
+    "색상 체계: PRIMARY(0,67,218), BLACK(0,0,0), BG_BOX(248,249,250) 일관 사용",
+    "폰트: 제목=프리젠테이션 7 Bold 28pt, 설명=프리젠테이션 5 Medium 12pt, 본문=Freesentation",
+    "끝맺음은 반드시 템플릿 index 40(41페이지) 슬라이드 사용",
+    "불필요 슬라이드 삭제 시 반드시 역순(높은 인덱스부터) 수행",
+    "최종 파일: results/pptx/AWS_MSK_Expert_Intro.pptx로 저장"
+  ],
+  "risks": [
+    "R1(high): 템플릿 슬라이드 삭제 시 인덱스 변동으로 잘못된 슬라이드 삭제 가능 → 반드시 역순(39→38→...→2) 삭제, 삭제 전 get_slide_info로 내용 확인",
+    "R2(high): 본문 슬라이드 추가 위치가 끝맺음(index 40) 뒤에 붙어 순서 꼬임 → add_slide 후 실제 삽입 위치 확인, 필요 시 슬라이드 이동",
+    "R3(medium): manage_text operation='replace'가 기존 shape의 서식(폰트/크기/색상)을 초기화할 수 있음 → replace 후 font_name, font_size, color, bold 파라미터를 명시적으로 재지정",
+    "R4(medium): 아키텍처 다이어그램 add_shape 좌표 계산 오류로 요소 겹침/잘림 → 슬라이드 크기(13.333\"×7.500\") 기준 사전 계산, 요소 간 최소 0.2\" 간격",
+    "R5(low): 한글 폰트(프리젠테이션/Freesentation) 미설치 시 대체 폰트 렌더링 → font_name 명시적 지정, 폴백 시 Malgun Gothic 사용"
+  ],
+  "assumptions": [
+    "템플릿 파일 templates/pptx_template.pptx가 정상 접근 가능",
+    "MCP pptx 서버가 활성화되어 있고 모든 도구 사용 가능",
+    "전문가 대상이므로 기술 용어 그대로 사용 (MSK, Kafka, Broker, Partition, CDC 등 약어 설명 불필요)",
+    "아키텍처 다이어그램은 이미지 파일 없이 add_shape로 도형 기반 구성",
+    "총 6장 슬라이드 (표지 1 + 목차 1 + 본문 3 + 끝맺음 1)"
+  ],
+  "review_checklist": {
+    "completeness": "3개 섹션 주제(아키텍처/핵심기능/운영전략)가 모두 슬라이드에 반영되었는가",
+    "slide_structure": "표지→목차→본문3장→끝맺음 순서가 올바른가, 총 6장인가",
+    "content_accuracy": "MSK 기술 내용이 정확한가 (클러스터 유형, 보안, 모니터링, 사이징 공식 등)",
+    "visual_consistency": "폰트/색상/여백이 스타일 가이드와 일치하는가",
+    "template_compliance": "템플릿 레이아웃(표지/목차/본문/끝맺음)을 올바르게 활용했는가, 불필요 슬라이드가 모두 제거되었는가"
+  }
+}

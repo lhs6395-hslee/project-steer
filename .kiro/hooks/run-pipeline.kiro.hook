@@ -1,13 +1,13 @@
 {
   "enabled": true,
   "name": "Run Multi-Agent Pipeline",
-  "description": "멀티 에이전트 파이프라인을 수동으로 트리거합니다. Planner → Executor → Reviewer 순서로 별도 프로세스 호출.",
-  "version": "1",
+  "description": "하네스 파이프라인 실행. 메인이 Planner+Executor 직접 수행, Reviewer만 invokeSubAgent로 분리.",
+  "version": "3",
   "when": {
     "type": "userTriggered"
   },
   "then": {
     "type": "askAgent",
-    "prompt": "사용자가 멀티 에이전트 파이프라인 실행을 요청했습니다. 사용자에게 작업 내용과 대상 모듈(pptx, docx, wbs, trello, dooray, datadog, gdrive)을 확인한 후, `bash scripts/orchestrate.sh \"<task>\" <module>` 명령을 실행하세요."
+    "prompt": "사용자가 멀티 에이전트 파이프라인 실행을 요청했습니다. .kiro/steering/multi-agent-pipeline.md의 Kiro 실행 모델에 따라 진행하세요: (1) 메인이 직접 Planner 역할 수행 → 계획 JSON 생성, (2) 메인이 직접 Executor 역할 수행 → MCP로 산출물 생성, (3) invokeSubAgent로 Reviewer만 분리 호출 → 적대적 검증. 사용자에게 작업 내용과 대상 모듈을 확인한 후 진행하세요."
   }
 }

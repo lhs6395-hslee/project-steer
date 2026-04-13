@@ -25,7 +25,7 @@
 
 ### M1: PPTX (프레젠테이션)
 
-- MCP 도구로 JSON 데이터를 직접 전달하여 생성 (Python 스크립트 작성 금지)
+- MCP 도구로 새 콘텐츠 추가, python-pptx 유틸리티로 기존 shape 텍스트 교체
 - 템플릿 기반: `templates/pptx_template.pptx` (8개 레이아웃)
 - 레이아웃 스펙: `modules/pptx/references/layout-spec.md`
 - 스타일 가이드: `templates/pptx_style_guide.md`
@@ -86,9 +86,12 @@
 
 ## 크로스 플랫폼 요구사항
 
+- Sync는 코드 동기화가 아니라 **파이프라인 동작 방식의 동기화**
+- 각 IDE에서 Planner→Executor→Reviewer 역할 분리가 동일하게 동작해야 함
 - Claude Code에서 설정 변경 시 Hook(`sync-to-platforms.sh`)이 Kiro/Antigravity에 자동 동기화
-- Kiro에서는 `invokeSubAgent`로 Planner/Executor/Reviewer 분리 실행
-- Antigravity에서는 `AGENTS.md` + `.agent/workflows/` 활용
+- Kiro에서는 메인이 Planner+Executor 직접 수행, `invokeSubAgent`로 Reviewer만 분리 (속도 최적화 + 확증편향 방지)
+- Antigravity에서는 `.gemini/GEMINI.md` Step 1/2/3 + `.agent/workflows/run-pipeline.md`로 3단계 별도 컨텍스트 실행
+- VS Code에서는 `bash scripts/orchestrate.sh` Task로 터미널 실행
 - 역방향 동기화 금지 (Kiro/Antigravity → Claude Code)
 
 ## 하네스 파이프라인 요구사항

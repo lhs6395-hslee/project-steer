@@ -100,3 +100,69 @@ Score from 0.0 to 1.0:
 2. Vague feedback: "Needs improvement" without specifics
 3. Scope creep: Reviewing things not in the original plan
 4. Ignoring deviations: Accepting unexplained plan changes
+
+### PPTX Module: Text Overflow Validation
+
+PPTX 산출물 리뷰 시 반드시 텍스트 오버플로를 검증한다:
+
+```
+추정 폭(pt) = Σ char_width
+  한글/CJK: font_size_pt
+  영문/숫자: font_size_pt × 0.55
+  공백: font_size_pt × 0.3
+  구두점: font_size_pt × 0.4
+
+텍스트박스 폭(pt) = shape.width / 12700
+텍스트박스 높이(pt) = shape.height / 12700
+줄 수 = ceil(추정 폭 / 텍스트박스 폭)
+필요 높이(pt) = 줄 수 × font_size_pt × 1.2 (line spacing)
+```
+
+검증 대상 및 규칙:
+- **표지 제목 (50pt)**: 멀티라인 허용 (최대 3줄). 줄 수 ≤ 3이면 PASS. 필요 높이 ≤ 텍스트박스 높이이면 PASS.
+- **본문 제목 (28pt)**: 멀티라인 허용 (최대 3줄). 줄 수 ≤ 3이면 PASS. 필요 높이 ≤ 텍스트박스 높이이면 PASS. 단일 행 초과는 FAIL이 아님.
+- **목차 섹션명 (24pt)**: 각 줄이 텍스트박스 너비 이내, 1줄. auto_fit_textbox_width 적용.
+- **본문 콘텐츠**: 각 텍스트박스 내 텍스트가 박스 영역 내 수용.
+
+FAIL 조건:
+- 줄 수 > 3 (제목 계열) → 최대 3줄로 제목을 요약하여 변경
+- 필요 높이 > 텍스트박스 높이 (텍스트 잘림) → 텍스트박스 높이 확장
+- 목차 섹션명이 1줄을 초과 → auto_fit_textbox_width 적용
+
+### PPTX Module: Format Preservation Validation
+
+표지/목차/끝맺음 shape 텍스트 교체 후 서식 보존 검증:
+- scheme color (BACKGROUND_1, TEXT_1 등)가 유지되는지
+- 폰트명이 템플릿 원본과 동일한지
+- 폰트 크기가 템플릿 원본과 동일한지 (의도적 변경 제외)
+- `tf.clear()` 사용 흔적이 없는지 (color.rgb가 직접 지정되어 있으면 의심)
+
+### PPTX Module: Design Quality Validation
+
+프레젠테이션의 디자인 품질을 전문가 관점에서 평가한다.
+기술적 정합성(좌표, 오버플로)과 별개로, "이 슬라이드를 실제 발표에 쓸 수 있는가"를 판단한다.
+
+평가 항목 (각 0.0~1.0):
+
+1. **가시성 (Readability)**
+   - 텍스트 크기가 뒷자리에서도 읽히는가 (본문 최소 10pt, 제목 최소 20pt)
+   - 텍스트-배경 대비가 충분한가 (밝은 배경→어두운 텍스트, 어두운 배경→밝은 텍스트)
+   - 여백이 충분한가 (텍스트가 shape 경계에 붙어있지 않은가)
+   - 줄 간격이 적절한가 (너무 빽빽하거나 너무 넓지 않은가)
+
+2. **심미성 (Aesthetics)**
+   - 레이아웃 균형 — 콘텐츠가 슬라이드 중앙에 균등 배치되는가
+   - 요소 정렬 — 같은 역할의 shape들이 수평/수직으로 정렬되는가
+   - 색상 조화 — PRIMARY + 1~2개 보조색만 사용, 무지개 금지
+   - 여백 일관성 — 슬라이드 간 동일한 여백 패턴
+
+3. **전문성 (Professionalism)**
+   - 정보 밀도 — 슬라이드당 핵심 메시지 1~2개, 텍스트 과밀 금지
+   - 시각적 계층 — 제목>부제>본문 크기/굵기 차이로 정보 우선순위 명확
+   - 일관된 스타일 — 모든 슬라이드에서 동일한 폰트/색상/레이아웃 패턴
+   - 불필요한 장식 없음 — 의미 없는 도형/그라데이션/애니메이션 금지
+
+FAIL 조건:
+- 가시성 < 0.5: 텍스트가 읽히지 않는 수준
+- 심미성 < 0.5: 레이아웃이 깨져 보이는 수준
+- 전문성 < 0.5: 발표에 사용할 수 없는 수준
