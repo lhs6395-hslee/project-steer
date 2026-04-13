@@ -42,7 +42,7 @@ for para in s8.text_frame.paragraphs:
 
 print("✅ 표지 수정 완료")
 
-# ── 슬라이드 1: 목차 (대목차) ──
+# ── 슬라이드 1: 목차 ──
 slide1 = prs.slides[1]
 
 # shape[1]: 번호 열 — "1\n2\n3\n4\n5" 유지 (5개 섹션 그룹)
@@ -68,11 +68,12 @@ for pi, para in enumerate(s_names.text_frame.paragraphs):
 print("✅ 목차 수정 완료")
 
 # ── 마지막 슬라이드: 끝맺음 ──
-# 템플릿에서 끝맺음 레이아웃 슬라이드 찾기 (템플릿 내부 이름: "감사합니다")
+# 템플릿에서 끝맺음 레이아웃 슬라이드 찾기 (python-pptx 내부 이름: "감사합니다")
+# 주의: slide.slide_layout.name은 .pptx 파일 내부의 실제 레이아웃 이름이므로 변경 불가
 thank_idx = None
 for i, slide in enumerate(prs.slides):
     if slide.slide_layout.name == "감사합니다":
-        thank_idx = i  # 마지막 감사합니다 슬라이드
+        thank_idx = i  # 마지막 끝맺음 슬라이드
 
 if thank_idx is not None:
     slide_ty = prs.slides[thank_idx]

@@ -43,7 +43,7 @@
     "template_compliance": {
       "pass": true,
       "score": 0.95,
-      "evidence": "4개 템플릿 레이아웃 올바르게 활용: 표지(layout_index=0), 목차(layout_index=4), 본문(layout_index=1), 끝맺음(layout_index=7). 슬라이드 크기 유지. 본문 슬라이드 모두 '내지' 레이아웃 사용. 제목 형식 'N-N. 제목' 패턴 준수.",
+      "evidence": "4개 템플릿 레이아웃 올바르게 활용: 표지(layout_index=0), 목차(layout_index=4), 본문(layout_index=1), 끝맺음(layout_index=7). 슬라이드 크기 유지. 본문 슬라이드 모두 '본문' 레이아웃 사용. 제목 형식 'N-N. 제목' 패턴 준수.",
       "issues": []
     }
   },

@@ -255,7 +255,7 @@
     {
       "id": 1,
       "action": "템플릿에서 프레젠테이션 생성",
-      "details": "mcp_pptx_create_presentation_from_template(template_path='templates/pptx_template.pptx')로 시작. 템플릿의 기존 슬라이드 구조(표지, 목차, 본문, 감사합니다)를 활용.",
+      "details": "mcp_pptx_create_presentation_from_template(template_path='templates/pptx_template.pptx')로 시작. 템플릿의 기존 슬라이드 구조(표지, 목차, 본문, 끝맺음)를 활용.",
       "dependencies": [],
       "acceptance_criteria": [
         "프레젠테이션이 성공적으로 생성됨",
@@ -279,7 +279,7 @@
     {
       "id": 3,
       "action": "목차 슬라이드 구성 (슬라이드 1)",
-      "details": "대목차 레이아웃 활용. 'CONTENTS' 헤더 + 10개 섹션 번호/제목 배치. manage_text로 각 항목을 좌측 번호 + 우측 섹션명 형태로 구성.",
+      "details": "목차 레이아웃 활용. 'CONTENTS' 헤더 + 10개 섹션 번호/제목 배치. manage_text로 각 항목을 좌측 번호 + 우측 섹션명 형태로 구성.",
       "dependencies": [1],
       "acceptance_criteria": [
         "10개 섹션이 번호와 함께 나열됨",
