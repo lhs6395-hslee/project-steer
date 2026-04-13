@@ -65,6 +65,39 @@ print('Synced Claude Code → Kiro')
   exit 0
 fi
 
+# Verify command — check that Primary and Kiro disabled fields match
+if [ "$ACTION" = "verify" ]; then
+  if [ ! -f "$KIRO_MCP" ]; then
+    echo "No Kiro config to verify against"
+    exit 1
+  fi
+  python3 -c "
+import json, sys
+
+with open('$PRIMARY') as f:
+    primary = json.load(f)
+with open('$KIRO_MCP') as f:
+    kiro = json.load(f)
+
+mismatches = []
+for name, cfg in primary.get('mcpServers', {}).items():
+    if name in kiro.get('mcpServers', {}):
+        p_disabled = cfg.get('disabled', False)
+        k_disabled = kiro['mcpServers'][name].get('disabled', False)
+        if p_disabled != k_disabled:
+            mismatches.append(f'  {name}: primary={p_disabled}, kiro={k_disabled}')
+
+if mismatches:
+    print('FAIL: Disabled field mismatch between primary and Kiro:')
+    for m in mismatches:
+        print(m)
+    sys.exit(1)
+else:
+    print('PASS: All shared servers have matching disabled state')
+"
+  exit $?
+fi
+
 # Toggle command — update primary, then sync
 SERVER="$ACTION"
 STATE="${2:?Usage: mcp-toggle.sh <server> <on|off>}"

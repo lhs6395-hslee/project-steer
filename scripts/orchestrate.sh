@@ -35,6 +35,28 @@ RUN_DIR="$AGENT_DIR/${TIMESTAMP}_${MODULES//,/_}"
 
 mkdir -p "$RUN_DIR"
 
+# ── Create initial Handoff_File in requests/ ──
+# ── Pipeline lock (prevents Auto_Dream during active execution) ──
+echo "$$" > "$AGENT_DIR/running.lock"
+HANDOFF_ID=$(python3 -c "import uuid; print(str(uuid.uuid4()))")
+HANDOFF_FILE="$AGENT_DIR/requests/${TIMESTAMP}_orchestrator_request.json"
+export HANDOFF_ID TASK MODULES TIMESTAMP
+atomic_write "$HANDOFF_FILE" "$(python3 -c "
+import json, os
+print(json.dumps({
+    'id': os.environ['HANDOFF_ID'],
+    'timestamp': os.environ['TIMESTAMP'],
+    'from_agent': 'orchestrator',
+    'to_agent': 'planner',
+    'status': 'pending',
+    'iteration': 0,
+    'payload': {
+        'task': os.environ['TASK'],
+        'modules': os.environ['MODULES']
+    }
+}, ensure_ascii=False, indent=2))
+")"
+
 echo "=== Multi-Agent Harness Pipeline ==="
 echo "IDE: $IDE_NAME"
 echo "Task: $TASK"
@@ -153,6 +175,10 @@ while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ] && [ "$V
   bash scripts/agents/kairos.sh "$EXEC_OUTPUT" 2>/dev/null || true
 
   # ── Review (isolated — no executor context) ──
+  # INFORMATION BARRIER (Req 32.1, 32.2): Reviewer receives ONLY:
+  #   1. Sprint_Contract (plan)
+  #   2. Execution output (result)
+  # Explicitly excluded: Executor reasoning, self-assessment, previous review results
   REVIEW_INPUT="$RUN_DIR/review_input_${ATTEMPT}.txt"
   VERDICT_FILE="$RUN_DIR/verdict_${ATTEMPT}.json"
 
@@ -192,11 +218,25 @@ except:
 
   echo "  [Orchestrator] Verdict: $VERDICT (attempt $ATTEMPT)"
 
-  # ── Circular feedback detection ──
+  # ── Circular feedback detection (JSON structural comparison with sorted issues) ──
   if [ "$ATTEMPT" -ge 2 ]; then
-    PREV_ISSUES=$(python3 -c "import json; print(json.load(open('$RUN_DIR/verdict_$((ATTEMPT-1)).json')).get('issues',['']))" 2>/dev/null || echo "")
-    CURR_ISSUES=$(python3 -c "import json; print(json.load(open('$VERDICT_FILE')).get('issues',['']))" 2>/dev/null || echo "")
-    if [ "$PREV_ISSUES" = "$CURR_ISSUES" ] && [ -n "$PREV_ISSUES" ]; then
+    CIRCULAR=$(python3 -c "
+import json, sys
+try:
+    with open('$RUN_DIR/verdict_$((ATTEMPT-1)).json') as f:
+        prev = json.load(f)
+    with open('$VERDICT_FILE') as f:
+        curr = json.load(f)
+    prev_issues = sorted(prev.get('issues', []))
+    curr_issues = sorted(curr.get('issues', []))
+    if prev_issues == curr_issues and len(curr_issues) > 0:
+        print('yes')
+    else:
+        print('no')
+except:
+    print('no')
+" 2>/dev/null)
+    if [ "$CIRCULAR" = "yes" ]; then
       echo "  [Orchestrator] ⚠️ Circular feedback detected — same issues across attempts. Escalating."
       VERDICT="escalated"
       break
@@ -228,6 +268,9 @@ echo "Attempts: $ATTEMPT"
 echo "Run dir: $RUN_DIR"
 
 # Save summary
+# ── Remove pipeline lock ──
+rm -f "$AGENT_DIR/running.lock"
+
 export TASK MODULE MODE VERDICT ATTEMPT MAX_RETRIES ULTRAPLAN TIMESTAMP RUN_DIR
 atomic_write "$RUN_DIR/summary.json" "$(python3 -c "
 import json, os

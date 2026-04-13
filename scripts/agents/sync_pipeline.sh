@@ -8,6 +8,7 @@
 #   bash scripts/agents/sync_pipeline.sh --status
 
 set -euo pipefail
+trap 'echo "ERROR: Unhandled exception in sync_pipeline.sh (line $LINENO)" >&2; exit 2' ERR
 
 source "$(dirname "$0")/ide_adapter.sh"
 

@@ -41,4 +41,29 @@ if not (0.0 <= score <= 1.0):
     sys.exit(1)
 "
 
+# ── Business rule validation ──
+# approved → score ≥ 0.7 (Requirement 14.3)
+# needs_revision → issues array ≥ 1 item (Requirement 14.2)
+python3 -c "
+import json, sys
+
+data = json.load(open('$INPUT'))
+verdict = data['verdict']
+score = data['score']
+issues = data.get('issues', [])
+
+errors = []
+
+if verdict == 'approved' and score < 0.7:
+    errors.append(f'Business rule violation: approved verdict requires score >= 0.7, got {score}')
+
+if verdict == 'needs_revision' and len(issues) < 1:
+    errors.append('Business rule violation: needs_revision verdict requires at least 1 issue')
+
+if errors:
+    for e in errors:
+        print(f'FAIL: {e}', file=sys.stderr)
+    sys.exit(1)
+"
+
 echo "PASS: Review result is valid"

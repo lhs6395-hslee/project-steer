@@ -5,6 +5,7 @@
 # Usage: bash scripts/agents/token_tracker.sh [pipeline_run_dir]
 
 set -euo pipefail
+trap 'echo "ERROR: Unhandled exception in token_tracker.sh (line $LINENO)" >&2; exit 2' ERR
 
 source "$(dirname "$0")/ide_adapter.sh"
 
@@ -14,7 +15,7 @@ TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
 echo "=== Token Usage Report ==="
 
 python3 -c "
-import json, os, glob
+import json, os, glob, sys
 
 run_dir = '$RUN_DIR'
 total_input = 0
@@ -36,11 +37,12 @@ input_cost = total_input * 3.0 / 1_000_000   # \$3/1M input tokens
 output_cost = total_output * 15.0 / 1_000_000  # \$15/1M output tokens
 total_cost = input_cost + output_cost
 
-# 예산 확인
-budget_file = os.path.join(run_dir, 'config', 'token_budget.json')
+# 예산 확인 — config/token_budget.json 또는 run_dir 내 config/
 budget = None
-if os.path.exists(budget_file):
-    budget = json.load(open(budget_file))
+for budget_path in ['config/token_budget.json', os.path.join(run_dir, 'config', 'token_budget.json')]:
+    if os.path.exists(budget_path):
+        budget = json.load(open(budget_path))
+        break
 
 report = {
     'timestamp': '$TIMESTAMP',
@@ -54,15 +56,25 @@ report = {
     }
 }
 
+exit_code = 0
 if budget:
     max_tokens = budget.get('max_tokens', 0)
-    usage_pct = (total_input + total_output) / max_tokens * 100 if max_tokens > 0 else 0
+    total = total_input + total_output
+    usage_pct = total / max_tokens * 100 if max_tokens > 0 else 0
+    exceeded = usage_pct >= 100
+    warning = usage_pct >= 80
     report['budget'] = {
         'max_tokens': max_tokens,
         'usage_percent': round(usage_pct, 1),
-        'warning': usage_pct >= 80,
-        'exceeded': usage_pct >= 100
+        'warning': warning,
+        'exceeded': exceeded
     }
+    if exceeded:
+        print('TOKEN BUDGET EXCEEDED — pipeline should stop after current agent', file=sys.stderr)
+        exit_code = 2
+    elif warning:
+        print(f'TOKEN BUDGET WARNING — {usage_pct:.1f}% of budget used', file=sys.stderr)
 
 print(json.dumps(report, ensure_ascii=False, indent=2))
+sys.exit(exit_code)
 "

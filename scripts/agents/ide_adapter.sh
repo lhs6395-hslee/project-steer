@@ -18,6 +18,7 @@ detect_ide() {
   elif [ -n "${CLAUDE_DESKTOP:-}" ]; then
     echo "claude_desktop"
   else
+    echo "WARNING: No IDE detected — defaulting to kiro" >&2
     echo "kiro"  # 기본값
   fi
 }

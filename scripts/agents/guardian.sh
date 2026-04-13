@@ -3,15 +3,13 @@
 # Claude API 호출 없이 정규식만으로 즉각 판정 (200ms 이내)
 #
 # Exit codes:
-#   0 = 허용
-#   1 = 경고 (비차단)
+#   0 = 허용 (경고 포함 — 경고 시 stderr에 메시지 출력)
 #   2 = 차단
 #
 # Usage: echo '{"tool_input":{"command":"rm -rf /"}}' | bash scripts/agents/guardian.sh
 
 set -euo pipefail
-
-INPUT=$(cat)
+trap 'echo "ERROR: Unhandled exception in guardian.sh (line $LINENO)" >&2; exit 2' ERRINPUT=$(cat)
 CMD=$(echo "$INPUT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('tool_input',{}).get('command',''))" 2>/dev/null || echo "")
 
 if [ -z "$CMD" ]; then
@@ -45,7 +43,7 @@ for pattern in "${BLOCK_PATTERNS[@]}"; do
   fi
 done
 
-# ── 경고 (exit 1, 비차단) ──
+# ── 경고 (exit 0 + stderr 경고 메시지, 비차단) ──
 WARN_PATTERNS=(
   'DROP\s+TABLE'
   'TRUNCATE'

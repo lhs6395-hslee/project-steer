@@ -6,6 +6,7 @@
 # Usage: bash scripts/agents/auto_dream.sh
 
 set -euo pipefail
+trap 'echo "ERROR: Unhandled exception in auto_dream.sh (line $LINENO)" >&2; exit 2' ERR
 
 source "$(dirname "$0")/ide_adapter.sh"
 ensure_agent_dirs
@@ -19,6 +20,12 @@ echo "=== Auto_Dream — Memory Cleanup ==="
 echo "Timestamp: $TIMESTAMP"
 echo "Agent dir: $AGENT_DIR"
 echo "Archive threshold: ${DAYS_THRESHOLD} days"
+
+# ── 활성 파이프라인 보호: running.lock 존재 시 실행 건너뛰기 ──
+if [ -f "$AGENT_DIR/running.lock" ]; then
+  echo "Pipeline is active (running.lock exists). Skipping cleanup."
+  exit 0
+fi
 
 # ── 세션 수 확인 ──
 SESSION_COUNT=$(find "$AGENT_DIR" -name "*.json" -not -path "*/archive/*" 2>/dev/null | wc -l | tr -d ' ')

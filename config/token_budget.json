@@ -1,0 +1,7 @@
+{
+  "max_tokens": 500000,
+  "warn_threshold_percent": 80,
+  "hard_limit_percent": 100,
+  "cost_per_1m_input_usd": 3.0,
+  "cost_per_1m_output_usd": 15.0
+}

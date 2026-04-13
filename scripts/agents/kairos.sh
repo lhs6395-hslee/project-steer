@@ -7,6 +7,7 @@
 #   bash scripts/agents/kairos.sh --watch  (데몬 모드, 향후)
 
 set -euo pipefail
+trap 'echo "ERROR: Unhandled exception in kairos.sh (line $LINENO)" >&2; exit 2' ERR
 
 source "$(dirname "$0")/ide_adapter.sh"
 ensure_agent_dirs
@@ -66,8 +67,8 @@ case "$EXT" in
 esac
 
 # ── 공통 검사 ──
-# 민감 정보 패턴 검사
-if grep -qiE '(api_key|api_secret|password|token)\s*[:=]\s*["\x27][A-Za-z0-9]' "$FILE" 2>/dev/null; then
+# 민감 정보 패턴 검사 (api_key, password, token + AWS_ACCESS_KEY_ID, PRIVATE_KEY, SECRET_KEY)
+if grep -qiE '(api_key|api_secret|password|token|AWS_ACCESS_KEY_ID|PRIVATE_KEY|SECRET_KEY)\s*[:=]\s*["\x27][A-Za-z0-9]' "$FILE" 2>/dev/null; then
   ISSUES+=("Potential hardcoded credential in $FILE")
 fi
 

@@ -5,6 +5,7 @@
 # Usage: bash scripts/agents/sdd_integrator.sh <module>
 
 set -euo pipefail
+trap 'echo "ERROR: Unhandled exception in sdd_integrator.sh (line $LINENO)" >&2; exit 2' ERR
 
 source "$(dirname "$0")/ide_adapter.sh"
 ensure_agent_dirs
@@ -18,8 +19,8 @@ echo "Module: $MODULE"
 python3 -c "
 import json, re
 
-# requirements.md에서 모듈별 인수 조건 추출
-with open('requirements.md') as f:
+# PROJECT.md에서 모듈별 인수 조건 추출
+with open('PROJECT.md') as f:
     content = f.read()
 
 # 모듈 섹션 찾기
@@ -31,7 +32,7 @@ module_map = {
 
 section_header = module_map.get('$MODULE', '')
 if not section_header:
-    print(json.dumps({'error': 'Module not found in requirements.md'}))
+    print(json.dumps({'error': 'Module not found in PROJECT.md'}))
     exit(1)
 
 # 섹션 내용 추출
@@ -53,7 +54,7 @@ for i, line in enumerate(section_text.split('\n')):
             'id': f'AC-{\"$MODULE\"}-{i+1}',
             'description': line[2:],
             'verification_method': 'manual_review',
-            'source': 'requirements.md'
+            'source': 'PROJECT.md'
         })
 
 result = {

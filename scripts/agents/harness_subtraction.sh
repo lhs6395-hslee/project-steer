@@ -5,6 +5,7 @@
 # Usage: bash scripts/agents/harness_subtraction.sh
 
 set -euo pipefail
+trap 'echo "ERROR: Unhandled exception in harness_subtraction.sh (line $LINENO)" >&2; exit 2' ERR
 
 source "$(dirname "$0")/ide_adapter.sh"
 ensure_agent_dirs

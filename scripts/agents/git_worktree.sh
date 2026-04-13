@@ -9,8 +9,7 @@
 #   bash scripts/agents/git_worktree.sh cleanup
 
 set -euo pipefail
-
-WORKTREE_BASE="../project-steer-worktrees"
+trap 'echo "ERROR: Unhandled exception in git_worktree.sh (line $LINENO)" >&2; exit 2' ERRWORKTREE_BASE="../project-steer-worktrees"
 ACTION="${1:?Usage: git_worktree.sh <create|remove|merge|list|cleanup> [branch]}"
 
 case "$ACTION" in

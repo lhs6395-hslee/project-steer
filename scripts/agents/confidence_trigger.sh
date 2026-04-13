@@ -7,6 +7,7 @@
 # Output: JSON { score, mode, max_retries, ultraplan, agent_team }
 
 set -euo pipefail
+trap 'echo "ERROR: Unhandled exception in confidence_trigger.sh (line $LINENO)" >&2; exit 2' ERR
 
 TASK="${1:?Usage: confidence_trigger.sh <task> <module>}"
 MODULE="${2:-unknown}"
@@ -37,7 +38,8 @@ domain = complexity_map.get(module, 0.5)
 # 3. Stakes: 위험도
 stakes = 0.3
 security_keywords = ['인증', 'auth', '권한', 'permission', '암호', 'encrypt', 'key', 'secret', 'delete', '삭제']
-if any(k in task.lower() for k in security_keywords):
+has_security_keyword = any(k in task.lower() for k in security_keywords)
+if has_security_keyword:
     stakes = 0.8  # 보안 관련 = 고위험
 production_keywords = ['운영', 'production', 'prd', 'cutover', '컷오버', 'deploy']
 if any(k in task.lower() for k in production_keywords):
@@ -52,6 +54,10 @@ if any(k in task for k in data_keywords):
 # ── 종합 점수 (가중 평균) ──
 score = 1.0 - (ambiguity * 0.25 + domain * 0.25 + stakes * 0.3 + context * 0.2)
 score = round(max(0.0, min(1.0, score)), 2)
+
+# ── 보안 키워드 클램핑: 반드시 multi-agent 파이프라인 강제 (Req 9.7) ──
+if has_security_keyword:
+    score = min(score, 0.69)
 
 # ── 파이프라인 모드 결정 ──
 if score >= 0.85:

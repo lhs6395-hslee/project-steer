@@ -6,6 +6,7 @@
 # Example: bash scripts/agents/agent_team.sh "주간 보고 생성" "pptx,dooray,trello"
 
 set -euo pipefail
+trap 'echo "ERROR: Unhandled exception in agent_team.sh (line $LINENO)" >&2; exit 2' ERR
 
 source "$(dirname "$0")/ide_adapter.sh"
 ensure_agent_dirs
@@ -39,20 +40,27 @@ EOF
   bash scripts/agents/call_agent.sh planner "$INPUT_FILE" "$CONTRACT_FILE" "$mod"
 done
 
-# ── Step 2: 독립 모듈은 병렬 실행, 의존 모듈은 순차 실행 ──
+# ── Step 2: 독립 모듈은 병렬 실행 (& 백그라운드 + wait) ──
 echo ""
-echo "── Step 2: Executing per module ──"
+echo "── Step 2: Executing per module (parallel) ──"
+EXEC_PIDS=()
 for mod in "${MODULE_LIST[@]}"; do
   mod=$(echo "$mod" | tr -d ' ')
-  echo "  [Executor] Module: $mod"
+  echo "  [Executor] Module: $mod (background)"
   CONTRACT_FILE="$AGENT_DIR/contracts/${TIMESTAMP}_team_${mod}_contract.json"
   OUTPUT_FILE="$AGENT_DIR/outputs/${TIMESTAMP}_team_${mod}_output.json"
 
   if [ -f "$CONTRACT_FILE" ]; then
-    bash scripts/agents/call_agent.sh executor "$CONTRACT_FILE" "$OUTPUT_FILE" "$mod"
+    bash scripts/agents/call_agent.sh executor "$CONTRACT_FILE" "$OUTPUT_FILE" "$mod" &
+    EXEC_PIDS+=($!)
   else
     echo "  [Executor] No contract for $mod — skipping"
   fi
+done
+
+# Wait for all parallel executor processes to complete
+for pid in "${EXEC_PIDS[@]}"; do
+  wait "$pid" || echo "  [Executor] Process $pid exited with non-zero status"
 done
 
 # ── Step 3: 개별 Evaluator 검증 ──

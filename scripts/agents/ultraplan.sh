@@ -6,6 +6,7 @@
 # Usage: bash scripts/agents/ultraplan.sh "<task>" "<module>"
 
 set -euo pipefail
+trap 'echo "ERROR: Unhandled exception in ultraplan.sh (line $LINENO)" >&2; exit 2' ERR
 
 source "$(dirname "$0")/ide_adapter.sh"
 ensure_agent_dirs
