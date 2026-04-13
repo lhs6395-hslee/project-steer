@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'Reminder: Harness pipeline mandatory for all module tasks. Read requirements.md. Config: .mcp.json (primary) → Kiro/Antigravity (sync)'"
+            "command": "echo 'Reminder: Harness pipeline mandatory for all module tasks. Read PROJECT.md. Config: .mcp.json (primary) → Kiro/Antigravity (sync)'"
           }
         ]
       }
@@ -47,7 +47,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Check if the completed work followed the harness pipeline defined in CLAUDE.md and requirements.md. For module tasks (pptx/docx/wbs/trello/dooray/gdrive/datadog): Was Confidence_Trigger evaluated? Was Planner→Executor→Reviewer pipeline used? Was Reviewer independent from Executor? If any step was skipped for a module task, respond with {\"ok\": false, \"reason\": \"what was missed\"}. If all steps were followed or the task didn't require the pipeline, respond with {\"ok\": true}."
+            "prompt": "Check if the completed work followed the harness pipeline defined in CLAUDE.md and PROJECT.md. For module tasks (pptx/docx/wbs/trello/dooray/gdrive/datadog): Was Confidence_Trigger evaluated? Was Planner→Executor→Reviewer pipeline used? Was Reviewer independent from Executor? If any step was skipped for a module task, respond with {\"ok\": false, \"reason\": \"what was missed\"}. If all steps were followed or the task didn't require the pipeline, respond with {\"ok\": true}."
           }
         ]
       }

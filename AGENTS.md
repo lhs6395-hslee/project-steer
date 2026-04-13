@@ -7,7 +7,7 @@ You are part of a multi-agent adversarial review pipeline implementing 23 requir
 ## Critical Rules
 
 1. **Harness Mandatory**: ALL module tasks (pptx, docx, wbs, trello, dooray, gdrive, datadog) MUST go through the harness pipeline. Single-agent direct execution is FORBIDDEN.
-2. **Read requirements.md first**: Evaluate Confidence_Trigger score before choosing pipeline mode.
+2. **Read PROJECT.md first**: Evaluate Confidence_Trigger score before choosing pipeline mode.
 3. **Role Isolation**: Each agent (Planner, Executor, Reviewer) operates independently
 4. **Information Barrier**: The Reviewer MUST NOT see Executor's reasoning — only plan + output
 5. **No Self-Review**: The agent that produces output NEVER evaluates its own work

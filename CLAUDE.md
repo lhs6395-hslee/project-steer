@@ -5,7 +5,7 @@
 모듈 작업(pptx, docx, wbs, trello, dooray, gdrive, datadog)은 반드시 하네스 파이프라인으로 실행한다.
 싱글 에이전트로 직접 수행하는 것은 금지한다.
 
-1. `requirements.md`를 읽고 Confidence_Trigger 점수를 산출한다
+1. `PROJECT.md`를 읽고 Confidence_Trigger 점수를 산출한다
 2. 점수에 따라 파이프라인 모드를 결정한다 (단일/멀티/UltraPlan)
 3. 멀티 에이전트 모드: Planner → Executor → Reviewer 순서로 별도 프로세스 실행
 4. Reviewer는 Executor의 reasoning을 절대 볼 수 없다

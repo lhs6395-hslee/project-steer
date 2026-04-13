@@ -13,7 +13,7 @@ inclusion: auto
 싱글 에이전트로 직접 수행하는 것은 금지한다.
 "간단한 작업"이라도 예외 없이 아래 3단계를 invokeSubAgent로 분리 실행한다.
 
-1. requirements.md를 읽고 Confidence_Trigger 점수를 산출한다
+1. PROJECT.md를 읽고 Confidence_Trigger 점수를 산출한다
 2. 점수에 따라 파이프라인 모드를 결정한다
 3. Planner → Executor → Reviewer 순서로 서브에이전트 호출
 

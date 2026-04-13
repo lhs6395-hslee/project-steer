@@ -4,7 +4,7 @@
 
 하네스 엔지니어링 기반 멀티 에이전트 파이프라인으로, 7개 업무 모듈(pptx, docx, wbs, trello, dooray, gdrive, datadog)의 산출물을 자동 생성·검증한다.
 
-기술 스펙 레퍼런스: `specs/ai-agent-engineering-spec-2026.md` (새 기술 추가/requirements 업데이트 시에만 참조)
+기술 스펙 레퍼런스: `specs/ai-agent-engineering-spec-2026.md`
 
 ## 아키텍처
 
@@ -182,6 +182,6 @@ Reviewer가 생성하는 검증 결과 JSON:
 
 ## 참조 문서
 
-- 기술 스펙: `specs/ai-agent-engineering-spec-2026.md` (새 기술 추가/requirements 업데이트 시에만 참조)
+- 기술 스펙: `specs/ai-agent-engineering-spec-2026.md`
 - PPTX 레이아웃: `modules/pptx/references/layout-spec.md`
 - 모듈별 체크리스트: `skills/orchestrator/references/module-checklists.md`
