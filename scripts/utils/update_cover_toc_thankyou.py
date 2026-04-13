@@ -68,11 +68,10 @@ for pi, para in enumerate(s_names.text_frame.paragraphs):
 print("✅ 목차 수정 완료")
 
 # ── 마지막 슬라이드: 끝맺음 ──
-# 템플릿에서 끝맺음 레이아웃 슬라이드 찾기 (python-pptx 내부 이름: "감사합니다")
-# 주의: slide.slide_layout.name은 .pptx 파일 내부의 실제 레이아웃 이름이므로 변경 불가
+# 템플릿에서 끝맺음 레이아웃 슬라이드 찾기
 thank_idx = None
 for i, slide in enumerate(prs.slides):
-    if slide.slide_layout.name == "감사합니다":
+    if slide.slide_layout.name == "끝맺음":
         thank_idx = i  # 마지막 끝맺음 슬라이드
 
 if thank_idx is not None:
