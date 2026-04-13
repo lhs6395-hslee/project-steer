@@ -1,5 +1,17 @@
 # Multi-Agent Harness — Adversarial Review Pipeline
 
+## 필수 규칙 (CRITICAL — 모든 작업에 적용)
+
+모듈 작업(pptx, docx, wbs, trello, dooray, gdrive, datadog)은 반드시 하네스 파이프라인으로 실행한다.
+싱글 에이전트로 직접 수행하는 것은 금지한다.
+
+1. requirements.md를 읽고 Confidence_Trigger 점수를 산출한다
+2. 점수에 따라 파이프라인 모드를 결정한다 (단일/멀티/UltraPlan)
+3. 멀티 에이전트 모드: Planner → Executor → Reviewer 순서로 별도 프로세스 실행
+4. Reviewer는 Executor의 reasoning을 절대 볼 수 없다
+5. 리뷰 실패 시 피드백과 함께 재시도 (최대 3~5회)
+6. 작업 전 필요한 MCP만 켜고, 완료 후 끈다
+
 ## Overview
 
 이 프로젝트는 하네스 엔지니어링 기반 멀티 에이전트 파이프라인입니다.

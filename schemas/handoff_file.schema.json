@@ -1,0 +1,23 @@
+{
+  "title": "Handoff_File",
+  "description": "에이전트 간 통신에 사용되는 JSON 기반 파일",
+  "type": "object",
+  "required": ["id", "timestamp", "from_agent", "to_agent", "status", "payload"],
+  "properties": {
+    "id": { "type": "string", "description": "UUID" },
+    "timestamp": { "type": "string", "description": "ISO 8601" },
+    "from_agent": { "type": "string", "enum": ["orchestrator", "planner", "generator", "evaluator", "guardian", "coordinator", "kairos", "auto_dream"] },
+    "to_agent": { "type": "string", "enum": ["orchestrator", "planner", "generator", "evaluator", "guardian", "coordinator", "kairos", "auto_dream"] },
+    "status": { "type": "string", "enum": ["pending", "completed", "failed"] },
+    "iteration": { "type": "integer", "minimum": 0 },
+    "token_usage": {
+      "type": "object",
+      "properties": {
+        "input_tokens": { "type": "integer" },
+        "output_tokens": { "type": "integer" },
+        "estimated_cost_usd": { "type": "number" }
+      }
+    },
+    "payload": { "type": "object" }
+  }
+}

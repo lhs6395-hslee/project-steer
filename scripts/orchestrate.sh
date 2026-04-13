@@ -1,81 +1,128 @@
 #!/bin/bash
-# Multi-Agent Orchestrator — Adversarial Review Pipeline
+# Multi-Agent Orchestrator — Full Harness Pipeline
 #
-# Calls Planner, Executor, Reviewer as separate sub-agent processes.
-# Each agent runs in isolated context with its own system prompt (SKILL.md).
+# Integrates all 23 requirements from ai-agent-engineering-spec-2026:
+#   Confidence_Trigger → Guardian → Planner (UltraPlan) → Generator → Evaluator
+#   + IDE_Adapter + Token Tracking + Feedback_Loop + Agent_Team
 #
 # Usage:
 #   bash scripts/orchestrate.sh "Create a weekly report presentation" pptx
 #   bash scripts/orchestrate.sh "Set up Datadog dashboard" datadog
-#
-# Requires: claude CLI (Claude Code)
+#   bash scripts/orchestrate.sh "주간 보고 생성" "pptx,dooray,trello"  # Agent_Team
 
 set -euo pipefail
 
-TASK="${1:?Usage: orchestrate.sh <task> <module>}"
-MODULE="${2:?Usage: orchestrate.sh <task> <module>}"
+# ── Load IDE Adapter ──
+source "$(dirname "$0")/agents/ide_adapter.sh"
+ensure_agent_dirs
 
-MAX_RETRIES=3
-MIN_SCORE=0.7
-WORK_DIR="$(pwd)/.pipeline"
-TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
-RUN_DIR="${WORK_DIR}/${TIMESTAMP}_${MODULE}"
+TASK="${1:?Usage: orchestrate.sh <task> <module(s)>}"
+MODULES="${2:?Usage: orchestrate.sh <task> <module(s)>}"
+TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+RUN_DIR="$AGENT_DIR/${TIMESTAMP}_${MODULES//,/_}"
 
 mkdir -p "$RUN_DIR"
 
-echo "=== Multi-Agent Pipeline ==="
+echo "=== Multi-Agent Harness Pipeline ==="
+echo "IDE: $IDE_NAME"
 echo "Task: $TASK"
-echo "Module: $MODULE"
+echo "Module(s): $MODULES"
 echo "Run dir: $RUN_DIR"
 echo ""
 
-# ─── Helper: call a sub-agent (platform-agnostic) ───
-call_agent() {
-  local role="$1"
-  local input_file="$2"
-  local output_file="$3"
+# ── Step 0: Confidence_Trigger ──
+echo "── Step 0: Confidence_Trigger ──"
+CT_RESULT=$(bash scripts/agents/confidence_trigger.sh "$TASK" "${MODULES%%,*}")
+echo "$CT_RESULT" | tee "$RUN_DIR/confidence_trigger.json"
 
-  echo "  [$role] Calling sub-agent..."
-  bash scripts/agents/call_agent.sh "$role" "$input_file" "$output_file" "$MODULE"
-  echo "  [$role] Done → $output_file"
-}
+MODE=$(echo "$CT_RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin)['mode'])")
+MAX_RETRIES=$(echo "$CT_RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin)['max_retries'])")
+ULTRAPLAN=$(echo "$CT_RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin)['ultraplan'])")
 
-# ─── Step 1: Plan ───
-echo "── Step 1: Planning ──"
+echo "  Mode: $MODE | Max retries: $MAX_RETRIES | UltraPlan: $ULTRAPLAN"
+echo ""
 
-cat > "$RUN_DIR/task_input.txt" <<EOF
+# ── Single agent mode — skip pipeline ──
+if [ "$MODE" = "single" ]; then
+  echo "Confidence score >= 0.85 — single agent mode. No pipeline needed."
+  echo '{"mode":"single","task":"'"$TASK"'","result":"direct_execution"}' > "$RUN_DIR/summary.json"
+  exit 0
+fi
+
+# ── Agent_Team mode (multiple modules) ──
+if [[ "$MODULES" == *","* ]]; then
+  echo "── Agent_Team mode: multiple modules detected ──"
+  bash scripts/agents/agent_team.sh "$TASK" "$MODULES"
+  exit $?
+fi
+
+MODULE="$MODULES"
+
+# ── Step 0.5: MCP Toggle ──
+echo "── Step 0.5: MCP Toggle ──"
+bash scripts/mcp-toggle.sh "$MODULE" on 2>/dev/null || echo "  MCP toggle skipped (server not found)"
+echo ""
+
+# ── Step 1: UltraPlan (if needed) ──
+if [ "$ULTRAPLAN" = "True" ]; then
+  echo "── Step 1: UltraPlan ──"
+  bash scripts/agents/ultraplan.sh "$TASK" "$MODULE"
+  echo ""
+fi
+
+# ── Step 2: Plan ──
+echo "── Step 2: Planning ──"
+PLAN_INPUT="$RUN_DIR/plan_input.txt"
+cat > "$PLAN_INPUT" <<EOF
 Task: $TASK
 Module: $MODULE
+Mode: $MODE
+Max retries: $MAX_RETRIES
 
-Generate a structured execution plan as JSON with:
-- task, module, steps (each with id, action, dependencies, acceptance_criteria), risks
+Generate a Sprint_Contract JSON following schemas/sprint_contract.schema.json.
+Include acceptance_criteria, constraints, risks.
 EOF
 
-call_agent "planner" "$RUN_DIR/task_input.txt" "$RUN_DIR/plan.json"
+PLAN_OUTPUT="$RUN_DIR/sprint_contract.json"
+bash scripts/agents/call_agent.sh planner "$PLAN_INPUT" "$PLAN_OUTPUT" "$MODULE"
 
 # Validate plan
 if [ -f "skills/planner/scripts/validate_plan.sh" ]; then
-  echo "  [planner] Validating plan..."
-  bash skills/planner/scripts/validate_plan.sh "$RUN_DIR/plan.json" || true
+  bash skills/planner/scripts/validate_plan.sh "$PLAN_OUTPUT" || true
 fi
-
 echo ""
 
-# ─── Step 2-4: Execute → Review → Retry Loop ───
+# ── Step 3-5: Execute → Review → Retry Loop ──
 ATTEMPT=0
 VERDICT="needs_revision"
+OUTPUT=""
+REVIEW=""
 
-while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ]; do
+while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ] && [ "$VERDICT" != "pass" ]; do
   ATTEMPT=$((ATTEMPT + 1))
   echo "── Attempt $ATTEMPT/$MAX_RETRIES ──"
 
-  # Build executor input
-  FEEDBACK_FILE="$RUN_DIR/review_attempt_$((ATTEMPT - 1)).json"
+  # ── Guardian check ──
+  echo "  [Guardian] Pre-execution safety check..."
+  # Guardian runs on any shell commands in the plan
+  echo '{"tool_input":{"command":"'"$TASK"'"}}' | bash scripts/agents/guardian.sh || {
+    EXIT_CODE=$?
+    if [ "$EXIT_CODE" -eq 2 ]; then
+      echo "  [Guardian] BLOCKED — aborting pipeline"
+      echo '{"status":"blocked","reason":"guardian"}' > "$RUN_DIR/summary.json"
+      bash scripts/mcp-toggle.sh "$MODULE" off 2>/dev/null || true
+      exit 2
+    fi
+  }
+
+  # ── Execute ──
   EXEC_INPUT="$RUN_DIR/exec_input_${ATTEMPT}.txt"
+  EXEC_OUTPUT="$RUN_DIR/exec_output_${ATTEMPT}.json"
+  FEEDBACK_FILE="$RUN_DIR/verdict_${ATTEMPT-1}.json"
 
   {
-    echo "PLAN:"
-    cat "$RUN_DIR/plan.json"
+    echo "SPRINT_CONTRACT:"
+    cat "$PLAN_OUTPUT"
     echo ""
     echo "ATTEMPT: $ATTEMPT of $MAX_RETRIES"
     if [ -f "$FEEDBACK_FILE" ]; then
@@ -87,40 +134,43 @@ while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ]; do
     echo "Execute the plan and produce output as JSON."
   } > "$EXEC_INPUT"
 
-  # Execute
-  call_agent "executor" "$EXEC_INPUT" "$RUN_DIR/exec_output_${ATTEMPT}.json"
+  bash scripts/agents/call_agent.sh executor "$EXEC_INPUT" "$EXEC_OUTPUT" "$MODULE"
 
-  # Build reviewer input (ONLY plan + output, NO executor reasoning)
+  # ── KAIROS quick check ──
+  echo "  [KAIROS] Quick lint check..."
+  bash scripts/agents/kairos.sh "$EXEC_OUTPUT" 2>/dev/null || true
+
+  # ── Review (isolated — no executor context) ──
   REVIEW_INPUT="$RUN_DIR/review_input_${ATTEMPT}.txt"
+  VERDICT_FILE="$RUN_DIR/verdict_${ATTEMPT}.json"
+
   {
-    echo "PLAN:"
-    cat "$RUN_DIR/plan.json"
+    echo "SPRINT_CONTRACT:"
+    cat "$PLAN_OUTPUT"
     echo ""
     echo "EXECUTION OUTPUT:"
-    cat "$RUN_DIR/exec_output_${ATTEMPT}.json"
+    cat "$EXEC_OUTPUT"
     echo ""
     echo "Module: $MODULE"
-    echo ""
-    echo "Review adversarially. Output JSON with: verdict, score, checklist_results, issues, suggestions"
+    echo "Review adversarially. Output JSON verdict following schemas/verdict.schema.json."
   } > "$REVIEW_INPUT"
 
-  # Review (isolated — no executor context)
-  call_agent "reviewer" "$REVIEW_INPUT" "$RUN_DIR/review_attempt_${ATTEMPT}.json"
+  bash scripts/agents/call_agent.sh reviewer "$REVIEW_INPUT" "$VERDICT_FILE"
 
   # Validate review
   if [ -f "skills/reviewer/scripts/validate_review.sh" ]; then
-    bash skills/reviewer/scripts/validate_review.sh "$RUN_DIR/review_attempt_${ATTEMPT}.json" || true
+    bash skills/reviewer/scripts/validate_review.sh "$VERDICT_FILE" || true
   fi
 
-  # Parse verdict and score
+  # Parse verdict
   VERDICT=$(python3 -c "
 import json, sys
 try:
-    with open('$RUN_DIR/review_attempt_${ATTEMPT}.json') as f:
+    with open('$VERDICT_FILE') as f:
         data = json.load(f)
-    verdict = data.get('verdict', 'needs_revision')
-    score = float(data.get('score', 0))
-    if verdict == 'approved' and score >= $MIN_SCORE:
+    v = data.get('verdict', data.get('overall_status', 'needs_revision'))
+    s = float(data.get('score', 0))
+    if v in ('approved', 'pass') and s >= 0.7:
         print('approved')
     else:
         print('needs_revision')
@@ -128,37 +178,56 @@ except:
     print('needs_revision')
 " 2>/dev/null || echo "needs_revision")
 
-  echo "  [orchestrator] Verdict: $VERDICT"
+  echo "  [Orchestrator] Verdict: $VERDICT (attempt $ATTEMPT)"
+
+  # ── Circular feedback detection ──
+  if [ "$ATTEMPT" -ge 2 ]; then
+    PREV_ISSUES=$(python3 -c "import json; print(json.load(open('$RUN_DIR/verdict_$((ATTEMPT-1)).json')).get('issues',['']))" 2>/dev/null || echo "")
+    CURR_ISSUES=$(python3 -c "import json; print(json.load(open('$VERDICT_FILE')).get('issues',['']))" 2>/dev/null || echo "")
+    if [ "$PREV_ISSUES" = "$CURR_ISSUES" ] && [ -n "$PREV_ISSUES" ]; then
+      echo "  [Orchestrator] ⚠️ Circular feedback detected — same issues across attempts. Escalating."
+      VERDICT="escalated"
+      break
+    fi
+  fi
+
   echo ""
 done
 
-# ─── Step 5: Result ───
+# ── Step 6: Token tracking ──
+echo "── Token Report ──"
+bash scripts/agents/token_tracker.sh "$RUN_DIR" 2>/dev/null || echo "  Token tracking skipped"
+
+# ── Step 7: MCP off ──
+bash scripts/mcp-toggle.sh "$MODULE" off 2>/dev/null || true
+
+# ── Step 8: Result ──
+echo ""
 echo "=== Pipeline Result ==="
 if [ "$VERDICT" = "approved" ]; then
   echo "Status: SUCCESS"
-  echo "Attempts: $ATTEMPT"
-  echo "Final output: $RUN_DIR/exec_output_${ATTEMPT}.json"
-  echo "Final review: $RUN_DIR/review_attempt_${ATTEMPT}.json"
+elif [ "$VERDICT" = "escalated" ]; then
+  echo "Status: ESCALATED (circular feedback — human review needed)"
 else
   echo "Status: FAILED (max retries exhausted)"
-  echo "Attempts: $ATTEMPT"
-  echo "Last output: $RUN_DIR/exec_output_${ATTEMPT}.json"
-  echo "Last review: $RUN_DIR/review_attempt_${ATTEMPT}.json"
-  echo ""
-  echo "Escalating to human review. Full history in: $RUN_DIR/"
 fi
 
-# Save summary
-cat > "$RUN_DIR/summary.json" <<EOF
-{
-  "task": "$TASK",
-  "module": "$MODULE",
-  "success": $([ "$VERDICT" = "approved" ] && echo "true" || echo "false"),
-  "attempts": $ATTEMPT,
-  "timestamp": "$TIMESTAMP",
-  "run_dir": "$RUN_DIR"
-}
-EOF
+echo "Attempts: $ATTEMPT"
+echo "Run dir: $RUN_DIR"
 
-echo ""
-echo "Summary: $RUN_DIR/summary.json"
+# Save summary
+atomic_write "$RUN_DIR/summary.json" "$(python3 -c "
+import json
+print(json.dumps({
+    'task': '''$TASK''',
+    'module': '$MODULE',
+    'mode': '$MODE',
+    'success': '$VERDICT' == 'approved',
+    'verdict': '$VERDICT',
+    'attempts': $ATTEMPT,
+    'max_retries': $MAX_RETRIES,
+    'ultraplan': $ULTRAPLAN == 'True',
+    'timestamp': '$TIMESTAMP',
+    'run_dir': '$RUN_DIR'
+}, ensure_ascii=False, indent=2))
+")"

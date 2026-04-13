@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/sync-to-platforms.sh && echo 'Multi-Agent Harness Pipeline active. Primary: Claude Code. Sync targets: Kiro, Antigravity. Run: bash scripts/orchestrate.sh \"<task>\" <module>'"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/sync-to-platforms.sh && echo 'Harness Pipeline active. Run: bash scripts/orchestrate.sh \"<task>\" <module>'"
           }
         ]
       },
@@ -15,18 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'Reminder: Adversarial review pipeline (Planner→Executor→Reviewer). Reviewer MUST NOT see Executor reasoning. Config: .mcp.json (primary) → .kiro/settings/mcp.json (sync)'"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "FILE=$(cat | jq -r '.tool_input.file_path // empty'); if [[ \"$FILE\" == .mcp.json ]] || [[ \"$FILE\" == .claude/settings* ]]; then \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/sync-to-platforms.sh; fi; if [[ \"$FILE\" == modules/* ]]; then echo \"[Review needed] Module file edited: $FILE\"; fi"
+            "command": "echo 'Reminder: Harness pipeline mandatory for all module tasks. Read requirements.md. Config: .mcp.json (primary) → Kiro/Antigravity (sync)'"
           }
         ]
       }
@@ -37,7 +26,28 @@
         "hooks": [
           {
             "type": "command",
-            "command": "INPUT=$(cat); CMD=$(echo \"$INPUT\" | jq -r '.tool_input.command // empty'); if echo \"$CMD\" | grep -qE 'rm -rf /|drop table|DROP TABLE'; then echo \"Blocked: dangerous command\" >&2; exit 2; fi; exit 0"
+            "command": "cat | \"$CLAUDE_PROJECT_DIR\"/scripts/agents/guardian.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(cat | jq -r '.tool_input.file_path // empty'); if [[ \"$FILE\" == .mcp.json ]] || [[ \"$FILE\" == .claude/settings* ]]; then \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/sync-to-platforms.sh; fi; if [[ \"$FILE\" == modules/* ]] || [[ \"$FILE\" == skills/* ]]; then \"$CLAUDE_PROJECT_DIR\"/scripts/agents/kairos.sh \"$FILE\" 2>/dev/null || true; fi"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Check if the completed work followed the harness pipeline defined in CLAUDE.md and requirements.md. For module tasks (pptx/docx/wbs/trello/dooray/gdrive/datadog): Was Confidence_Trigger evaluated? Was Planner→Executor→Reviewer pipeline used? Was Reviewer independent from Executor? If any step was skipped for a module task, respond with {\"ok\": false, \"reason\": \"what was missed\"}. If all steps were followed or the task didn't require the pipeline, respond with {\"ok\": true}."
           }
         ]
       }

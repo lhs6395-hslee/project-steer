@@ -9,8 +9,15 @@ inclusion: auto
 
 ## 필수 실행 규칙 (CRITICAL)
 
-작업 요청을 받으면 반드시 아래 3단계를 invokeSubAgent로 분리 실행한다.
+모듈 작업(pptx, docx, wbs, trello, dooray, gdrive, datadog)은 반드시 하네스 파이프라인으로 실행한다.
 싱글 에이전트로 직접 수행하는 것은 금지한다.
+"간단한 작업"이라도 예외 없이 아래 3단계를 invokeSubAgent로 분리 실행한다.
+
+1. requirements.md를 읽고 Confidence_Trigger 점수를 산출한다
+2. 점수에 따라 파이프라인 모드를 결정한다
+3. Planner → Executor → Reviewer 순서로 서브에이전트 호출
+
+작업 요청을 받으면 반드시 아래 3단계를 invokeSubAgent로 분리 실행한다.
 
 ### Step 1: Planner (서브에이전트 호출)
 

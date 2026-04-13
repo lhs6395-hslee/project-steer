@@ -7,7 +7,9 @@ This project uses separated agent roles to prevent self-confirmation bias.
 
 ## Critical Rules
 
-1. **Role Isolation**: Each agent (Planner, Executor, Reviewer) operates independently
+1. **Harness Mandatory**: ALL module tasks (pptx, docx, wbs, trello, dooray, gdrive, datadog) MUST go through the harness pipeline. Single-agent direct execution is FORBIDDEN.
+2. **Read requirements.md first**: Evaluate Confidence_Trigger score before choosing pipeline mode.
+3. **Role Isolation**: Each agent (Planner, Executor, Reviewer) operates independently
 2. **Information Barrier**: The Reviewer MUST NOT see Executor's reasoning — only plan + output
 3. **No Self-Review**: The agent that produces output NEVER evaluates its own work
 4. **Retry with Feedback**: On review failure, Executor receives specific issues and must address ALL of them
