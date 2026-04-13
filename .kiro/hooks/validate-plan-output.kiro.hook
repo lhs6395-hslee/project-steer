@@ -1,16 +1,17 @@
 {
   "enabled": true,
   "name": "Validate Plan Output",
-  "description": "Planner가 생성한 plan JSON 파일의 구조를 자동 검증합니다.",
+  "description": "Planner가 생성한 plan JSON 파일의 구조를 자동 검증합니다. 파일 경로를 자동 감지하여 validate_plan.sh에 전달합니다.",
   "version": "1",
   "when": {
     "type": "fileCreated",
     "patterns": [
-      "**/plan*.json"
+      "**/plan*.json",
+      "**/*contract*.json"
     ]
   },
   "then": {
-    "type": "runCommand",
-    "command": "bash skills/planner/scripts/validate_plan.sh"
+    "type": "askAgent",
+    "prompt": "새로 생성된 plan/contract JSON 파일을 `bash skills/planner/scripts/validate_plan.sh <파일경로>`로 검증하세요. 파일 경로는 방금 생성된 파일입니다."
   }
 }

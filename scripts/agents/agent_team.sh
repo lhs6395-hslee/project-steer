@@ -86,11 +86,15 @@ echo ""
 echo "── Step 4: Integration summary ──"
 SUMMARY_FILE="$AGENT_DIR/results/${TIMESTAMP}_team_summary.json"
 
+export TEAM_TASK="$TASK" TEAM_MODULES="$MODULES" TEAM_TIMESTAMP="$TIMESTAMP" TEAM_AGENT_DIR="$AGENT_DIR"
 python3 -c "
 import json, glob, os
 
+agent_dir = os.environ['TEAM_AGENT_DIR']
+timestamp = os.environ['TEAM_TIMESTAMP']
+
 verdicts = {}
-for f in glob.glob('$AGENT_DIR/verdicts/${TIMESTAMP}_team_*_verdict.json'):
+for f in glob.glob(os.path.join(agent_dir, f'verdicts/{timestamp}_team_*_verdict.json')):
     mod = os.path.basename(f).split('_team_')[1].split('_verdict')[0]
     try:
         verdicts[mod] = json.load(open(f))
@@ -98,9 +102,9 @@ for f in glob.glob('$AGENT_DIR/verdicts/${TIMESTAMP}_team_*_verdict.json'):
         verdicts[mod] = {'error': 'parse_failed'}
 
 summary = {
-    'timestamp': '$TIMESTAMP',
-    'task': '''$TASK''',
-    'modules': '$MODULES'.split(','),
+    'timestamp': os.environ['TEAM_TIMESTAMP'],
+    'task': os.environ['TEAM_TASK'],
+    'modules': os.environ['TEAM_MODULES'].split(','),
     'verdicts': verdicts,
     'overall': 'pass' if all(
         v.get('verdict') == 'approved' or v.get('overall_status') == 'pass'

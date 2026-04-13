@@ -61,7 +61,7 @@ for pattern in "${WARN_PATTERNS[@]}"; do
   if echo "$CMD" | grep -qiE "$pattern"; then
     echo "WARNING: Command matches cautionary pattern '$pattern'" >&2
     echo "Command: $CMD" >&2
-    exit 1
+    exit 0  # 경고만 출력, 차단하지 않음 (스펙 AC3: exit 0 + 경고 메시지)
   fi
 done
 

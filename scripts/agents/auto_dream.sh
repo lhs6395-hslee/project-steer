@@ -31,30 +31,35 @@ fi
 ARCHIVED=0
 for dir in requests contracts outputs verdicts results; do
   if [ -d "$AGENT_DIR/$dir" ]; then
-    find "$AGENT_DIR/$dir" -name "*.json" -mtime +${DAYS_THRESHOLD} 2>/dev/null | while read -r file; do
+    while read -r file; do
       mkdir -p "$ARCHIVE_DIR/$dir"
       mv "$file" "$ARCHIVE_DIR/$dir/"
       ARCHIVED=$((ARCHIVED + 1))
-    done
+    done < <(find "$AGENT_DIR/$dir" -name "*.json" -mtime +${DAYS_THRESHOLD} 2>/dev/null)
   fi
 done
 
 # ── 중복 파일 탐지 ──
 DUPLICATES=0
+DUP_TMP="$(mktemp)"
 for dir in requests contracts outputs verdicts; do
   if [ -d "$AGENT_DIR/$dir" ]; then
-    # MD5 기반 중복 탐지
     find "$AGENT_DIR/$dir" -name "*.json" 2>/dev/null | while read -r file; do
       md5=$(md5 -q "$file" 2>/dev/null || md5sum "$file" 2>/dev/null | cut -d' ' -f1)
       echo "$md5 $file"
-    done | sort | uniq -d -w32 | while read -r line; do
-      dup_file=$(echo "$line" | cut -d' ' -f2-)
-      mkdir -p "$ARCHIVE_DIR/duplicates"
-      mv "$dup_file" "$ARCHIVE_DIR/duplicates/"
-      DUPLICATES=$((DUPLICATES + 1))
     done
   fi
-done
+done | sort | uniq -d -w32 > "$DUP_TMP"
+
+while read -r line; do
+  dup_file=$(echo "$line" | cut -d' ' -f2-)
+  if [ -n "$dup_file" ] && [ -f "$dup_file" ]; then
+    mkdir -p "$ARCHIVE_DIR/duplicates"
+    mv "$dup_file" "$ARCHIVE_DIR/duplicates/"
+    DUPLICATES=$((DUPLICATES + 1))
+  fi
+done < "$DUP_TMP"
+rm -f "$DUP_TMP"
 
 # ── 결과 요약 ──
 echo ""

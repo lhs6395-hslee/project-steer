@@ -61,5 +61,6 @@ if changed:
 "
 fi
 
-# 3. Sync AGENTS.md content to .gemini/GEMINI.md (keep Antigravity in sync)
-# AGENTS.md is the universal source — no action needed, Antigravity reads it directly
+# 3. VS Code — .vscode/tasks.json과 .vscode/settings.json은 수동 관리
+# Claude Code 설정 변경 시 자동 동기화 대상이 아님 (정적 파일)
+# 업데이트 필요 시: bash scripts/agents/sync_pipeline.sh --from claude_code --to all

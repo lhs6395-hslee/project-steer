@@ -73,17 +73,29 @@ fi
 
 # ── 결과 출력 ──
 if [ ${#ISSUES[@]} -gt 0 ]; then
+  # 안전한 JSON 생성: ISSUES를 임시 파일에 쓰고 python3에서 읽기
+  ISSUES_TMP="$(mktemp)"
+  for issue in "${ISSUES[@]}"; do
+    echo "$issue" >> "$ISSUES_TMP"
+  done
+
+  export KAIROS_TIMESTAMP="$TIMESTAMP" KAIROS_FILE="$FILE" KAIROS_ISSUES_FILE="$ISSUES_TMP"
   python3 -c "
-import json
-issues = $(printf '%s\n' "${ISSUES[@]}" | python3 -c "import sys,json; print(json.dumps([l.strip() for l in sys.stdin]))")
+import json, os
+
+with open(os.environ['KAIROS_ISSUES_FILE']) as f:
+    issues = [line.strip() for line in f if line.strip()]
+
 result = {
-    'timestamp': '$TIMESTAMP',
-    'file': '$FILE',
+    'timestamp': os.environ['KAIROS_TIMESTAMP'],
+    'file': os.environ['KAIROS_FILE'],
     'issues': issues,
     'severity': 'warn'
 }
 print(json.dumps(result, ensure_ascii=False, indent=2))
 " | tee "$SUGGESTIONS_FILE"
+
+  rm -f "$ISSUES_TMP"
 else
   echo "KAIROS: $FILE — no issues found"
 fi

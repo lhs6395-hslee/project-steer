@@ -18,6 +18,18 @@ ensure_agent_dirs
 
 TASK="${1:?Usage: orchestrate.sh <task> <module(s)>}"
 MODULES="${2:?Usage: orchestrate.sh <task> <module(s)>}"
+
+# ── 모듈명 유효성 검증 ──
+VALID_MODULES="pptx docx wbs trello dooray gdrive datadog"
+IFS=',' read -ra MOD_LIST <<< "$MODULES"
+for mod in "${MOD_LIST[@]}"; do
+  mod=$(echo "$mod" | tr -d ' ')
+  if ! echo "$VALID_MODULES" | grep -qw "$mod"; then
+    echo "ERROR: Invalid module '$mod'. Valid: $VALID_MODULES"
+    exit 1
+  fi
+done
+
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 RUN_DIR="$AGENT_DIR/${TIMESTAMP}_${MODULES//,/_}"
 
@@ -43,6 +55,7 @@ echo "  Mode: $MODE | Max retries: $MAX_RETRIES | UltraPlan: $ULTRAPLAN"
 echo ""
 
 # ── Single agent mode — skip pipeline ──
+# MODE values: single (≥0.85), multi_reduced (0.70-0.84), multi_full (0.50-0.69), multi_ultraplan (<0.50)
 if [ "$MODE" = "single" ]; then
   echo "Confidence score >= 0.85 — single agent mode. No pipeline needed."
   SINGLE_TASK="$TASK" python3 -c "import json,os; print(json.dumps({'mode':'single','task':os.environ['SINGLE_TASK'],'result':'direct_execution'}, ensure_ascii=False))" | { read -r content; atomic_write "$RUN_DIR/summary.json" "$content"; }
