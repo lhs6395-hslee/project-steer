@@ -68,7 +68,7 @@ esac
 
 # ── 공통 검사 ──
 # 민감 정보 패턴 검사 (api_key, password, token + AWS_ACCESS_KEY_ID, PRIVATE_KEY, SECRET_KEY)
-if grep -qiE '(api_key|api_secret|password|token|AWS_ACCESS_KEY_ID|PRIVATE_KEY|SECRET_KEY)\s*[:=]\s*["\x27][A-Za-z0-9]' "$FILE" 2>/dev/null; then
+if grep -qiE '(api_key|api_secret|password|token|AWS_ACCESS_KEY_ID|PRIVATE_KEY|SECRET_KEY)\s*[:=]\s*["'"'"'][A-Za-z0-9]' "$FILE" 2>/dev/null; then
   ISSUES+=("Potential hardcoded credential in $FILE")
 fi
 

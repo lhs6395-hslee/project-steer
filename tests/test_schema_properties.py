@@ -181,3 +181,142 @@ class TestHandoffFileRoundTrip:
             "payload": {"error": "Blocked dangerous command", "command": "rm -rf /"},
         }
         validate_round_trip(data, HANDOFF_SCHEMA)
+
+
+# ── Property-Based Tests (Hypothesis) ──
+# Feature: harness-pipeline
+# Property 3: JSON schema round-trip preservation
+# Validates: Requirements 6.7, 13.5, 14.5
+
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
+
+def valid_sprint_contract_strategy():
+    """Generate valid Sprint_Contract data."""
+    modules = st.sampled_from(["pptx", "docx", "wbs", "trello", "dooray", "gdrive", "datadog"])
+    complexities = st.sampled_from(["low", "medium", "high"])
+    non_empty_str = st.text(
+        alphabet=st.characters(whitelist_categories=("L", "N", "Z", "P")),
+        min_size=1,
+        max_size=50,
+    )
+    step = st.fixed_dictionaries(
+        {
+            "id": st.integers(min_value=1, max_value=100),
+            "action": non_empty_str,
+            "acceptance_criteria": st.lists(non_empty_str, min_size=1, max_size=3),
+        },
+        optional={
+            "dependencies": st.lists(st.integers(min_value=1, max_value=100), max_size=3),
+            "estimated_complexity": complexities,
+        },
+    )
+    return st.fixed_dictionaries(
+        {
+            "task": non_empty_str,
+            "module": modules,
+            "steps": st.lists(step, min_size=1, max_size=5),
+            "acceptance_criteria": st.lists(non_empty_str, min_size=1, max_size=5),
+            "risks": st.lists(non_empty_str, min_size=1, max_size=3),
+        },
+        optional={
+            "constraints": st.lists(non_empty_str, max_size=3),
+        },
+    )
+
+
+def valid_verdict_strategy():
+    """Generate valid Verdict data."""
+    non_empty_str = st.text(
+        alphabet=st.characters(whitelist_categories=("L", "N", "Z", "P")),
+        min_size=1,
+        max_size=50,
+    )
+    return st.fixed_dictionaries(
+        {
+            "verdict": st.sampled_from(["approved", "needs_revision", "rejected"]),
+            "score": st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+            "issues": st.lists(non_empty_str, max_size=5),
+            "suggestions": st.lists(non_empty_str, max_size=5),
+        },
+        optional={
+            "checklist_results": st.dictionaries(
+                st.text(min_size=1, max_size=10),
+                st.booleans(),
+                max_size=5,
+            ),
+            "iteration": st.integers(min_value=1, max_value=10),
+        },
+    )
+
+
+def valid_handoff_strategy():
+    """Generate valid Handoff_File data."""
+    agents = st.sampled_from([
+        "orchestrator", "planner", "executor", "reviewer",
+        "guardian", "coordinator", "kairos", "auto_dream",
+    ])
+    return st.fixed_dictionaries(
+        {
+            "id": st.uuids().map(str),
+            "timestamp": st.just("2025-01-15T10:30:00Z"),
+            "from_agent": agents,
+            "to_agent": agents,
+            "status": st.sampled_from(["pending", "completed", "failed"]),
+            "payload": st.fixed_dictionaries(
+                {},
+                optional={
+                    "task": st.text(min_size=1, max_size=30),
+                    "module": st.sampled_from(["pptx", "docx", "wbs"]),
+                },
+            ),
+        },
+        optional={
+            "iteration": st.integers(min_value=0, max_value=10),
+            "token_usage": st.fixed_dictionaries({
+                "input_tokens": st.integers(min_value=0, max_value=100000),
+                "output_tokens": st.integers(min_value=0, max_value=100000),
+                "estimated_cost_usd": st.floats(
+                    min_value=0.0, max_value=100.0,
+                    allow_nan=False, allow_infinity=False,
+                ),
+            }),
+        },
+    )
+
+
+class TestSprintContractRoundTripPBT:
+    """Feature: harness-pipeline, Property 3: JSON schema round-trip preservation (Sprint_Contract)
+
+    Validates: Requirements 6.7, 13.5
+    """
+
+    @given(data=valid_sprint_contract_strategy())
+    @settings(max_examples=100)
+    def test_sprint_contract_round_trip(self, data):
+        validate_round_trip(data, SPRINT_CONTRACT_SCHEMA)
+
+
+class TestVerdictRoundTripPBT:
+    """Feature: harness-pipeline, Property 3: JSON schema round-trip preservation (Verdict)
+
+    Validates: Requirements 14.5
+    """
+
+    @given(data=valid_verdict_strategy())
+    @settings(max_examples=100)
+    def test_verdict_round_trip(self, data):
+        validate_round_trip(data, VERDICT_SCHEMA)
+
+
+class TestHandoffRoundTripPBT:
+    """Feature: harness-pipeline, Property 3: JSON schema round-trip preservation (Handoff_File)
+
+    Validates: Requirements 6.7
+    """
+
+    @given(data=valid_handoff_strategy())
+    @settings(max_examples=100)
+    def test_handoff_round_trip(self, data):
+        validate_round_trip(data, HANDOFF_SCHEMA)

@@ -9,7 +9,8 @@
 # Usage: echo '{"tool_input":{"command":"rm -rf /"}}' | bash scripts/agents/guardian.sh
 
 set -euo pipefail
-trap 'echo "ERROR: Unhandled exception in guardian.sh (line $LINENO)" >&2; exit 2' ERRINPUT=$(cat)
+trap 'echo "ERROR: Unhandled exception in guardian.sh (line $LINENO)" >&2; exit 2' ERR
+INPUT=$(cat)
 CMD=$(echo "$INPUT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('tool_input',{}).get('command',''))" 2>/dev/null || echo "")
 
 if [ -z "$CMD" ]; then
