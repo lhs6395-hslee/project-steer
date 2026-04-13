@@ -45,7 +45,7 @@ echo ""
 # ── Single agent mode — skip pipeline ──
 if [ "$MODE" = "single" ]; then
   echo "Confidence score >= 0.85 — single agent mode. No pipeline needed."
-  echo '{"mode":"single","task":"'"$TASK"'","result":"direct_execution"}' > "$RUN_DIR/summary.json"
+  atomic_write "$RUN_DIR/summary.json" '{"mode":"single","task":"'"$TASK"'","result":"direct_execution"}'
   exit 0
 fi
 
@@ -104,8 +104,7 @@ while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ] && [ "$V
 
   # ── Guardian check ──
   echo "  [Guardian] Pre-execution safety check..."
-  # Guardian runs on any shell commands in the plan
-  echo '{"tool_input":{"command":"'"$TASK"'"}}' | bash scripts/agents/guardian.sh || {
+  jq -n --arg cmd "$TASK" '{tool_input:{command:$cmd}}' | bash scripts/agents/guardian.sh || {
     EXIT_CODE=$?
     if [ "$EXIT_CODE" -eq 2 ]; then
       echo "  [Guardian] BLOCKED — aborting pipeline"
@@ -118,7 +117,7 @@ while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ] && [ "$V
   # ── Execute ──
   EXEC_INPUT="$RUN_DIR/exec_input_${ATTEMPT}.txt"
   EXEC_OUTPUT="$RUN_DIR/exec_output_${ATTEMPT}.json"
-  FEEDBACK_FILE="$RUN_DIR/verdict_${ATTEMPT-1}.json"
+  FEEDBACK_FILE="$RUN_DIR/verdict_$((ATTEMPT-1)).json"
 
   {
     echo "SPRINT_CONTRACT:"
@@ -155,7 +154,7 @@ while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ] && [ "$V
     echo "Review adversarially. Output JSON verdict following schemas/verdict.schema.json."
   } > "$REVIEW_INPUT"
 
-  bash scripts/agents/call_agent.sh reviewer "$REVIEW_INPUT" "$VERDICT_FILE"
+  bash scripts/agents/call_agent.sh reviewer "$REVIEW_INPUT" "$VERDICT_FILE" "$MODULE"
 
   # Validate review
   if [ -f "skills/reviewer/scripts/validate_review.sh" ]; then
@@ -216,18 +215,19 @@ echo "Attempts: $ATTEMPT"
 echo "Run dir: $RUN_DIR"
 
 # Save summary
+export TASK MODULE MODE VERDICT ATTEMPT MAX_RETRIES ULTRAPLAN TIMESTAMP RUN_DIR
 atomic_write "$RUN_DIR/summary.json" "$(python3 -c "
-import json
+import json, os
 print(json.dumps({
-    'task': '''$TASK''',
-    'module': '$MODULE',
-    'mode': '$MODE',
-    'success': '$VERDICT' == 'approved',
-    'verdict': '$VERDICT',
-    'attempts': $ATTEMPT,
-    'max_retries': $MAX_RETRIES,
-    'ultraplan': $ULTRAPLAN == 'True',
-    'timestamp': '$TIMESTAMP',
-    'run_dir': '$RUN_DIR'
+    'task': os.environ['TASK'],
+    'module': os.environ['MODULE'],
+    'mode': os.environ['MODE'],
+    'success': os.environ['VERDICT'] == 'approved',
+    'verdict': os.environ['VERDICT'],
+    'attempts': int(os.environ['ATTEMPT']),
+    'max_retries': int(os.environ['MAX_RETRIES']),
+    'ultraplan': os.environ['ULTRAPLAN'] == 'True',
+    'timestamp': os.environ['TIMESTAMP'],
+    'run_dir': os.environ['RUN_DIR']
 }, ensure_ascii=False, indent=2))
 ")"

@@ -74,7 +74,7 @@ atomic_write() {
   local target="$1"
   local content="$2"
   local tmp="${target}.tmp.$$"
-  echo "$content" > "$tmp"
+  printf '%s\n' "$content" > "$tmp"
   mv "$tmp" "$target"
 }
 

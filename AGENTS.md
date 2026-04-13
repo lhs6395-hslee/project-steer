@@ -13,7 +13,7 @@ This project uses separated agent roles to prevent self-confirmation bias.
 2. **Information Barrier**: The Reviewer MUST NOT see Executor's reasoning — only plan + output
 3. **No Self-Review**: The agent that produces output NEVER evaluates its own work
 4. **Retry with Feedback**: On review failure, Executor receives specific issues and must address ALL of them
-5. **Max 3 Retries**: If Reviewer rejects 3 times, escalate to human review
+5. **Max 3-5 Retries**: Confidence_Trigger 구간에 따라 3~5회. 초과 시 escalate to human review
 
 ## Pipeline Flow
 

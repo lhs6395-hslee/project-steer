@@ -11,11 +11,13 @@ set -euo pipefail
 TASK="${1:?Usage: confidence_trigger.sh <task> <module>}"
 MODULE="${2:-unknown}"
 
-python3 -c "
-import json, re, sys
+export TASK MODULE
 
-task = '''$TASK'''
-module = '$MODULE'
+python3 -c "
+import json, re, sys, os
+
+task = os.environ['TASK']
+module = os.environ['MODULE']
 
 # ── 차원별 점수 산출 ──
 
