@@ -259,6 +259,37 @@
 
 ---
 
+## 아이콘 (icons/ 폴더)
+
+무료 아이콘 PNG 파일. 96×96px, RGBA, 투명 배경.
+카드/도형 우상단에 0.45" 크기로 배치.
+
+| 파일명 | 용도 |
+|--------|------|
+| analytics.png | 분석, 데이터 |
+| checklist.png | 체크리스트, 검증 |
+| cluster.png | 클러스터, 클라우드 |
+| connect.png | 연결, 통합 |
+| cost.png | 비용, 과금 |
+| dashboard.png | 대시보드 |
+| database.png | 데이터베이스 |
+| deploy.png | 배포, 런칭 |
+| encryption.png | 암호화, 보안 |
+| monitoring.png | 모니터링 |
+| network.png | 네트워크 |
+| performance.png | 성능 |
+| process.png | 프로세스, 워크플로우 |
+| security.png | 보안, 인증 |
+| server.png | 서버, 인프라 |
+| settings.png | 설정, 구성 |
+| storage.png | 스토리지 |
+| timeline.png | 타임라인, 일정 |
+| warning.png | 경고, 주의 |
+
+아이콘 파일이 없으면 파란색 원형(PRIMARY) + 텍스트 심볼로 대체.
+
+---
+
 ## 색상 상수
 
 참조 페이지: P7 (idx 6) — 메인 색상, 서브 색상, 투명도 조절 가이드
@@ -280,10 +311,25 @@
 
 | 용도 | 폰트 | 크기 |
 |------|------|------|
-| 슬라이드 제목 | 프리젠테이션 7 Bold | 28pt |
-| 슬라이드 설명 | 프리젠테이션 5 Medium | 12pt |
-| 본문 제목/강조 | Freesentation | 가변 |
+| 슬라이드 제목 (헤더 좌) | 프리젠테이션 7 Bold | 28pt |
+| 슬라이드 설명 (헤더 우) | 프리젠테이션 5 Medium | 12pt |
+| **도형/카드 제목** | **프리젠테이션 7 Bold** | **14pt** |
+| **도형/카드 내용** | **Freesentation** | **13pt** |
 | 본문 텍스트 | Freesentation | 가변 |
+
+### 본문 콘텐츠 배치 규칙
+
+- **중앙 정렬 필수**: 다이어그램, 카드 그룹, 리스트 등 본문 콘텐츠 블록은 슬라이드 좌우 중앙에 배치
+  - 계산: `start_left = (SLIDE_W - total_block_width) / 2`
+- **도형 제목**: 프리젠테이션 7 Bold, 14pt, PRIMARY 색상
+- **도형 내용**: Freesentation, 13pt, DARK_GRAY 색상
+- **좌우 여백 대칭**: 왼쪽 여백 ≈ 오른쪽 여백 (±0.1" 이내)
+- **하단 여백 필수**: 모든 콘텐츠는 body_limit_y(7.0") 이내. 슬라이드 바닥에 붙지 않도록 최소 0.3" 여백
+- **도형 내부 텍스트**: 별도 textbox가 아닌 shape의 text_frame에 직접 삽입. bodyPr inset(tIns/bIns/lIns/rIns)으로 상하좌우 내부 여백 균등 설정 (0.12" 권장)
+- **텍스트 수직 정렬**: 도형 내 단일 텍스트(Producer, Consumer 등)는 `anchor='ctr'`(Middle)로 수직 중앙. 제목+본문 복합 텍스트는 상단 정렬 + inset 패딩
+- **본문 제목 영역**: Freesentation 16pt, PRIMARY. 중제목 아래 1.75"에 배치. 본문 설명글은 그 아래에 13pt DARK_GRAY
+- **요소 간 최소 간격**: 0.2"
+- **요소 겹침 금지**: 텍스트가 텍스트박스를 넘어서 다른 요소와 겹치지 않도록 사전 검증
 
 
 ---

@@ -102,6 +102,28 @@ terraform, timeline, verification
 | `BODY_TITLE` | "Freesentation" | 본문 제목/강조 |
 | `BODY_TEXT` | "Freesentation" | 본문 텍스트 |
 
+### Body Content Font Rules
+
+본문 영역(2.0"~7.2") 내 도형/카드/리스트 등의 폰트 규칙:
+
+| 요소 | 폰트 | 크기 | 색상 | Bold |
+|------|------|------|------|------|
+| 도형/카드 제목 | 프리젠테이션 7 Bold | **14pt** | PRIMARY (0,67,218) | Yes |
+| 도형/카드 내용 | Freesentation | **13pt** | DARK_GRAY (33,33,33) | No |
+| 배지/라벨 텍스트 | 프리젠테이션 7 Bold | 14pt | WHITE (255,255,255) | Yes |
+| 번호 배지 | 프리젠테이션 7 Bold | 14pt | WHITE | Yes |
+
+### Body Content Layout Rules
+
+- **중앙 정렬 필수**: 다이어그램, 카드 그룹, 리스트 등 콘텐츠 블록은 슬라이드 좌우 중앙 배치
+  - 계산: `start_left = (SLIDE_W - total_block_width) / 2`
+- **좌우 여백 대칭**: 왼쪽 여백 ≈ 오른쪽 여백 (±0.1" 이내)
+- **하단 여백 필수**: 모든 콘텐츠는 body_limit_y(7.0") 이내. 슬라이드 바닥에 최소 0.3" 여백
+- **도형 내부 텍스트**: shape의 text_frame에 직접 삽입. bodyPr inset으로 상하좌우 내부 여백 균등 (0.12")
+- **텍스트 수직 정렬**: 단일 텍스트 도형은 `anchor='ctr'`(Middle). 복합 텍스트는 좌측 상단 정렬 + inset 패딩
+- **요소 간 최소 간격**: 0.2"
+- **요소 겹침 금지**: 텍스트가 텍스트박스를 넘어서 다른 요소와 겹치지 않도록 사전 검증
+
 ### Colors (COLORS dict)
 
 | Key | RGB | Usage |

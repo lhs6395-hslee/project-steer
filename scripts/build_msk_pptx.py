@@ -201,8 +201,9 @@ def add_rich_textbox(slide, left, top, width, height, paragraphs_data, alignment
     return txBox
 
 
-def add_rounded_rect(slide, left, top, width, height, fill_color=None, line_color=None, line_width=None):
-    """Add a rounded rectangle shape."""
+def add_rounded_rect(slide, left, top, width, height, fill_color=None, line_color=None, line_width=None,
+                     text=None, font_name=FONT_BODY, font_size=13, text_color=DARK_GRAY, bold=False):
+    """Add a rounded rectangle shape with optional centered text inside."""
     shape = slide.shapes.add_shape(
         MSO_SHAPE.ROUNDED_RECTANGLE, Emu(left), Emu(top), Emu(width), Emu(height)
     )
@@ -217,6 +218,48 @@ def add_rounded_rect(slide, left, top, width, height, fill_color=None, line_colo
             shape.line.width = Pt(line_width)
     else:
         shape.line.fill.background()
+    if text:
+        tf = shape.text_frame
+        tf.word_wrap = True
+        tf.paragraphs[0].alignment = PP_ALIGN.CENTER
+        # 수직 중앙 (Middle)
+        from pptx.enum.text import MSO_ANCHOR as _MSO_ANCHOR
+        tf.paragraphs[0].space_before = Pt(0)
+        from pptx.oxml.ns import qn
+        txBody = tf._txBody
+        bodyPr = txBody.find(qn('a:bodyPr'))
+        if bodyPr is not None:
+            bodyPr.set('anchor', 'ctr')
+        run = tf.paragraphs[0].add_run()
+        run.text = text
+        run.font.name = font_name
+        run.font.size = Pt(font_size)
+        run.font.color.rgb = text_color
+        run.font.bold = bold
+    return shape
+
+
+def add_shape_with_text(slide, shape_type, left, top, width, height, fill_color=PRIMARY,
+                        text="", font_name=FONT_TITLE, font_size=14, text_color=WHITE, bold=True):
+    """Add any shape with centered text (horizontal + vertical Middle)."""
+    shape = slide.shapes.add_shape(shape_type, Emu(left), Emu(top), Emu(width), Emu(height))
+    shape.fill.solid()
+    shape.fill.fore_color.rgb = fill_color
+    shape.line.fill.background()
+    if text:
+        tf = shape.text_frame
+        tf.word_wrap = True
+        tf.paragraphs[0].alignment = PP_ALIGN.CENTER
+        from pptx.oxml.ns import qn
+        bodyPr = tf._txBody.find(qn('a:bodyPr'))
+        if bodyPr is not None:
+            bodyPr.set('anchor', 'ctr')
+        run = tf.paragraphs[0].add_run()
+        run.text = text
+        run.font.name = font_name
+        run.font.size = Pt(font_size)
+        run.font.color.rgb = text_color
+        run.font.bold = bold
     return shape
 
 
@@ -243,18 +286,40 @@ def add_arrow(slide, left, top, width, height, fill_color=PRIMARY):
     return shape
 
 
-def add_body_header(slide, title_text, desc_text):
-    """Add standard body slide header (title left + description right)."""
-    # Title: left=354806, top=557906, width=2720317, height=932614
+def add_body_header(slide, title_text, desc_text, body_title=None, body_desc=None):
+    """Add standard body slide header (title left + description right) + optional body title.
+    
+    Returns content_top_y (EMU) — 콘텐츠 시작 Y 좌표.
+    body_title이 있으면 구분선 + 본문 제목 영역이 추가되어 콘텐츠가 아래로 밀림.
+    """
+    # 중제목 (좌): left=354806, top=557906
     add_textbox(slide,
         left=354806, top=557906, width=2720317, height=932614,
         text=title_text, font_name=FONT_TITLE, font_size=28,
         color=PRIMARY, bold=True)
-    # Description: left=3763700, top=558800, width=7551483, height=937918
+    # 중제목 설명글 (우): left=3763700, top=558800
     add_textbox(slide,
         left=3763700, top=558800, width=7551483, height=937918,
         text=desc_text, font_name=FONT_DESC, font_size=12,
         color=GRAY, bold=False)
+    
+    if body_title:
+        # 본문 제목 (좌): Freesentation 16pt, PRIMARY
+        bt_top = inches(1.75)
+        add_textbox(slide,
+            left=SLIDE_MARGIN, top=bt_top, width=12192000 - 2 * SLIDE_MARGIN, height=inches(0.35),
+            text=body_title, font_name=FONT_BODY, font_size=16, color=PRIMARY, bold=True)
+        
+        # 본문 설명글 (아래): Freesentation 13pt, DARK_GRAY
+        if body_desc:
+            add_textbox(slide,
+                left=SLIDE_MARGIN, top=bt_top + inches(0.4),
+                width=12192000 - 2 * SLIDE_MARGIN, height=inches(0.3),
+                text=body_desc, font_name=FONT_BODY, font_size=13, color=DARK_GRAY)
+            return bt_top + inches(0.85)  # 콘텐츠 시작: 설명글 아래 + 여유
+        return bt_top + inches(0.55)
+    
+    return inches(2.0)  # 본문 제목 없으면 기존대로
 
 
 # ── Inch/EMU helpers ──
@@ -423,55 +488,54 @@ def main():
 
     # ── Body Slide 1: MSK Architecture Overview ──
     slide1 = prs.slides.add_slide(body_layout)
-    # Remove any default shapes from layout (keep only placeholder bar if any)
-    # Add header
-    add_body_header(slide1, "1-1. MSK 아키텍처 개요",
-        "Apache Kafka 완전관리형 서비스의 구성 요소와 데이터 흐름")
+    content_y1 = add_body_header(slide1, "1-1. MSK 아키텍처 개요",
+        "Apache Kafka 완전관리형 서비스의 구성 요소와 데이터 흐름",
+        body_title="Producer → MSK Cluster → Consumer 데이터 흐름",
+        body_desc="메시지 생산부터 소비까지의 전체 아키텍처 구성도")
 
     # Architecture diagram: Producer → MSK Cluster → Consumer
-    # Layout budget: slide_w=12192000, margin=0.5" each side → usable=11277600
-    # Components: box + gap + arrow + gap + msk + gap + arrow + gap + box
-    # Recalculated to fit within 0.5"–12.833" (margins 0.5" each side)
-    body_top = inches(2.2)
-    box_w = inches(2.2)       # reduced from 2.5 to prevent Consumer right overflow
-    box_h = inches(1.2)
-    arrow_w = inches(0.5)     # reduced from 0.6 to reclaim space
-    arrow_h = inches(0.5)
-    gap = inches(0.12)
+    # 중앙 정렬: 전체 너비를 먼저 계산하고 시작 left를 (SLIDE_W - total) / 2로 배치
+    body_top = content_y1 + inches(0.2)
+    box_w = inches(2.0)
+    box_h = inches(1.3)
+    arrow_w = inches(0.5)
+    arrow_h = inches(0.4)
+    msk_w = inches(5.6)
+    gap = inches(0.2)  # 요소 간 간격
+
+    total_diagram_w = box_w + gap + arrow_w + gap + msk_w + gap + arrow_w + gap + box_w
+    # = 2.0 + 0.2 + 0.5 + 0.2 + 5.6 + 0.2 + 0.5 + 0.2 + 2.0 = 11.4"
+    diagram_left = (SLIDE_W - total_diagram_w) // 2  # 중앙 정렬
 
     # Producer box
-    prod_left = inches(0.5)
-    prod_box = add_rounded_rect(slide1, prod_left, body_top, box_w, box_h,
-        fill_color=PRIMARY)
-    add_textbox(slide1, prod_left, body_top, box_w, box_h,
-        "Producer", font_name=FONT_BODY, font_size=16, color=WHITE, bold=True,
-        alignment=PP_ALIGN.CENTER)
+    prod_left = diagram_left
+    add_rounded_rect(slide1, prod_left, body_top, box_w, box_h, fill_color=PRIMARY,
+                     text="Producer", font_name=FONT_TITLE, font_size=14, text_color=WHITE, bold=True)
 
     # Arrow 1
     arr1_left = prod_left + box_w + gap
     arr1_top = body_top + (box_h - arrow_h) // 2
     add_arrow(slide1, arr1_left, arr1_top, arrow_w, arrow_h, fill_color=PRIMARY)
 
-    # MSK Cluster box (wider)
-    msk_w = inches(5.2)       # slightly wider to use freed space from smaller arrows
+    # MSK Cluster box
     msk_left = arr1_left + arrow_w + gap
-    msk_box = add_rounded_rect(slide1, msk_left, body_top, msk_w, box_h,
+    add_rounded_rect(slide1, msk_left, body_top, msk_w, box_h,
         fill_color=RGBColor(230, 240, 255), line_color=PRIMARY, line_width=1.5)
-    # MSK Cluster label
-    add_textbox(slide1, msk_left, body_top + inches(0.1), msk_w, inches(0.4),
-        "MSK Cluster (Multi-AZ Brokers)", font_name=FONT_BODY, font_size=14,
+    add_textbox(slide1, msk_left, body_top + inches(0.1), msk_w, inches(0.35),
+        "MSK Cluster (Multi-AZ Brokers)", font_name=FONT_TITLE, font_size=14,
         color=PRIMARY, bold=True, alignment=PP_ALIGN.CENTER)
-    # Broker nodes inside
-    broker_w = inches(1.45)
-    broker_h = inches(0.5)
-    broker_top = body_top + inches(0.6)
+    # Broker nodes inside — 3개 균등 배치
+    broker_count = 3
+    broker_margin = inches(0.2)
+    broker_gap = inches(0.15)
+    broker_total_w = msk_w - 2 * broker_margin
+    broker_w = (broker_total_w - (broker_count - 1) * broker_gap) // broker_count
+    broker_h = inches(0.45)
+    broker_top = body_top + inches(0.65)
     for i, az in enumerate(["AZ-a", "AZ-b", "AZ-c"]):
-        b_left = msk_left + inches(0.25) + i * inches(1.6)
-        add_rounded_rect(slide1, b_left, broker_top, broker_w, broker_h,
-            fill_color=PRIMARY)
-        add_textbox(slide1, b_left, broker_top, broker_w, broker_h,
-            f"Broker ({az})", font_name=FONT_BODY, font_size=9, color=WHITE,
-            bold=True, alignment=PP_ALIGN.CENTER)
+        b_left = msk_left + broker_margin + i * (broker_w + broker_gap)
+        add_rounded_rect(slide1, b_left, broker_top, broker_w, broker_h, fill_color=PRIMARY,
+                         text=f"Broker ({az})", font_name=FONT_TITLE, font_size=12, text_color=WHITE, bold=True)
 
     # Arrow 2
     arr2_left = msk_left + msk_w + gap
@@ -479,17 +543,16 @@ def main():
 
     # Consumer box
     cons_left = arr2_left + arrow_w + gap
-    add_rounded_rect(slide1, cons_left, body_top, box_w, box_h,
-        fill_color=PRIMARY)
-    add_textbox(slide1, cons_left, body_top, box_w, box_h,
-        "Consumer", font_name=FONT_BODY, font_size=16, color=WHITE, bold=True,
-        alignment=PP_ALIGN.CENTER)
+    add_rounded_rect(slide1, cons_left, body_top, box_w, box_h, fill_color=PRIMARY,
+                     text="Consumer", font_name=FONT_TITLE, font_size=14, text_color=WHITE, bold=True)
 
-    # Bottom 3-column explanation
-    col_w = inches(3.9)
-    col_h = inches(3.0)
-    col_top = inches(4.0)
-    col_gap = inches(0.25)
+    # Bottom 3-column explanation — 좌우 여백 동일 (0.5")
+    col_count = 3
+    col_gap_val = inches(0.25)
+    usable_w = SLIDE_W - 2 * SLIDE_MARGIN  # 12.333"
+    col_w = (usable_w - (col_count - 1) * col_gap_val) // col_count
+    col_h = inches(2.5)
+    col_top = inches(4.4)
     cols_data = [
         ("핵심 구성요소", [
             "• Broker: 메시지 저장/전달 노드",
@@ -514,25 +577,24 @@ def main():
         ]),
     ]
     for i, (title, bullets) in enumerate(cols_data):
-        c_left = inches(0.5) + i * (col_w + col_gap)
-        # Background box
+        c_left = SLIDE_MARGIN + i * (col_w + col_gap_val)
         add_rounded_rect(slide1, c_left, col_top, col_w, col_h,
             fill_color=BG_BOX_RGB, line_color=BORDER_RGB, line_width=0.5)
-        # Title
         add_textbox(slide1, c_left + inches(0.2), col_top + inches(0.15),
-            col_w - inches(0.4), inches(0.4),
-            title, font_name=FONT_BODY, font_size=13, color=PRIMARY, bold=True)
-        # Bullets
+            col_w - inches(0.4), inches(0.35),
+            title, font_name=FONT_TITLE, font_size=14, color=PRIMARY, bold=True)
         add_multiline_textbox(slide1,
-            c_left + inches(0.2), col_top + inches(0.6),
-            col_w - inches(0.4), col_h - inches(0.8),
-            bullets, font_name=FONT_BODY, font_size=10, color=DARK_GRAY,
+            c_left + inches(0.2), col_top + inches(0.55),
+            col_w - inches(0.4), col_h - inches(0.7),
+            bullets, font_name=FONT_BODY, font_size=13, color=DARK_GRAY,
             line_spacing=2)
 
     # ── Body Slide 2: Cluster Config & Core Features (2x2 grid) ──
     slide2 = prs.slides.add_slide(body_layout)
-    add_body_header(slide2, "2-1. 클러스터 구성과 핵심 기능",
-        "Provisioned vs Serverless, 보안, 모니터링, Connect 통합")
+    content_y2 = add_body_header(slide2, "2-1. 클러스터 구성과 핵심 기능",
+        "Provisioned vs Serverless, 보안, 모니터링, Connect 통합",
+        body_title="MSK 핵심 기능 4가지",
+        body_desc="클러스터 유형, 보안, 모니터링, Connect 통합 비교")
 
     card_data = [
         ("클러스터 유형", [
@@ -557,12 +619,15 @@ def main():
         ]),
     ]
     card_w = inches(5.9)
-    card_h = inches(2.2)
+    card_h = inches(2.0)
     card_gap_x = inches(0.3)
     card_gap_y = inches(0.3)
-    grid_left = inches(0.5)
-    grid_top = inches(2.2)
+    # 중앙 정렬: 전체 그리드 너비 계산 후 시작 left 결정
+    grid_total_w = 2 * card_w + card_gap_x  # 5.9*2 + 0.3 = 12.1"
+    grid_left = (SLIDE_W - grid_total_w) // 2
+    grid_top = content_y2 + inches(0.2)
 
+    card_icons = ["icons/cluster.png", "icons/security.png", "icons/monitoring.png", "icons/connect.png"]
     for idx, (title, bullets) in enumerate(card_data):
         row = idx // 2
         col = idx % 2
@@ -571,71 +636,224 @@ def main():
 
         add_rounded_rect(slide2, c_left, c_top, card_w, card_h,
             fill_color=BG_BOX_RGB, line_color=BORDER_RGB, line_width=0.5)
-        # Card title
+        # 아이콘 이미지 (우상단)
+        icon_size = inches(0.45)
+        icon_path = card_icons[idx]
+        import os
+        if os.path.exists(icon_path):
+            slide2.shapes.add_picture(icon_path,
+                Emu(c_left + card_w - icon_size - inches(0.2)),
+                Emu(c_top + inches(0.15)),
+                Emu(icon_size), Emu(icon_size))
+        # Card title — 14pt
         add_textbox(slide2, c_left + inches(0.25), c_top + inches(0.15),
-            card_w - inches(0.5), inches(0.4),
-            title, font_name=FONT_BODY, font_size=14, color=PRIMARY, bold=True)
-        # Card body
+            card_w - inches(1.0), inches(0.4),
+            title, font_name=FONT_TITLE, font_size=14, color=PRIMARY, bold=True)
+        # Card body — 13pt
         add_multiline_textbox(slide2,
             c_left + inches(0.25), c_top + inches(0.6),
             card_w - inches(0.5), card_h - inches(0.8),
-            bullets, font_name=FONT_BODY, font_size=11, color=DARK_GRAY,
+            bullets, font_name=FONT_BODY, font_size=13, color=DARK_GRAY,
             line_spacing=3)
 
     # ── Body Slide 3: Operations & Best Practices (numbered list) ──
     slide3 = prs.slides.add_slide(body_layout)
-    add_body_header(slide3, "3-1. 운영 전략 및 Best Practices",
-        "클러스터 사이징, 파티션 설계, 장애 대응, 비용 최적화")
+    content_y3 = add_body_header(slide3, "3-1. 운영 전략 및 Best Practices",
+        "클러스터 사이징, 파티션 설계, 장애 대응, 비용 최적화",
+        body_title="운영 핵심 체크리스트",
+        body_desc="프로덕션 환경에서 반드시 확인해야 할 4가지 항목")
 
     items = [
-        ("01", "클러스터 사이징",
+        ("1", "클러스터 사이징",
          "브로커 수 = (피크 처리량 ÷ 브로커당 처리량) × RF\nkafka.m5.large 이상 권장, EBS gp3 기본"),
-        ("02", "파티션 설계",
+        ("2", "파티션 설계",
          "파티션 수 = max(Producer 처리량 ÷ 파티션당 쓰기, Consumer 처리량 ÷ 파티션당 읽기)\n브로커당 4,000개 이하 권장"),
-        ("03", "장애 대응",
+        ("3", "장애 대응",
          "Multi-AZ 배포 필수, min.insync.replicas=2\nunclean.leader.election=false, 브로커 장애 시 자동 복구"),
-        ("04", "비용 최적화",
+        ("4", "비용 최적화",
          "Tiered Storage로 장기 보관 비용 절감\nServerless로 변동 워크로드 대응, 불필요 토픽/파티션 정리"),
     ]
 
     # Body area: 2.0"–7.2" (body_limit_y=6583680)
     # 4 items: 2.0 + 4*1.0 + 3*0.12 = 2.0 + 4.0 + 0.36 = 6.36" ✓ (< 7.2", margin 0.84")
-    item_top_start = inches(2.0)
-    item_h = inches(1.0)        # reduced from 1.05 for safe margin
-    item_gap = inches(0.12)     # slightly increased for visual breathing room
-    badge_size = inches(0.55)
-    badge_left = inches(0.5)
-    content_left = inches(1.3)
-    content_w = inches(11.3)
+    item_top_start = content_y3 + inches(0.15)
+    item_h = inches(0.95)
+    item_gap = inches(0.1)
+    badge_size = inches(0.5)
+    # 중앙 정렬: badge + gap + content_box 전체를 중앙 배치
+    content_w = inches(10.5)
+    total_row_w = badge_size + inches(0.2) + content_w  # 0.55 + 0.2 + 10.5 = 11.25"
+    row_left = (SLIDE_W - total_row_w) // 2
+    badge_left = row_left
+    content_left = row_left + badge_size + inches(0.2)
 
     for i, (num, title, body) in enumerate(items):
         y = item_top_start + i * (item_h + item_gap)
 
-        # Content background box
-        add_rounded_rect(slide3, content_left, y, content_w, item_h,
-            fill_color=BG_BOX_RGB, line_color=BORDER_RGB, line_width=0.5)
+        # Content card — 도형 내부에 제목+본문 텍스트 직접 삽입, 내부 여백 균등
+        card = slide3.shapes.add_shape(
+            MSO_SHAPE.ROUNDED_RECTANGLE,
+            Emu(content_left), Emu(y), Emu(content_w), Emu(item_h))
+        card.fill.solid()
+        card.fill.fore_color.rgb = BG_BOX_RGB
+        card.line.color.rgb = BORDER_RGB
+        card.line.width = Pt(0.5)
 
-        # Number badge (circle)
+        # 내부 여백 설정 (상하좌우 동일)
+        from pptx.oxml.ns import qn
+        bodyPr = card.text_frame._txBody.find(qn('a:bodyPr'))
+        pad = int(0.12 * 914400)  # 0.12" 내부 여백
+        if bodyPr is not None:
+            bodyPr.set('lIns', str(pad))
+            bodyPr.set('rIns', str(pad))
+            bodyPr.set('tIns', str(pad))
+            bodyPr.set('bIns', str(pad))
+
+        tf = card.text_frame
+        tf.word_wrap = True
+        # 제목 paragraph — 좌측 정렬
+        p_title = tf.paragraphs[0]
+        p_title.alignment = PP_ALIGN.LEFT
+        run_t = p_title.add_run()
+        run_t.text = title
+        run_t.font.name = FONT_TITLE
+        run_t.font.size = Pt(14)
+        run_t.font.color.rgb = PRIMARY
+        run_t.font.bold = True
+        # 본문 paragraphs
+        for line in body.split("\n"):
+            p_body = tf.add_paragraph()
+            p_body.alignment = PP_ALIGN.LEFT
+            p_body.space_before = Pt(2)
+            run_b = p_body.add_run()
+            run_b.text = line
+            run_b.font.name = FONT_BODY
+            run_b.font.size = Pt(13)
+            run_b.font.color.rgb = DARK_GRAY
+
+        # Number badge (circle) — 수직/수평 중앙
         badge_y = y + (item_h - badge_size) // 2
-        oval = add_oval(slide3, badge_left, badge_y, badge_size, badge_size,
-            fill_color=PRIMARY)
-        # Number text on badge
-        add_textbox(slide3, badge_left, badge_y, badge_size, badge_size,
-            num, font_name=FONT_BODY, font_size=14, color=WHITE, bold=True,
-            alignment=PP_ALIGN.CENTER)
+        add_shape_with_text(slide3, MSO_SHAPE.OVAL, badge_left, badge_y, badge_size, badge_size,
+            fill_color=PRIMARY, text=num, font_name=FONT_TITLE, font_size=14, text_color=WHITE, bold=True)
 
-        # Title
-        add_textbox(slide3, content_left + inches(0.25), y + inches(0.1),
-            inches(3.0), inches(0.35),
-            title, font_name=FONT_BODY, font_size=13, color=PRIMARY, bold=True)
+    # ════════════════════════════════════════
+    # Step 5: Layout Test Slides (5종)
+    # L01 Bento Grid, L02 Three Cards, L03 Grid 2x2,
+    # L04 Process Arrow, L05 Phased Columns
+    # ════════════════════════════════════════
 
-        # Body text
-        body_lines = body.split("\n")
-        add_multiline_textbox(slide3,
-            content_left + inches(0.25), y + inches(0.45),
-            content_w - inches(0.5), item_h - inches(0.55),
-            body_lines, font_name=FONT_BODY, font_size=10, color=DARK_GRAY,
-            line_spacing=1)
+    # ── L01 Bento Grid ──
+    sl = prs.slides.add_slide(body_layout)
+    add_body_header(sl, "L01. Bento Grid", "좌 50% + 우 2분할 레이아웃 테스트")
+    add_rounded_rect(sl, SLIDE_MARGIN, inches(2), inches(5.9), inches(4.8),
+        fill_color=BG_BOX_RGB, line_color=BORDER_RGB, line_width=0.5)
+    add_textbox(sl, SLIDE_MARGIN+inches(0.15), inches(2.12), inches(5.6), inches(0.35),
+        "MSK 아키텍처 개요", font_name=FONT_TITLE, font_size=14, color=PRIMARY, bold=True)
+    add_multiline_textbox(sl, SLIDE_MARGIN+inches(0.15), inches(2.55), inches(5.6), inches(3.5),
+        ["• Apache Kafka 완전관리형 서비스", "• Multi-AZ 브로커 자동 분산 배치",
+         "• VPC 내 Private Subnet 배치", "• ZooKeeper/KRaft 메타데이터 관리",
+         "• EBS gp3 기본 스토리지"], font_name=FONT_BODY, font_size=13, color=DARK_GRAY)
+    rl = SLIDE_MARGIN + inches(6.15)
+    rw = inches(6.18)
+    add_rounded_rect(sl, rl, inches(2), rw, inches(2.25),
+        fill_color=BG_BOX_RGB, line_color=BORDER_RGB, line_width=0.5)
+    add_textbox(sl, rl+inches(0.15), inches(2.12), rw-inches(0.3), inches(0.35),
+        "클러스터 유형", font_name=FONT_TITLE, font_size=14, color=PRIMARY, bold=True)
+    add_multiline_textbox(sl, rl+inches(0.15), inches(2.55), rw-inches(0.3), inches(1.5),
+        ["• Provisioned: 직접 지정", "• Serverless: 자동 스케일링", "• Express: 고성능"],
+        font_name=FONT_BODY, font_size=13, color=DARK_GRAY)
+    add_rounded_rect(sl, rl, inches(4.55), rw, inches(2.25),
+        fill_color=BG_BOX_RGB, line_color=BORDER_RGB, line_width=0.5)
+    add_textbox(sl, rl+inches(0.15), inches(4.67), rw-inches(0.3), inches(0.35),
+        "보안 체계", font_name=FONT_TITLE, font_size=14, color=PRIMARY, bold=True)
+    add_multiline_textbox(sl, rl+inches(0.15), inches(5.1), rw-inches(0.3), inches(1.5),
+        ["• IAM / SASL-SCRAM / mTLS", "• TLS + KMS 암호화", "• Security Group 접근 제어"],
+        font_name=FONT_BODY, font_size=13, color=DARK_GRAY)
+
+    # ── L02 Three Cards ──
+    sl = prs.slides.add_slide(body_layout)
+    add_body_header(sl, "L02. Three Cards", "3열 카드 레이아웃 테스트")
+    usable = 12192000 - 2 * SLIDE_MARGIN
+    cgap = inches(0.25)
+    cw = (usable - 2 * cgap) // 3
+    l02_cards = [
+        ("Provisioned", ["• 브로커 수 직접 지정", "• 세밀한 성능 튜닝", "• 예측 가능한 비용", "• 대규모 프로덕션"]),
+        ("Serverless", ["• 자동 스케일링", "• 사용한 만큼 과금", "• 운영 부담 최소", "• 변동 워크로드"]),
+        ("Express", ["• 고성능 + 간소화", "• 1-Click 생성", "• 자동 리밸런싱", "• 최신 기능 우선"]),
+    ]
+    for ci, (ct, cb) in enumerate(l02_cards):
+        cl = SLIDE_MARGIN + ci * (cw + cgap)
+        add_rounded_rect(sl, cl, inches(2), cw, inches(4.8),
+            fill_color=BG_BOX_RGB, line_color=BORDER_RGB, line_width=0.5)
+        add_textbox(sl, cl+inches(0.15), inches(2.12), cw-inches(0.3), inches(0.35),
+            ct, font_name=FONT_TITLE, font_size=14, color=PRIMARY, bold=True)
+        add_multiline_textbox(sl, cl+inches(0.15), inches(2.55), cw-inches(0.3), inches(3.5),
+            cb, font_name=FONT_BODY, font_size=13, color=DARK_GRAY)
+
+    # ── L03 Grid 2x2 ──
+    sl = prs.slides.add_slide(body_layout)
+    add_body_header(sl, "L03. Grid 2x2", "2x2 카드 그리드 레이아웃 테스트")
+    gw = (usable - cgap) // 2
+    gh = inches(2.3)
+    l03_grid = [
+        ("브로커 관리", ["• Multi-AZ 자동 분산", "• 장애 시 자동 복구", "• 인스턴스 타입 변경"]),
+        ("스토리지", ["• EBS gp3 기본", "• Tiered Storage (S3)", "• 자동 디스크 확장"]),
+        ("모니터링", ["• CloudWatch 3단계", "• Prometheus 호환", "• Broker 로그 전송"]),
+        ("MSK Connect", ["• Kafka Connect 관리형", "• Source/Sink 플러그인", "• Auto Scaling"]),
+    ]
+    for gi, (gt, gb) in enumerate(l03_grid):
+        gr, gc = gi // 2, gi % 2
+        gl = SLIDE_MARGIN + gc * (gw + cgap)
+        gtp = inches(2) + gr * (gh + cgap)
+        add_rounded_rect(sl, gl, gtp, gw, gh,
+            fill_color=BG_BOX_RGB, line_color=BORDER_RGB, line_width=0.5)
+        add_textbox(sl, gl+inches(0.15), gtp+inches(0.12), gw-inches(0.3), inches(0.35),
+            gt, font_name=FONT_TITLE, font_size=14, color=PRIMARY, bold=True)
+        add_multiline_textbox(sl, gl+inches(0.15), gtp+inches(0.5), gw-inches(0.3), gh-inches(0.6),
+            gb, font_name=FONT_BODY, font_size=13, color=DARK_GRAY)
+
+    # ── L04 Process Arrow ──
+    sl = prs.slides.add_slide(body_layout)
+    add_body_header(sl, "L04. Process Arrow", "4단계 프로세스 화살표 레이아웃 테스트")
+    pw = (usable - 3 * cgap) // 4
+    l04_steps = [
+        ("1. 설계", ["• VPC/Subnet 설계", "• 브로커 수 결정", "• 보안 그룹 설정"]),
+        ("2. 생성", ["• 클러스터 생성", "• 인증 방식 설정", "• 암호화 활성화"]),
+        ("3. 연결", ["• Producer 연결", "• MSK Connect", "• PrivateLink"]),
+        ("4. 운영", ["• 모니터링 구성", "• 파티션 리밸런싱", "• 비용 최적화"]),
+    ]
+    for pi, (pt, pb) in enumerate(l04_steps):
+        pl = SLIDE_MARGIN + pi * (pw + cgap)
+        chev = sl.shapes.add_shape(MSO_SHAPE.CHEVRON, Emu(pl), Emu(inches(2)), Emu(pw), Emu(inches(0.6)))
+        chev.fill.solid(); chev.fill.fore_color.rgb = PRIMARY; chev.line.fill.background()
+        add_textbox(sl, pl, inches(2), pw, inches(0.6),
+            pt, font_name=FONT_TITLE, font_size=14, color=WHITE, bold=True, alignment=PP_ALIGN.CENTER)
+        add_rounded_rect(sl, pl, inches(2.9), pw, inches(3.9),
+            fill_color=BG_BOX_RGB, line_color=BORDER_RGB, line_width=0.5)
+        add_multiline_textbox(sl, pl+inches(0.15), inches(3.05), pw-inches(0.3), inches(3.5),
+            pb, font_name=FONT_BODY, font_size=13, color=DARK_GRAY)
+
+    # ── L05 Phased Columns ──
+    sl = prs.slides.add_slide(body_layout)
+    add_body_header(sl, "L05. Phased Columns", "단계별 그라데이션 컬럼 레이아웃 테스트")
+    grad_colors = [RGBColor(0,27,94), RGBColor(0,67,218), RGBColor(59,122,237), RGBColor(160,195,250)]
+    grad_txt = [WHITE, WHITE, WHITE, RGBColor(0,27,94)]
+    l05_phases = [
+        ("Phase 1: 평가", ["• 현재 환경 분석", "• 워크로드 파악", "• 비용/성능 비교"]),
+        ("Phase 2: 설계", ["• 클러스터 유형 선택", "• 네트워크 설계", "• 보안 아키텍처"]),
+        ("Phase 3: 구축", ["• 클러스터 프로비저닝", "• MirrorMaker 설정", "• 데이터 동기화"]),
+        ("Phase 4: 운영", ["• 모니터링 대시보드", "• 알림 정책 설정", "• 성능 튜닝"]),
+    ]
+    for pi, (pt, pb) in enumerate(l05_phases):
+        pl = SLIDE_MARGIN + pi * (pw + cgap)
+        ph = sl.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Emu(pl), Emu(inches(2)), Emu(pw), Emu(inches(0.5)))
+        ph.fill.solid(); ph.fill.fore_color.rgb = grad_colors[pi]; ph.line.fill.background()
+        add_textbox(sl, pl, inches(2), pw, inches(0.5),
+            pt, font_name=FONT_TITLE, font_size=13, color=grad_txt[pi], bold=True, alignment=PP_ALIGN.CENTER)
+        add_rounded_rect(sl, pl, inches(2.7), pw, inches(4.1),
+            fill_color=BG_BOX_RGB, line_color=BORDER_RGB, line_width=0.5)
+        add_multiline_textbox(sl, pl+inches(0.15), inches(2.85), pw-inches(0.3), inches(3.5),
+            pb, font_name=FONT_BODY, font_size=13, color=DARK_GRAY)
 
     # ════════════════════════════════════════
     # Step 6: Delete unnecessary slides (index 2~39, reverse order)

@@ -59,6 +59,22 @@ PPTX 생성은 두 가지 방식을 조합한다:
 - 유틸리티 스크립트는 `scripts/utils/`에 배치
 - 타이틀 잘림 검증: 타이틀 영역 4.5인치/28pt 기준 ~340pt 초과 시 자연스러운 단어 경계에서 \n 삽입 (단어 중간 금지, 생성 후 검증)
 
+### 본문 콘텐츠 배치 규칙
+
+- **중앙 정렬 필수**: 다이어그램, 카드 그룹, 리스트 등 본문 콘텐츠 블록은 슬라이드 좌우 중앙에 배치. `start_left = (SLIDE_W - total_block_width) / 2`
+- **좌우 여백 대칭**: 왼쪽 여백 ≈ 오른쪽 여백 (±0.1" 이내)
+- **도형/카드 제목**: 프리젠테이션 7 Bold, **14pt**, PRIMARY 색상
+- **도형/카드 내용**: Freesentation, **13pt**, DARK_GRAY 색상
+- **배지/라벨 텍스트**: 프리젠테이션 7 Bold, 14pt, WHITE 색상 (PRIMARY 배경)
+- **본문 제목**: Freesentation, **16pt**, PRIMARY. 중제목 아래 1.75"에 배치
+- **본문 설명글**: Freesentation, 13pt, DARK_GRAY. 본문 제목 아래
+- **본문 영역**: body_start_y(2.0") ~ body_limit_y(7.0") 범위 내 배치
+- **하단 여백 필수**: 모든 콘텐츠는 7.0" 이내. 슬라이드 바닥에 붙지 않도록 최소 0.3" 여백
+- **도형 내부 텍스트**: 별도 textbox가 아닌 shape의 text_frame에 직접 삽입. bodyPr inset으로 상하좌우 내부 여백 균등 (0.12" 권장)
+- **텍스트 수직 정렬**: 단일 텍스트 도형은 `anchor='ctr'`(Middle). 복합 텍스트는 상단 정렬 + inset 패딩
+- **요소 간 최소 간격**: 0.2"
+- **요소 겹침 금지**: 텍스트가 텍스트박스를 넘어서 다른 요소와 겹치지 않도록 사전 검증
+
 ### 표지 규칙
 
 - **서식 보존**: 표지 shape 텍스트 교체 시 `tf.clear()` 금지. 기존 run XML을 복제하여 텍스트만 교체 (`replace_text_preserve_format` / `replace_multiline_preserve_format` 사용). scheme color(흰색)가 보존되어야 함.

@@ -8,6 +8,12 @@ Provides helper functions for common PPTX operations:
 - Slide deletion, reordering, and section rebuild
 - Final save with verification
 
+Body Content Rules:
+- 콘텐츠 블록은 슬라이드 좌우 중앙 정렬: start_left = (SLIDE_W - total_w) / 2
+- 도형/카드 제목: 프리젠테이션 7 Bold, 14pt, PRIMARY
+- 도형/카드 내용: Freesentation, 13pt, DARK_GRAY
+- 좌우 여백 대칭 (±0.1" 이내)
+
 Usage:
     from scripts.utils.pptx_builder import PptxBuilder
     
@@ -48,6 +54,10 @@ FONT_TITLE = "프리젠테이션 7 Bold"
 FONT_DESC = "프리젠테이션 5 Medium"
 FONT_BODY = "Freesentation"
 
+# Body content font sizes (도형/카드 내 텍스트)
+SHAPE_TITLE_SIZE = 14   # 도형/카드 제목
+SHAPE_BODY_SIZE = 13    # 도형/카드 내용
+
 # EMU helpers
 def inches(val):
     return int(val * 914400)
@@ -55,7 +65,7 @@ def inches(val):
 SLIDE_W = 12192000  # 13.333"
 SLIDE_H = 6858000   # 7.500"
 BODY_START_Y = inches(2.0)
-BODY_LIMIT_Y = inches(7.2)
+BODY_LIMIT_Y = inches(7.0)  # 하단 여백 0.5" 확보
 
 
 class PptxBuilder:
@@ -317,7 +327,7 @@ class PptxBuilder:
     # ── Shape Helpers ──
 
     def add_box(self, slide, left, top, width, height, text="", fill_color=BG_BOX, line_color=BORDER,
-                font_size=12, text_color=DARK_GRAY, bold=False, alignment=PP_ALIGN.LEFT):
+                font_size=SHAPE_BODY_SIZE, text_color=DARK_GRAY, bold=False, alignment=PP_ALIGN.LEFT):
         """Add a rounded rectangle with optional text."""
         shape = slide.shapes.add_shape(
             MSO_SHAPE.ROUNDED_RECTANGLE,
@@ -358,13 +368,13 @@ class PptxBuilder:
         return shape
 
     def add_text(self, slide, left, top, width, height, text,
-                 font_name=FONT_BODY, font_size=12, color=DARK_GRAY, bold=False, alignment=PP_ALIGN.LEFT):
+                 font_name=FONT_BODY, font_size=SHAPE_BODY_SIZE, color=DARK_GRAY, bold=False, alignment=PP_ALIGN.LEFT):
         """Add a text box (inches)."""
         return self._add_textbox(slide, inches(left), inches(top), inches(width), inches(height),
                                 text, font_name, font_size, color, bold, alignment)
 
     def add_multiline_text(self, slide, left, top, width, height, lines,
-                           font_name=FONT_BODY, font_size=12, color=DARK_GRAY, bold=False, line_spacing=2):
+                           font_name=FONT_BODY, font_size=SHAPE_BODY_SIZE, color=DARK_GRAY, bold=False, line_spacing=2):
         """Add a text box with multiple lines (inches)."""
         txBox = slide.shapes.add_textbox(inches(left), inches(top), inches(width), inches(height))
         tf = txBox.text_frame

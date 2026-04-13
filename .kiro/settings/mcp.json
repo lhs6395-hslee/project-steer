@@ -61,7 +61,7 @@
       "autoApprove": []
     },
     "pptx": {
-      "command": "uvx",
+      "command": "/Users/toule/.local/bin/uvx",
       "args": [
         "--from",
         "office-powerpoint-mcp-server",
