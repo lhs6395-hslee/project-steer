@@ -336,7 +336,7 @@
 #### Acceptance Criteria
 
 1. THE PPTX_Module SHALL MCP 도구(pptx 서버)로 JSON 데이터를 직접 전달하여 프레젠테이션을 생성한다. Python 스크립트를 작성하여 생성하지 않는다.
-2. THE PPTX_Module SHALL `templates/pptx_template.pptx` 템플릿을 기반으로 8개 레이아웃(표지, 내지, 내지_Grey, 내지_Gradation, 대목차, 중목차, 영상, 감사합니다)을 지원한다.
+2. THE PPTX_Module SHALL `templates/pptx_template.pptx` 템플릿을 기반으로 8개 레이아웃(표지, 본문, 본문_강조, 본문_프로세스, 목차, 섹션구분, 이미지강조, 끝맺음)을 지원한다.
 3. THE PPTX_Module SHALL 표지 → 목차 → 본문(N-N. 제목) → Thank You 구조를 따른다.
 4. THE PPTX_Module SHALL 타이틀 영역 4.5인치/28pt 기준 340pt 초과 시 자연스러운 단어 경계에서 줄바꿈(`\n`)을 삽입한다.
 5. THE PPTX_Module SHALL `modules/pptx/references/layout-spec.md`에 정의된 shape 좌표(EMU)를 준수한다.

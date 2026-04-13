@@ -1,4 +1,4 @@
-"""템플릿의 표지, 목차, 감사합니다 페이지 텍스트를 DMS Expert Guide용으로 수정."""
+"""템플릿의 표지, 목차, 끝맺음 페이지 텍스트를 DMS Expert Guide용으로 수정."""
 
 from pptx import Presentation
 
@@ -67,8 +67,8 @@ for pi, para in enumerate(s_names.text_frame.paragraphs):
 
 print("✅ 목차 수정 완료")
 
-# ── 마지막 슬라이드: 감사합니다 ──
-# 템플릿에서 감사합니다 레이아웃 슬라이드 찾기
+# ── 마지막 슬라이드: 끝맺음 ──
+# 템플릿에서 끝맺음 레이아웃 슬라이드 찾기 (템플릿 내부 이름: "감사합니다")
 thank_idx = None
 for i, slide in enumerate(prs.slides):
     if slide.slide_layout.name == "감사합니다":
@@ -78,9 +78,9 @@ if thank_idx is not None:
     slide_ty = prs.slides[thank_idx]
     # shape[0]: "Thank You" — 그대로 유지
     # shape[2]: 태그라인 — 그대로 유지 (GS네오텍 브랜드)
-    print(f"✅ 감사합니다 슬라이드 확인 (index {thank_idx}) — 텍스트 유지")
+    print(f"✅ 끝맺음 슬라이드 확인 (index {thank_idx}) — 텍스트 유지")
 else:
-    print("⚠️ 감사합니다 슬라이드 없음")
+    print("⚠️ 끝맺음 슬라이드 없음")
 
 # 저장
 prs.save("results/pptx/AWS_DMS_Expert_Guide.pptx")

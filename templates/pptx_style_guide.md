@@ -61,7 +61,7 @@ PPT 템플릿은 다음 슬라이드 구조를 가져야 함:
 - **Index 0**: Cover slide (표지)
 - **Index 1**: TOC slide (목차)
 - **Index 7**: Body slide (본문 - 이 레이아웃을 복제하여 본문 슬라이드 생성)
-- **Last slide**: Ending slide (감사합니다 - 보존됨)
+- **Last slide**: Ending slide (끝맺음 - 보존됨)
 - **Slide dimensions**: 13.333" × 7.500"
 
 ## Icons (40 Total)

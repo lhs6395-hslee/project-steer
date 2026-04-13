@@ -17,6 +17,7 @@ Thumbs.db
 __pycache__/
 *.pyc
 *.pyo
+.pytest_cache/
 
 # IDE local
 *.swp

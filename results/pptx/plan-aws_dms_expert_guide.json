@@ -9,9 +9,9 @@
     "slide_size_inches": [13.333, 7.5],
     "layouts": {
       "0_표지": "Cover slide — title, subtitle, company, date",
-      "1_내지": "Body slide — main content layout",
-      "4_대목차": "TOC slide — CONTENTS + numbered sections",
-      "7_감사합니다": "Thank You ending slide"
+      "1_본문": "Body slide — main content layout",
+      "4_목차": "TOC slide — CONTENTS + numbered sections",
+      "7_끝맺음": "Thank You ending slide"
     }
   },
   "style_consistency": {
@@ -40,7 +40,7 @@
     {
       "index": 1,
       "type": "toc",
-      "layout": "대목차 (layout_index: 4)",
+      "layout": "목차 (layout_index: 4)",
       "title": "CONTENTS",
       "sections": [
         "1. 아키텍처 개요",
@@ -59,7 +59,7 @@
     {
       "index": 2,
       "type": "body",
-      "layout": "내지 (layout_index: 1)",
+      "layout": "본문 (layout_index: 1)",
       "section": "1. 아키텍처 개요",
       "title": "1-1. DMS 전체 아키텍처",
       "description": "Source → Replication Instance → Target 데이터 흐름",
@@ -77,7 +77,7 @@
     {
       "index": 3,
       "type": "body",
-      "layout": "내지 (layout_index: 1)",
+      "layout": "본문 (layout_index: 1)",
       "section": "1. 아키텍처 개요",
       "title": "1-2. 네트워크 아키텍처",
       "description": "VPC 내 배치 및 연결 구성",
@@ -96,7 +96,7 @@
     {
       "index": 4,
       "type": "body",
-      "layout": "내지 (layout_index: 1)",
+      "layout": "본문 (layout_index: 1)",
       "section": "2. 핵심 구성요소",
       "title": "2-1. DMS 핵심 구성요소",
       "description": "Replication Instance, Endpoint, Task, Subnet Group",
@@ -111,7 +111,7 @@
     {
       "index": 5,
       "type": "body",
-      "layout": "내지 (layout_index: 1)",
+      "layout": "본문 (layout_index: 1)",
       "section": "2. 핵심 구성요소",
       "title": "2-2. Replication Instance 사이징",
       "description": "워크로드별 권장 인스턴스 클래스",
@@ -129,7 +129,7 @@
     {
       "index": 6,
       "type": "body",
-      "layout": "내지 (layout_index: 1)",
+      "layout": "본문 (layout_index: 1)",
       "section": "3. Migration Task 유형",
       "title": "3-1. Task 유형 비교",
       "description": "Full Load / CDC Only / Full Load + CDC",
@@ -146,7 +146,7 @@
     {
       "index": 7,
       "type": "body",
-      "layout": "내지 (layout_index: 1)",
+      "layout": "본문 (layout_index: 1)",
       "section": "4. Endpoint 구성",
       "title": "4-1. Source / Target Endpoint",
       "description": "Endpoint 설정 및 Extra Connection Attributes",
@@ -160,7 +160,7 @@
     {
       "index": 8,
       "type": "body",
-      "layout": "내지 (layout_index: 1)",
+      "layout": "본문 (layout_index: 1)",
       "section": "5. Table Mapping",
       "title": "5-1. Table Mapping & Transformation",
       "description": "Selection Rule, Transformation Rule, JSON 구조",
@@ -174,7 +174,7 @@
     {
       "index": 9,
       "type": "body",
-      "layout": "내지 (layout_index: 1)",
+      "layout": "본문 (layout_index: 1)",
       "section": "6. CDC 운영",
       "title": "6-1. CDC 동작 원리 및 운영",
       "description": "트랜잭션 로그 기반 실시간 복제",
@@ -193,7 +193,7 @@
     {
       "index": 10,
       "type": "body",
-      "layout": "내지 (layout_index: 1)",
+      "layout": "본문 (layout_index: 1)",
       "section": "7. 모니터링",
       "title": "7-1. 모니터링 및 검증",
       "description": "CloudWatch 메트릭, Validation Task",
@@ -212,7 +212,7 @@
     {
       "index": 11,
       "type": "body",
-      "layout": "내지 (layout_index: 1)",
+      "layout": "본문 (layout_index: 1)",
       "section": "8. 트러블슈팅",
       "title": "8-1. 트러블슈팅 가이드",
       "description": "주요 증상별 원인 및 해결 방법",
@@ -227,7 +227,7 @@
     {
       "index": 12,
       "type": "body",
-      "layout": "내지 (layout_index: 1)",
+      "layout": "본문 (layout_index: 1)",
       "section": "9. Best Practices",
       "title": "9-1. Best Practices",
       "description": "사전 준비 · Full Load 최적화 · CDC 안정 운영 · 컷오버",
@@ -245,7 +245,7 @@
     {
       "index": 13,
       "type": "ending",
-      "layout": "감사합니다 (layout_index: 7)",
+      "layout": "끝맺음 (layout_index: 7)",
       "title": "Thank You",
       "tagline": "신성통상 DB 마이그레이션 프로젝트",
       "method": "템플릿 마지막 슬라이드 재사용 또는 add_slide(layout_index=7), manage_text로 텍스트 업데이트"
@@ -398,11 +398,11 @@
     {
       "id": 13,
       "action": "Thank You 슬라이드 구성 (슬라이드 13)",
-      "details": "감사합니다 레이아웃(layout_index=7) 활용. 'Thank You' + 프로젝트 태그라인.",
+      "details": "끝맺음 레이아웃(layout_index=7) 활용. 'Thank You' + 프로젝트 태그라인.",
       "dependencies": [1],
       "acceptance_criteria": [
         "'Thank You' 텍스트가 중앙에 표시",
-        "기존 산출물의 감사합니다 스타일과 일치"
+        "기존 산출물의 끝맺음 스타일과 일치"
       ],
       "estimated_complexity": "low"
     },
@@ -490,6 +490,6 @@
     "slide_structure": "표지→목차→본문→Thank You 순서가 올바른가",
     "content_accuracy": "DMS 기술 내용이 정확한가 (인스턴스 클래스, CDC 메트릭 등)",
     "visual_consistency": "폰트/색상/여백이 기존 산출물 스타일과 일치하는가",
-    "template_compliance": "템플릿 레이아웃(표지/대목차/내지/감사합니다)을 올바르게 활용했는가"
+    "template_compliance": "템플릿 레이아웃(표지/목차/본문/끝맺음)을 올바르게 활용했는가"
   }
 }
