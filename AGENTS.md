@@ -76,6 +76,7 @@ Configuration flow is one-way: Claude Code → Kiro/Antigravity (never reverse).
 | Claude Code (Primary) | `CLAUDE.md`, `.mcp.json`, `.claude/settings.json` | `bash scripts/orchestrate.sh` |
 | Kiro (Sync) | `.kiro/steering/`, `.kiro/hooks/`, `.kiro/settings/mcp.json` | `invokeSubAgent` + Hook |
 | Antigravity (Sync) | `.gemini/GEMINI.md`, `.agent/rules/`, `.agent/workflows/` | Workflow: `/run-pipeline` |
+| VS Code (Sync) | `.vscode/tasks.json`, `.vscode/settings.json`, `.mcp.json` | Task: "Harness: Run Pipeline" |
 
 Sync: `bash scripts/agents/sync_pipeline.sh --from claude_code --to all`
 

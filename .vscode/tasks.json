@@ -1,0 +1,86 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Harness: Run Pipeline",
+      "type": "shell",
+      "command": "bash scripts/orchestrate.sh \"${input:task}\" \"${input:module}\"",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Harness: MCP Status",
+      "type": "shell",
+      "command": "bash scripts/mcp-toggle.sh status",
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "Harness: MCP Toggle",
+      "type": "shell",
+      "command": "bash scripts/mcp-toggle.sh \"${input:server}\" \"${input:state}\"",
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "Harness: Sync to All IDEs",
+      "type": "shell",
+      "command": "bash scripts/agents/sync_pipeline.sh --from claude_code --to all",
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "Harness: Confidence Trigger",
+      "type": "shell",
+      "command": "bash scripts/agents/confidence_trigger.sh \"${input:task}\" \"${input:module}\"",
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "Harness: Token Report",
+      "type": "shell",
+      "command": "bash scripts/agents/token_tracker.sh .pipeline",
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "Harness: Subtraction Report",
+      "type": "shell",
+      "command": "bash scripts/agents/harness_subtraction.sh",
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "Harness: Auto Dream Cleanup",
+      "type": "shell",
+      "command": "bash scripts/agents/auto_dream.sh",
+      "group": "none",
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "task",
+      "type": "promptString",
+      "description": "작업 설명 (예: 주간 보고서 프레젠테이션 생성)"
+    },
+    {
+      "id": "module",
+      "type": "pickString",
+      "description": "대상 모듈",
+      "options": ["pptx", "docx", "wbs", "trello", "dooray", "gdrive", "datadog"]
+    },
+    {
+      "id": "server",
+      "type": "pickString",
+      "description": "MCP 서버",
+      "options": ["pptx", "docx", "trello", "dooray", "datadog", "google-workspace"]
+    },
+    {
+      "id": "state",
+      "type": "pickString",
+      "description": "상태",
+      "options": ["on", "off"]
+    }
+  ]
+}

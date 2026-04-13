@@ -105,6 +105,7 @@ bash scripts/agents/sync_pipeline.sh --from claude_code --to all
 | Claude Code (Primary) | `CLAUDE.md` + `.mcp.json` + `.claude/settings.json` | `bash scripts/orchestrate.sh` |
 | Kiro (Sync) | `AGENTS.md` + `.kiro/steering/` + `.kiro/settings/mcp.json` | `invokeSubAgent` + Hook |
 | Antigravity (Sync) | `AGENTS.md` + `.gemini/GEMINI.md` + `.agent/` | Workflow: `/run-pipeline` |
+| VS Code (Sync) | `AGENTS.md` + `.vscode/tasks.json` + `.mcp.json` | Task: "Harness: Run Pipeline" |
 
 동기화: SessionStart Hook → `sync-to-platforms.sh` 자동 실행
 수동: `bash scripts/agents/sync_pipeline.sh --from claude_code --to all`
