@@ -5,121 +5,106 @@
 모듈 작업(pptx, docx, wbs, trello, dooray, gdrive, datadog)은 반드시 하네스 파이프라인으로 실행한다.
 싱글 에이전트로 직접 수행하는 것은 금지한다.
 
-1. requirements.md를 읽고 Confidence_Trigger 점수를 산출한다
+1. `requirements.md`를 읽고 Confidence_Trigger 점수를 산출한다
 2. 점수에 따라 파이프라인 모드를 결정한다 (단일/멀티/UltraPlan)
 3. 멀티 에이전트 모드: Planner → Executor → Reviewer 순서로 별도 프로세스 실행
 4. Reviewer는 Executor의 reasoning을 절대 볼 수 없다
-5. 리뷰 실패 시 피드백과 함께 재시도 (최대 3~5회)
+5. 리뷰 실패 시 피드백과 함께 재시도 (Confidence_Trigger 구간에 따라 3~5회)
 6. 작업 전 필요한 MCP만 켜고, 완료 후 끈다
+7. 모든 파일 쓰기에 Atomic_Write 패턴 적용
 
-## Overview
-
-이 프로젝트는 하네스 엔지니어링 기반 멀티 에이전트 파이프라인입니다.
-각 에이전트(Planner, Executor, Reviewer)는 `claude --print`로 별도 프로세스로 호출되어
-컨텍스트가 완전히 분리됩니다.
-
-## Architecture
-
-```
-User Request
-    │
-    ▼
-┌─────────┐  claude --print (skills/planner/SKILL.md)
-│ Planner │ → 구조화된 실행 계획 생성
-└────┬────┘
-     │
-     ▼
-┌──────────┐  claude --print (skills/executor/SKILL.md + modules/{module}/SKILL.md)
-│ Executor │ → 계획에 따라 실행, 산출물 생성
-└────┬─────┘
-     │
-     ▼
-┌──────────┐  claude --print (skills/reviewer/SKILL.md) — Executor 컨텍스트 차단
-│ Reviewer │ → 적대적 검증, 점수 + 판정
-└────┬─────┘
-     │
-     ├─ APPROVED (score >= 0.7) → 결과 반환
-     └─ NEEDS_REVISION → 피드백과 함께 Executor 재호출 (최대 3회)
-```
-
-## Sub-Agent Execution (Claude Code)
-
-각 에이전트는 별도 프로세스로 호출됩니다:
+## 파이프라인 실행
 
 ```bash
-# 전체 파이프라인 실행
-bash scripts/orchestrate.sh "주간 보고서 프레젠테이션 생성" pptx
+# 전체 파이프라인 (Confidence_Trigger → Guardian → Planner → Executor → Reviewer)
+bash scripts/orchestrate.sh "<task>" <module>
 
-# 개별 에이전트 호출 (scripts/agents/call_agent.sh)
-bash scripts/agents/call_agent.sh planner input.txt output.json
-bash scripts/agents/call_agent.sh executor input.txt output.json pptx
-bash scripts/agents/call_agent.sh reviewer input.txt output.json
+# 멀티 모듈 (Agent_Team 모드)
+bash scripts/orchestrate.sh "<task>" "pptx,dooray,trello"
+
+# MCP 토글
+bash scripts/mcp-toggle.sh status
+bash scripts/mcp-toggle.sh <server> on|off
+
+# Sync (Claude Code → Kiro/Antigravity)
+bash scripts/agents/sync_pipeline.sh --from claude_code --to all
 ```
 
-핵심: Reviewer는 Executor의 reasoning을 절대 볼 수 없음 — plan + output만 전달.
+## Confidence_Trigger 구간
 
-## MCP Server Toggle
+| 점수 | 모드 | 재시도 | UltraPlan |
+|------|------|--------|-----------|
+| ≥0.85 | 단일 에이전트 | N/A | 비활성 |
+| 0.70-0.84 | 멀티 (축소) | 3회 | 비활성 |
+| 0.50-0.69 | 멀티 (전체) | 5회 | 비활성 |
+| <0.50 | 멀티 + UltraPlan | 5회 | 활성 |
 
-모든 MCP를 항상 켜둘 필요 없음. 필요할 때만 토글:
+## 에이전트 스크립트
 
-```bash
-bash scripts/mcp-toggle.sh status           # 전체 상태 확인
-bash scripts/mcp-toggle.sh datadog on       # Datadog만 켜기
-bash scripts/mcp-toggle.sh pptx off         # PPTX 끄기
-```
+| 스크립트 | 역할 | 요구사항 |
+|---------|------|---------|
+| `scripts/orchestrate.sh` | 파이프라인 오케스트레이터 | R1 |
+| `scripts/agents/call_agent.sh` | 서브에이전트 호출 (claude/gemini 자동 감지) | R7, R10 |
+| `scripts/agents/confidence_trigger.sh` | 4차원 위험도 평가 | R13 |
+| `scripts/agents/guardian.sh` | Pattern_Matcher 위험 명령 차단 | R5 |
+| `scripts/agents/ide_adapter.sh` | 런타임 IDE 감지 + 경로 매핑 | R15 |
+| `scripts/agents/kairos.sh` | 경량 사전 감시 (lint-level) | R19 |
+| `scripts/agents/auto_dream.sh` | 메모리 파일 자동 정리 | R18 |
+| `scripts/agents/ultraplan.sh` | 계층적 태스크 분해 | R20 |
+| `scripts/agents/token_tracker.sh` | 비용/토큰 관리 | R14 |
+| `scripts/agents/harness_subtraction.sh` | 하네스 최적화 분석 | R23 |
+| `scripts/agents/agent_team.sh` | 멀티 모듈 팀 협업 | R22 |
+| `scripts/agents/git_worktree.sh` | 병렬 실행 worktree 관리 | R17 |
+| `scripts/agents/sdd_integrator.sh` | Spec-Driven Development 통합 | R21 |
+| `scripts/agents/sync_pipeline.sh` | IDE 간 설정 동기화 | R16 |
+| `scripts/mcp-toggle.sh` | MCP 서버 on/off 토글 | — |
 
-`.mcp.json` (Claude Code)과 `.kiro/settings/mcp.json` (Kiro)을 동시에 업데이트.
+## 스키마
 
-## MCP Servers
+| 파일 | 용도 |
+|------|------|
+| `schemas/sprint_contract.schema.json` | Planner 출력 (R11) |
+| `schemas/verdict.schema.json` | Reviewer 출력 (R12) |
+| `schemas/handoff_file.schema.json` | 에이전트 간 통신 (R6) |
 
-| Module | MCP Server | Package |
-|--------|-----------|---------|
-| pptx | pptx | `uvx --from office-powerpoint-mcp-server pptx_mcp_server` |
+## 에이전트 스킬
+
+| 에이전트 | 스킬 |
+|---------|------|
+| Planner | `skills/planner/SKILL.md` |
+| Executor | `skills/executor/SKILL.md` |
+| Reviewer | `skills/reviewer/SKILL.md` |
+| Orchestrator | `skills/orchestrator/SKILL.md` |
+
+## 모듈 + MCP
+
+| 모듈 | MCP 서버 | 패키지 |
+|------|---------|--------|
+| pptx | pptx | `uvx --from office-powerpoint-mcp-server ppt_mcp_server` |
 | docx | docx | `uvx --from office-word-mcp-server word_mcp_server` |
 | trello | trello | `npx mcp-server-trello` |
-| wbs | — | Excel 직접 조작 (openpyxl 스크립트) |
+| wbs | — | Excel 직접 조작 |
 | dooray | dooray | `uvx dooray-mcp` |
 | datadog | datadog | `npx @winor30/mcp-server-datadog` |
 | gdrive | google-workspace | `uvx workspace-mcp` |
 
-Configuration:
-- Claude Code: `.mcp.json`
-- Kiro: `.kiro/settings/mcp.json`
+## Hooks (Claude Code)
 
-## Cross-Platform Compatibility
+`.claude/settings.json`에 정의:
+- `SessionStart`: 파이프라인 리마인더 + sync-to-platforms.sh 실행
+- `PreToolUse(Bash)`: guardian.sh로 위험 명령 차단
+- `PostToolUse(Edit|Write)`: 설정 변경 시 sync + KAIROS lint
+- `Stop`: 파이프라인 준수 여부 prompt 검증
 
-이 프로젝트는 Claude Code를 기본으로 하되, Kiro와 Antigravity에서도 동작합니다.
-설정 흐름은 단방향: Claude Code → Kiro/Antigravity (역방향 금지)
+## 크로스 플랫폼
 
-| 플랫폼 | 읽는 파일 | 파이프라인 진입점 |
-|--------|----------|-----------------|
-| Claude Code (Primary) | `CLAUDE.md` + `skills/*/SKILL.md` + `.mcp.json` | `bash scripts/orchestrate.sh` |
-| Kiro (Sync) | `AGENTS.md` + `.kiro/steering/` + `.kiro/hooks/` + `.kiro/settings/mcp.json` | Hook: "Run Multi-Agent Pipeline" |
-| Antigravity (Sync) | `AGENTS.md` + `.gemini/GEMINI.md` + `.agent/rules/` | Workflow: `/run-pipeline` |
+설정 흐름: Claude Code → Kiro/Antigravity (단방향, 역방향 금지)
 
-설정 동기화: `bash scripts/mcp-toggle.sh sync` (Claude Code → Kiro 단방향)
+| 플랫폼 | 설정 | 진입점 |
+|--------|------|--------|
+| Claude Code (Primary) | `CLAUDE.md` + `.mcp.json` + `.claude/settings.json` | `bash scripts/orchestrate.sh` |
+| Kiro (Sync) | `AGENTS.md` + `.kiro/steering/` + `.kiro/settings/mcp.json` | `invokeSubAgent` + Hook |
+| Antigravity (Sync) | `AGENTS.md` + `.gemini/GEMINI.md` + `.agent/` | Workflow: `/run-pipeline` |
 
-## Key Files
-
-```
-scripts/
-├── orchestrate.sh              # 파이프라인 오케스트레이터
-├── mcp-toggle.sh               # MCP 서버 on/off 토글
-└── agents/
-    └── call_agent.sh           # 범용 서브에이전트 호출기 (claude/gemini 자동 감지)
-
-skills/                         # 에이전트 역할 스킬
-├── planner/SKILL.md
-├── executor/SKILL.md
-├── reviewer/SKILL.md
-└── orchestrator/SKILL.md + references/
-
-modules/                        # 도메인별 스킬 (7개 모듈)
-├── pptx/SKILL.md
-├── docx/SKILL.md
-├── wbs/SKILL.md
-├── trello/SKILL.md
-├── dooray/SKILL.md
-├── gdrive/SKILL.md
-└── datadog/SKILL.md
-```
+동기화: SessionStart Hook → `sync-to-platforms.sh` 자동 실행
+수동: `bash scripts/agents/sync_pipeline.sh --from claude_code --to all`
