@@ -1,41 +1,14 @@
 {
   "title": "Verdict",
-  "description": "Evaluator가 생성하는 검증 결과",
+  "description": "Reviewer가 생성하는 검증 결과",
   "type": "object",
-  "required": ["id", "contract_id", "created_at", "overall_status", "criteria_results", "tool_outputs", "iteration"],
+  "required": ["verdict", "score", "issues", "suggestions"],
   "properties": {
-    "id": { "type": "string", "description": "UUID" },
-    "contract_id": { "type": "string" },
-    "created_at": { "type": "string", "description": "ISO 8601" },
-    "overall_status": { "type": "string", "enum": ["pass", "fail", "warn"] },
+    "verdict": { "type": "string", "enum": ["approved", "needs_revision", "rejected"] },
     "score": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
-    "iteration": { "type": "integer", "minimum": 1 },
-    "criteria_results": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["criteria_id", "status", "message"],
-        "properties": {
-          "criteria_id": { "type": "string" },
-          "status": { "type": "string", "enum": ["pass", "fail"] },
-          "message": { "type": "string" },
-          "code_location": { "type": "string" },
-          "suggestion": { "type": "string" }
-        }
-      }
-    },
-    "tool_outputs": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "tool_name": { "type": "string" },
-          "exit_code": { "type": "integer" },
-          "stdout": { "type": "string" },
-          "stderr": { "type": "string" },
-          "duration_ms": { "type": "integer" }
-        }
-      }
-    }
+    "checklist_results": { "type": "object" },
+    "issues": { "type": "array", "items": { "type": "string" } },
+    "suggestions": { "type": "array", "items": { "type": "string" } },
+    "iteration": { "type": "integer", "minimum": 1 }
   }
 }

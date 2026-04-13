@@ -33,13 +33,9 @@ metadata:
 
 ### 생성 방식
 
-PPTX는 MCP 도구로 직접 만들지 않는다.
-steering 파일을 작성하고 ppt-mcp의 generate_ppt.sh를 실행한다.
-
-```bash
-cd /Users/toule/Documents/kiro/ppt-mcp/
-bash generate_ppt.sh <steering_file>.py
-```
+PPTX는 MCP 도구(mcp_pptx_*)로 JSON 데이터를 직접 전달하여 생성한다.
+Python 스크립트를 작성하여 생성하지 않는다.
+템플릿(`templates/pptx_template.pptx`)에서 시작하여 슬라이드를 추가/수정한다.
 
 ### Steering 파일 구조
 

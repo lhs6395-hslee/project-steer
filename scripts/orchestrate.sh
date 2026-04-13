@@ -45,7 +45,7 @@ echo ""
 # ── Single agent mode — skip pipeline ──
 if [ "$MODE" = "single" ]; then
   echo "Confidence score >= 0.85 — single agent mode. No pipeline needed."
-  atomic_write "$RUN_DIR/summary.json" '{"mode":"single","task":"'"$TASK"'","result":"direct_execution"}'
+  SINGLE_TASK="$TASK" python3 -c "import json,os; print(json.dumps({'mode':'single','task':os.environ['SINGLE_TASK'],'result':'direct_execution'}, ensure_ascii=False))" | { read -r content; atomic_write "$RUN_DIR/summary.json" "$content"; }
   exit 0
 fi
 
@@ -104,7 +104,7 @@ while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ] && [ "$V
 
   # ── Guardian check ──
   echo "  [Guardian] Pre-execution safety check..."
-  jq -n --arg cmd "$TASK" '{tool_input:{command:$cmd}}' | bash scripts/agents/guardian.sh || {
+  GUARDIAN_TASK="$TASK" python3 -c "import json,os; print(json.dumps({'tool_input':{'command':os.environ['GUARDIAN_TASK']}}))" | bash scripts/agents/guardian.sh || {
     EXIT_CODE=$?
     if [ "$EXIT_CODE" -eq 2 ]; then
       echo "  [Guardian] BLOCKED — aborting pipeline"

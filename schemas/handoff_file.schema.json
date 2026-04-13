@@ -4,10 +4,10 @@
   "type": "object",
   "required": ["id", "timestamp", "from_agent", "to_agent", "status", "payload"],
   "properties": {
-    "id": { "type": "string", "description": "UUID" },
-    "timestamp": { "type": "string", "description": "ISO 8601" },
-    "from_agent": { "type": "string", "enum": ["orchestrator", "planner", "generator", "evaluator", "guardian", "coordinator", "kairos", "auto_dream"] },
-    "to_agent": { "type": "string", "enum": ["orchestrator", "planner", "generator", "evaluator", "guardian", "coordinator", "kairos", "auto_dream"] },
+    "id": { "type": "string" },
+    "timestamp": { "type": "string" },
+    "from_agent": { "type": "string", "enum": ["orchestrator", "planner", "executor", "reviewer", "guardian", "coordinator", "kairos", "auto_dream"] },
+    "to_agent": { "type": "string", "enum": ["orchestrator", "planner", "executor", "reviewer", "guardian", "coordinator", "kairos", "auto_dream"] },
     "status": { "type": "string", "enum": ["pending", "completed", "failed"] },
     "iteration": { "type": "integer", "minimum": 0 },
     "token_usage": {

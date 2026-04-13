@@ -159,20 +159,23 @@ Reviewer가 생성하는 검증 결과 JSON:
 - 최소 승인 점수: 0.7/1.0
 - 동일 이슈 2회 연속 발생 시 사용자에게 에스컬레이션
 
-### KAIROS 감시 (향후 적용)
+### KAIROS 감시
 
+- 스크립트: `scripts/agents/kairos.sh`
 - 파일 변경 시 경량 사전 감시 (lint-level)
 - Evaluator의 전체 검증과 범위 분리
-- Hook 기반: `fileEdited` 이벤트로 트리거
+- PostToolUse Hook에서 자동 호출
 
-### Auto_Dream 메모리 관리 (향후 적용)
+### Auto_Dream 메모리 관리
 
+- 스크립트: `scripts/agents/auto_dream.sh`
 - 7일 이상 경과한 완료 Handoff_File을 `archive/`로 이동
 - 중복 엔트리 탐지 및 제거
 - 파이프라인 완료 후에만 실행 (활성 실행 중 불변)
 
-### Harness_Subtraction (향후 적용)
+### Harness_Subtraction
 
+- 스크립트: `scripts/agents/harness_subtraction.sh`
 - 각 에이전트 컴포넌트의 기여도 메트릭 수집
 - 30일간 기여도 0인 컴포넌트 비활성화 제안
 - 새 모델 버전 감지 시 메트릭 리셋 및 재평가

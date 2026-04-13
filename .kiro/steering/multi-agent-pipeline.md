@@ -73,8 +73,8 @@ invokeSubAgent:
 ### Step 4: 재시도 또는 완료
 
 - APPROVED (score >= 0.7): 결과 반환
-- NEEDS_REVISION: Reviewer의 이슈를 Executor에 피드백하여 Step 2 재실행 (최대 3회)
-- 3회 실패: 전체 이력과 함께 사용자에게 에스컬레이션
+- NEEDS_REVISION: Reviewer의 이슈를 Executor에 피드백하여 Step 2 재실행 (Confidence_Trigger 구간에 따라 최대 3~5회)
+- 최대 재시도 소진: 전체 이력과 함께 사용자에게 에스컬레이션
 
 ## 정보 차단 규칙
 
