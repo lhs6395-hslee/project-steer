@@ -1,13 +1,23 @@
 #!/bin/bash
-# Multi-Agent Orchestrator — Full Harness Pipeline
+# Multi-Agent Orchestrator — Harness Pipeline v2.1
 #
-# Integrates all 23 requirements from ai-agent-engineering-spec-2026:
-#   Confidence_Trigger → Guardian → Planner (UltraPlan) → Generator → Evaluator
-#   + IDE_Adapter + Token Tracking + Feedback_Loop + Agent_Team
+# v2.1 Changes (공식 문서 근거):
+#   - --json-schema로 Planner/Executor/Reviewer 구조화 출력 강제
+#     (code.claude.com/docs/en/cli-reference.md)
+#   - extract_result.py: structured_output 필드 우선 추출, fallback wrapping 제거
+#     (code.claude.com/docs/en/agent-sdk/structured-outputs.md)
+#   - Executor 출력에 constraint_compliance 필수 (schemas/executor_output.schema.json)
+#   - Reviewer 출력에 constraint_violations, retry_fix_assessment 필수
+#     (schemas/verdict.schema.json v2.0)
+#
+# Official docs references:
+#   - CLI Reference: code.claude.com/docs/en/cli-reference.md
+#   - Structured Outputs: code.claude.com/docs/en/agent-sdk/structured-outputs.md
+#   - Headless Mode: code.claude.com/docs/en/headless.md
+#   - Subagents: code.claude.com/docs/en/agent-sdk/subagents.md
 #
 # Usage:
 #   bash scripts/orchestrate.sh "Create a weekly report presentation" pptx
-#   bash scripts/orchestrate.sh "Set up Datadog dashboard" datadog
 #   bash scripts/orchestrate.sh "주간 보고 생성" "pptx,dooray,trello"  # Agent_Team
 
 set -euo pipefail
@@ -35,13 +45,12 @@ RUN_DIR="$AGENT_DIR/${TIMESTAMP}_${MODULES//,/_}"
 
 mkdir -p "$RUN_DIR"
 
-# ── Create initial Handoff_File in requests/ ──
-# ── Pipeline lock (prevents Auto_Dream during active execution) ──
+# ── Create initial Handoff_File ──
 echo "$$" > "$AGENT_DIR/running.lock"
 HANDOFF_ID=$(python3 -c "import uuid; print(str(uuid.uuid4()))")
 HANDOFF_FILE="$AGENT_DIR/requests/${TIMESTAMP}_orchestrator_request.json"
 export HANDOFF_ID TASK MODULES TIMESTAMP
-atomic_write "$HANDOFF_FILE" "$(python3 -c "
+HANDOFF_CONTENT=$(python3 <<'PYEOF'
 import json, os
 print(json.dumps({
     'id': os.environ['HANDOFF_ID'],
@@ -55,9 +64,11 @@ print(json.dumps({
         'modules': os.environ['MODULES']
     }
 }, ensure_ascii=False, indent=2))
-")"
+PYEOF
+)
+atomic_write "$HANDOFF_FILE" "$HANDOFF_CONTENT"
 
-echo "=== Multi-Agent Harness Pipeline ==="
+echo "=== Multi-Agent Harness Pipeline v2.1 (--json-schema) ==="
 echo "IDE: $IDE_NAME"
 echo "Task: $TASK"
 echo "Module(s): $MODULES"
@@ -77,7 +88,6 @@ echo "  Mode: $MODE | Max retries: $MAX_RETRIES | UltraPlan: $ULTRAPLAN"
 echo ""
 
 # ── Single agent mode — skip pipeline ──
-# MODE values: single (≥0.85), multi_reduced (0.70-0.84), multi_full (0.50-0.69), multi_ultraplan (<0.50)
 if [ "$MODE" = "single" ]; then
   echo "Confidence score >= 0.85 — single agent mode. No pipeline needed."
   SINGLE_TASK="$TASK" python3 -c "import json,os; print(json.dumps({'mode':'single','task':os.environ['SINGLE_TASK'],'result':'direct_execution'}, ensure_ascii=False))" | { read -r content; atomic_write "$RUN_DIR/summary.json" "$content"; }
@@ -106,7 +116,7 @@ if [ "$ULTRAPLAN" = "True" ]; then
 fi
 
 # ── Step 2: Plan ──
-echo "── Step 2: Planning ──"
+echo "── Step 2: Planning (--json-schema: sprint_contract) ──"
 PLAN_INPUT="$RUN_DIR/plan_input.txt"
 cat > "$PLAN_INPUT" <<EOF
 Task: $TASK
@@ -119,7 +129,15 @@ Include acceptance_criteria, constraints, risks.
 EOF
 
 PLAN_OUTPUT="$RUN_DIR/sprint_contract.json"
-bash scripts/agents/call_agent.sh planner "$PLAN_INPUT" "$PLAN_OUTPUT" "$MODULE"
+if ! bash scripts/agents/call_agent.sh planner "$PLAN_INPUT" "$PLAN_OUTPUT" "$MODULE"; then
+  echo "FAIL: Planner agent failed"
+  exit 1
+fi
+
+if [ ! -s "$PLAN_OUTPUT" ]; then
+  echo "FAIL: Sprint_Contract empty"
+  exit 1
+fi
 
 # Validate plan
 if [ -f "skills/planner/scripts/validate_plan.sh" ]; then
@@ -130,8 +148,6 @@ echo ""
 # ── Step 3-5: Execute → Review → Retry Loop ──
 ATTEMPT=0
 VERDICT="needs_revision"
-OUTPUT=""
-REVIEW=""
 
 while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ] && [ "$VERDICT" != "pass" ]; do
   ATTEMPT=$((ATTEMPT + 1))
@@ -149,7 +165,8 @@ while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ] && [ "$V
     fi
   }
 
-  # ── Execute ──
+  # ── Execute (--json-schema: executor_output) ──
+  echo "  [Executor] Running with --json-schema (constraint_compliance enforced)..."
   EXEC_INPUT="$RUN_DIR/exec_input_${ATTEMPT}.txt"
   EXEC_OUTPUT="$RUN_DIR/exec_output_${ATTEMPT}.json"
   FEEDBACK_FILE="$RUN_DIR/verdict_$((ATTEMPT-1)).json"
@@ -165,7 +182,11 @@ while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ] && [ "$V
       cat "$FEEDBACK_FILE"
     fi
     echo ""
-    echo "Execute the plan and produce output as JSON."
+    echo "Execute the plan and produce output as JSON matching schemas/executor_output.schema.json."
+    echo "REQUIRED fields: constraint_compliance, outputs, status, artifacts."
+    if [ "$ATTEMPT" -gt 1 ]; then
+      echo "REQUIRED on retry: retry_fixes field with issue + fix_applied + verified for EACH previous issue."
+    fi
   } > "$EXEC_INPUT"
 
   bash scripts/agents/call_agent.sh executor "$EXEC_INPUT" "$EXEC_OUTPUT" "$MODULE"
@@ -175,10 +196,8 @@ while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ] && [ "$V
   bash scripts/agents/kairos.sh "$EXEC_OUTPUT" 2>/dev/null || true
 
   # ── Review (isolated — no executor context) ──
-  # INFORMATION BARRIER (Req 32.1, 32.2): Reviewer receives ONLY:
-  #   1. Sprint_Contract (plan)
-  #   2. Execution output (result)
-  # Explicitly excluded: Executor reasoning, self-assessment, previous review results
+  # INFORMATION BARRIER: Reviewer receives ONLY plan + output
+  echo "  [Reviewer] Running with --json-schema (verdict schema enforced)..."
   REVIEW_INPUT="$RUN_DIR/review_input_${ATTEMPT}.txt"
   VERDICT_FILE="$RUN_DIR/verdict_${ATTEMPT}.json"
 
@@ -190,7 +209,12 @@ while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ] && [ "$V
     cat "$EXEC_OUTPUT"
     echo ""
     echo "Module: $MODULE"
+    echo "Attempt: $ATTEMPT"
     echo "Review adversarially. Output JSON verdict following schemas/verdict.schema.json."
+    echo "REQUIRED: checklist_results, constraint_violations, issues, suggestions."
+    if [ "$ATTEMPT" -gt 1 ]; then
+      echo "REQUIRED on retry: retry_fix_assessment for each previous issue."
+    fi
   } > "$REVIEW_INPUT"
 
   bash scripts/agents/call_agent.sh reviewer "$REVIEW_INPUT" "$VERDICT_FILE" "$MODULE"
@@ -200,7 +224,8 @@ while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ] && [ "$V
     bash skills/reviewer/scripts/validate_review.sh "$VERDICT_FILE" || true
   fi
 
-  # Parse verdict
+  # Parse verdict (v2.1 — constraint_violations aware)
+  # 공식 근거: schemas/verdict.schema.json (v2.0 — Constraint Verification)
   VERDICT=$(python3 -c "
 import json, sys
 try:
@@ -208,7 +233,11 @@ try:
         data = json.load(f)
     v = data.get('verdict', data.get('overall_status', 'needs_revision'))
     s = float(data.get('score', 0))
-    if v in ('approved', 'pass') and s >= 0.7:
+    # v2.1: constraint_violations가 있으면 자동 실패
+    violations = data.get('constraint_violations', [])
+    if violations:
+        print('needs_revision')
+    elif v in ('approved', 'pass') and s >= 0.7:
         print('approved')
     else:
         print('needs_revision')
@@ -216,9 +245,18 @@ except:
     print('needs_revision')
 " 2>/dev/null || echo "needs_revision")
 
-  echo "  [Orchestrator] Verdict: $VERDICT (attempt $ATTEMPT)"
+  SCORE=$(python3 -c "
+import json
+try:
+    with open('$VERDICT_FILE') as f:
+        print(json.load(f).get('score', 0))
+except:
+    print(0)
+" 2>/dev/null || echo "0")
 
-  # ── Circular feedback detection (JSON structural comparison with sorted issues) ──
+  echo "  [Orchestrator] Verdict: $VERDICT | Score: $SCORE (attempt $ATTEMPT)"
+
+  # ── Circular feedback detection ──
   if [ "$ATTEMPT" -ge 2 ]; then
     CIRCULAR=$(python3 -c "
 import json, sys
@@ -237,7 +275,7 @@ except:
     print('no')
 " 2>/dev/null)
     if [ "$CIRCULAR" = "yes" ]; then
-      echo "  [Orchestrator] ⚠️ Circular feedback detected — same issues across attempts. Escalating."
+      echo "  [Orchestrator] Circular feedback detected — same issues across attempts. Escalating."
       VERDICT="escalated"
       break
     fi
@@ -267,12 +305,11 @@ fi
 echo "Attempts: $ATTEMPT"
 echo "Run dir: $RUN_DIR"
 
-# Save summary
 # ── Remove pipeline lock ──
 rm -f "$AGENT_DIR/running.lock"
 
 export TASK MODULE MODE VERDICT ATTEMPT MAX_RETRIES ULTRAPLAN TIMESTAMP RUN_DIR
-atomic_write "$RUN_DIR/summary.json" "$(python3 -c "
+SUMMARY_CONTENT=$(python3 <<'PYEOF'
 import json, os
 print(json.dumps({
     'task': os.environ['TASK'],
@@ -286,4 +323,6 @@ print(json.dumps({
     'timestamp': os.environ['TIMESTAMP'],
     'run_dir': os.environ['RUN_DIR']
 }, ensure_ascii=False, indent=2))
-")"
+PYEOF
+)
+atomic_write "$RUN_DIR/summary.json" "$SUMMARY_CONTENT"

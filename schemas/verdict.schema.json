@@ -1,12 +1,47 @@
 {
   "title": "Verdict",
-  "description": "Reviewer가 생성하는 검증 결과",
+  "description": "Reviewer가 생성하는 검증 결과 (v2.0 — Constraint Verification)",
   "type": "object",
-  "required": ["verdict", "score", "issues", "suggestions"],
+  "required": ["verdict", "score", "checklist_results", "issues", "suggestions"],
   "properties": {
     "verdict": { "type": "string", "enum": ["approved", "needs_revision", "rejected"] },
     "score": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
-    "checklist_results": { "type": "object" },
+    "checklist_results": {
+      "type": "object",
+      "properties": {
+        "completeness": { "type": "boolean" },
+        "constraint_compliance": { "type": "boolean" },
+        "content_accuracy": { "type": "boolean" },
+        "visual_consistency": { "type": "boolean" },
+        "template_compliance": { "type": "boolean" },
+        "text_overflow": { "type": "boolean" },
+        "format_preservation": { "type": "boolean" },
+        "design_quality": { "type": "boolean" }
+      }
+    },
+    "constraint_violations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "constraint": { "type": "string" },
+          "violation": { "type": "string" },
+          "severity": { "type": "string", "enum": ["critical", "major", "minor"] }
+        }
+      }
+    },
+    "retry_fix_assessment": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "original_issue": { "type": "string" },
+          "fixed": { "type": "boolean" },
+          "regression": { "type": "boolean" },
+          "notes": { "type": "string" }
+        }
+      }
+    },
     "issues": { "type": "array", "items": { "type": "string" } },
     "suggestions": { "type": "array", "items": { "type": "string" } },
     "iteration": { "type": "integer", "minimum": 1 }

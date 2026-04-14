@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+# ──────────────────────────────────────────────────────────
+# switch-provider.sh — Bedrock / Vertex AI 전환
+#
+# Usage:
+#   bash scripts/switch-provider.sh bedrock   # AWS Bedrock으로 전환
+#   bash scripts/switch-provider.sh vertex    # Vertex AI로 전환
+#   bash scripts/switch-provider.sh status    # 현재 상태 확인
+# ──────────────────────────────────────────────────────────
+set -euo pipefail
+
+GLOBAL_SETTINGS="$HOME/.claude/settings.json"
+
+# ── Profiles ──────────────────────────────────────────────
+bedrock_env() {
+  cat <<'JSON'
+{
+  "CLAUDE_CODE_USE_BEDROCK": "1",
+  "AWS_REGION": "us-east-1"
+}
+JSON
+}
+
+vertex_env() {
+  cat <<'JSON'
+{
+  "CLAUDE_CODE_USE_VERTEX": "1",
+  "CLOUD_ML_REGION": "us-east5",
+  "ANTHROPIC_VERTEX_PROJECT_ID": "architect-hslee-3572"
+}
+JSON
+}
+
+bedrock_model="us.anthropic.claude-opus-4-6-v1"
+vertex_model="claude-opus-4-6@20250514"
+
+# ── Helpers ───────────────────────────────────────────────
+require_jq() {
+  command -v jq >/dev/null 2>&1 || { echo "ERROR: jq is required. Install: brew install jq"; exit 1; }
+}
+
+current_provider() {
+  if [[ ! -f "$GLOBAL_SETTINGS" ]]; then
+    echo "none"
+    return
+  fi
+  local use_bedrock use_vertex
+  use_bedrock=$(jq -r '.env.CLAUDE_CODE_USE_BEDROCK // ""' "$GLOBAL_SETTINGS" 2>/dev/null)
+  use_vertex=$(jq -r '.env.CLAUDE_CODE_USE_VERTEX // ""' "$GLOBAL_SETTINGS" 2>/dev/null)
+  if [[ "$use_bedrock" == "1" ]]; then echo "bedrock"
+  elif [[ "$use_vertex" == "1" ]]; then echo "vertex"
+  else echo "direct"
+  fi
+}
+
+show_status() {
+  local provider
+  provider=$(current_provider)
+  echo "┌─────────────────────────────────────┐"
+  echo "│  Claude Code Provider Status        │"
+  echo "├─────────────────────────────────────┤"
+  printf "│  Active : %-26s│\n" "$provider"
+  printf "│  Config : %-26s│\n" "$GLOBAL_SETTINGS"
+  echo "├─────────────────────────────────────┤"
+  echo "│  env block:                         │"
+  jq -r '.env // {} | to_entries[] | "│    \(.key)=\(.value)"' "$GLOBAL_SETTINGS" 2>/dev/null | while IFS= read -r line; do
+    printf "%-38s│\n" "$line"
+  done
+  printf "│  model  : %-26s│\n" "$(jq -r '.model // "default"' "$GLOBAL_SETTINGS" 2>/dev/null)"
+  echo "└─────────────────────────────────────┘"
+}
+
+switch_to() {
+  local target="$1"
+  local current
+  current=$(current_provider)
+
+  if [[ "$current" == "$target" ]]; then
+    echo "Already on $target. No changes made."
+    exit 0
+  fi
+
+  local new_env new_model
+  case "$target" in
+    bedrock)
+      new_env=$(bedrock_env)
+      new_model="$bedrock_model"
+      ;;
+    vertex)
+      new_env=$(vertex_env)
+      new_model="$vertex_model"
+      # ADC check (force Python 3.10 for gcloud compatibility)
+      export CLOUDSDK_PYTHON="${CLOUDSDK_PYTHON:-$(command -v python3.10 2>/dev/null || echo python3)}"
+      GCLOUD="${GCLOUD:-$(command -v gcloud 2>/dev/null || echo /opt/homebrew/share/google-cloud-sdk/bin/gcloud)}"
+      if ! "$GCLOUD" auth application-default print-access-token >/dev/null 2>&1; then
+        echo "WARNING: ADC not configured. Run:"
+        echo "  gcloud auth application-default login"
+        echo ""
+        echo "Switching config anyway (will need ADC before using Claude Code)."
+      fi
+      ;;
+    *)
+      echo "Unknown provider: $target"
+      echo "Usage: $0 {bedrock|vertex|status}"
+      exit 1
+      ;;
+  esac
+
+  # Atomic update: read → merge → write
+  local tmp
+  tmp=$(mktemp)
+  if [[ -f "$GLOBAL_SETTINGS" ]]; then
+    jq --argjson newenv "$new_env" --arg model "$new_model" '
+      .env = $newenv | .model = $model
+    ' "$GLOBAL_SETTINGS" > "$tmp"
+  else
+    jq -n --argjson newenv "$new_env" --arg model "$new_model" '
+      { env: $newenv, model: $model }
+    ' > "$tmp"
+  fi
+  mv "$tmp" "$GLOBAL_SETTINGS"
+
+  echo "Switched: $current -> $target"
+  echo ""
+  show_status
+  echo ""
+  echo "Restart Claude Code to apply changes."
+}
+
+# ── Main ──────────────────────────────────────────────────
+require_jq
+
+case "${1:-status}" in
+  bedrock) switch_to bedrock ;;
+  vertex)  switch_to vertex ;;
+  status)  show_status ;;
+  *)
+    echo "Usage: $0 {bedrock|vertex|status}"
+    exit 1
+    ;;
+esac

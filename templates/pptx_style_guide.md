@@ -126,14 +126,32 @@ terraform, timeline, verification
 
 ### Colors (COLORS dict)
 
+**템플릿 공식 색상 (슬라이드 7 색상 가이드 기준):**
+
+#### 메인 색상 (포인트 컬러 — 투명도 조절로 분류 가능)
+| Key | RGB | HEX | Usage |
+|-----|-----|-----|-------|
+| `PRIMARY` | (0, 67, 218) | `0043DA` | 제목, 강조, 배지, 메인 포인트 |
+
+#### 서브 색상 (본문 설명 안에서 구분이 필요할 때 — 투명도 조절 가능)
+| Key | RGB | HEX | Usage |
+|-----|-----|-----|-------|
+| `SUB_BLUE` | (42, 111, 222) | `2A6FDE` | 서브 강조 블루 |
+| `SUB_ORANGE` | (238, 129, 80) | `EE8150` | 서브 강조 오렌지 |
+| `SUB_GREEN` | (76, 184, 143) | `4CB88F` | 서브 강조 그린 |
+
+#### K (흑백 그라데이션 — K 0~100)
 | Key | RGB | Usage |
 |-----|-----|-------|
-| `PRIMARY` | (0, 67, 218) | 제목, 강조, 배지 |
-| `BLACK` | (0, 0, 0) | 본문 텍스트 |
-| `DARK_GRAY` | (33, 33, 33) | 진한 회색 텍스트 |
+| `BG_WHITE` / K0 | (255, 255, 255) | 흰색 배경 |
+| `DARK_GRAY` / K87 | (33, 33, 33) | 진한 회색 텍스트 |
+| `BLACK` / K100 | (0, 0, 0) | 본문 텍스트 |
+
+#### 기타 UI 색상
+| Key | RGB | Usage |
+|-----|-----|-------|
 | `GRAY` | (80, 80, 80) | 설명글 |
 | `BG_BOX` | (248, 249, 250) | 박스 배경 |
-| `BG_WHITE` | (255, 255, 255) | 흰색 배경 |
 | `BORDER` | (220, 220, 220) | 테두리 |
 | `TERMINAL_BG` | (48, 10, 36) | 터미널 배경 (Ubuntu 보라색) |
 | `TERMINAL_TITLEBAR` | (44, 44, 44) | 터미널 타이틀 바 |
@@ -211,7 +229,7 @@ presentation_data = {
 |---|--------|------|-----------|------|
 | 1 | Bento Grid | `bento_grid` | main, sub1, sub2 | 좌 50% + 우 2분할 |
 | 2 | Three Cards | `3_cards` | card_1, card_2, card_3 | 아이콘+제목+본문 |
-| 3 | Grid 2×2 | `grid_2x2` | item1, item2, item3, item4 | compact 모드 |
+| 3 | Grid 2×2 | `grid_2x2` | item1{icon,title,body}, item2, item3, item4 + body_title, body_desc | 아이콘+요약+2×2 카드 |
 | 4 | Quad Matrix | `quad_matrix` | (grid_2x2와 동일) | `grid_2x2` alias |
 | 5 | Process Arrow | `process_arrow` | steps[]{title,body,search_q} | 쉐브론+본문 박스 |
 | 6 | Phased Columns | `phased_columns` | steps[]{title,body,search_q} | 단계별 컬럼+그라데이션 |

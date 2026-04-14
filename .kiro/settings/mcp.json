@@ -68,7 +68,7 @@
         "ppt_mcp_server"
       ],
       "env": {},
-      "disabled": false,
+      "disabled": true,
       "autoApprove": [
         "create_presentation_from_template",
         "add_slide",
