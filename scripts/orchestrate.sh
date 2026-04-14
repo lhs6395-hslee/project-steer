@@ -189,7 +189,18 @@ while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ] && [ "$V
     fi
   } > "$EXEC_INPUT"
 
-  bash scripts/agents/call_agent.sh executor "$EXEC_INPUT" "$EXEC_OUTPUT" "$MODULE"
+  # ── Parallel Execution (dependency-aware) ──
+  echo "  [Executor] Running in parallel mode (dependency-aware)..."
+  python3 scripts/agents/parallel_executor.py "$PLAN_OUTPUT" "$MODULE" "$RUN_DIR"
+
+  # Use aggregated output from parallel execution
+  PARALLEL_OUTPUT="$RUN_DIR/aggregated_output.json"
+  if [ -f "$PARALLEL_OUTPUT" ]; then
+    cp "$PARALLEL_OUTPUT" "$EXEC_OUTPUT"
+  else
+    echo "ERROR: Parallel execution failed - no aggregated output"
+    exit 1
+  fi
 
   # ── KAIROS quick check ──
   echo "  [KAIROS] Quick lint check..."

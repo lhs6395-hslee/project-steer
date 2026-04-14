@@ -15,6 +15,12 @@
 모듈 작업(pptx, docx, wbs, trello, dooray, gdrive, datadog)은 반드시 하네스 파이프라인으로 실행한다.
 싱글 에이전트로 직접 수행하는 것은 금지한다.
 
+**파일 관리 규칙:**
+- 원본 파일 외에 백업/수정본을 자동 생성하지 않는다
+- 모든 작업 결과는 `.pipeline/` 폴더에만 저장한다
+- `results/` 폴더에는 최종 산출물만 유지한다 (중간 버전 금지)
+- `.gitignore`에 `*_FIXED*.pptx`, `*_REVIEWED*.pptx`, `*_BACKUP*.pptx` 패턴 등록됨
+
 1. `PROJECT.md`를 읽고 Confidence_Trigger 점수를 산출한다
 2. 점수에 따라 파이프라인 모드를 결정한다 (단일/멀티/UltraPlan)
 3. 멀티 에이전트 모드: Planner → Executor → Reviewer 순서로 별도 프로세스 실행

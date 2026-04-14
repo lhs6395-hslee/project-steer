@@ -69,6 +69,20 @@ PLANNER_SCHEMA="$(cat "$PROJECT_ROOT/schemas/sprint_contract.schema.json")"
 REVIEWER_SCHEMA="$(cat "$PROJECT_ROOT/schemas/verdict.schema.json")"
 EXECUTOR_SCHEMA="$(cat "$PROJECT_ROOT/schemas/executor_output.schema.json")"
 
+# ─── Timeout command detection (macOS compatibility) ───
+run_with_timeout() {
+  local timeout_seconds="$1"
+  shift
+  if command -v timeout &>/dev/null; then
+    timeout "$timeout_seconds" "$@"
+  elif command -v gtimeout &>/dev/null; then
+    gtimeout "$timeout_seconds" "$@"
+  else
+    # Fallback: perl-based timeout for macOS
+    perl -e 'alarm shift; exec @ARGV' "$timeout_seconds" "$@"
+  fi
+}
+
 # ─── Platform Detection + Retry Logic (max 2 retries) ───
 MAX_RETRIES=2
 ATTEMPT=0
@@ -96,7 +110,7 @@ call_agent_once() {
         # --json-schema: forces structured_output in response (v2.1)
         # --model sonnet: fast, reliable for structured output
         # 공식 근거: code.claude.com/docs/en/cli-reference.md
-        echo "$INPUT" | timeout 180 claude --print \
+        echo "$INPUT" | run_with_timeout 180 claude --print \
           --bare \
           --model sonnet \
           --system-prompt "$SYSTEM_PROMPT" \
@@ -108,8 +122,9 @@ call_agent_once() {
         ;;
       reviewer)
         # --json-schema: forces verdict schema validation (v2.1)
+        # timeout increased to 360s to prevent timeouts on complex reviews
         # 공식 근거: code.claude.com/docs/en/agent-sdk/structured-outputs.md
-        echo "$INPUT" | timeout 180 claude --print \
+        echo "$INPUT" | run_with_timeout 360 claude --print \
           --bare \
           --model sonnet \
           --system-prompt "$SYSTEM_PROMPT" \
@@ -125,22 +140,23 @@ call_agent_once() {
         # --permission-mode bypassPermissions: auto-approve all tools including MCP
         # --json-schema: forces constraint_compliance output (v2.1)
         # --model sonnet: faster execution for multi-turn tool use
+        # --max-turns 40: increased for detailed PPTX review with MCP tools
         # 공식 근거: code.claude.com/docs/en/cli-reference.md
         local MCP_CONFIG=".mcp.json"
-        echo "$INPUT" | timeout 600 claude --print \
+        echo "$INPUT" | run_with_timeout 1200 claude --print \
           --bare \
           --model sonnet \
           --system-prompt "$SYSTEM_PROMPT" \
           --output-format json \
           --json-schema "$EXECUTOR_SCHEMA" \
-          --max-turns 20 \
+          --max-turns 40 \
           --permission-mode bypassPermissions \
           --mcp-config "$MCP_CONFIG" \
           > "$TMP_OUTPUT" 2>/dev/null
         ;;
       *)
         # Default: bare mode, limited turns, no schema
-        echo "$INPUT" | timeout 180 claude --print \
+        echo "$INPUT" | run_with_timeout 180 claude --print \
           --bare \
           --model sonnet \
           --system-prompt "$SYSTEM_PROMPT" \
@@ -167,7 +183,7 @@ call_agent_once() {
 
   # ── 2. Gemini CLI (Antigravity) ──
   if command -v gemini &>/dev/null; then
-    echo "$INPUT" | timeout 120 gemini \
+    echo "$INPUT" | run_with_timeout 120 gemini \
       --system-instruction "$SYSTEM_PROMPT" \
       --json > "$OUTPUT_FILE" 2>/dev/null
     return 0
