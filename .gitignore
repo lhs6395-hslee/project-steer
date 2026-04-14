@@ -38,3 +38,6 @@ results/pptx/*_FIXED*.pptx
 results/pptx/*_REVIEWED*.pptx
 results/pptx/*_BACKUP*.pptx
 results/pptx/~$*.pptx
+
+# One-off utility scripts (generated per session, not maintained)
+scripts/utils/*.py
