@@ -31,7 +31,7 @@ vertex_env() {
   cat <<'JSON'
 {
   "CLAUDE_CODE_USE_VERTEX": "1",
-  "CLOUD_ML_REGION": "us-east5",
+  "CLOUD_ML_REGION": "global",
   "ANTHROPIC_VERTEX_PROJECT_ID": "architect-hslee-3572",
   "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-6",
   "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-6",

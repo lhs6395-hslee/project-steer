@@ -50,9 +50,13 @@ import json, sys, os
 with open(sys.argv[1]) as f:
     s = json.load(f)
 env = s.get('env', {})
-# Export provider env vars
-for k in ('CLAUDE_CODE_USE_VERTEX','CLAUDE_CODE_USE_BEDROCK',
-          'CLOUD_ML_REGION','ANTHROPIC_VERTEX_PROJECT_ID','AWS_REGION'):
+# Unset conflicting provider vars first (shell env may have stale values)
+all_provider_keys = ('CLAUDE_CODE_USE_VERTEX','CLAUDE_CODE_USE_BEDROCK',
+                     'CLOUD_ML_REGION','ANTHROPIC_VERTEX_PROJECT_ID','AWS_REGION')
+for k in all_provider_keys:
+    print(f"unset {k}")
+# Export provider env vars from settings.json
+for k in all_provider_keys:
     v = env.get(k)
     if v:
         print(f"export {k}={v!r}")
