@@ -108,31 +108,32 @@ call_agent_once() {
         # --bare: skips hooks, MCP, CLAUDE.md (full isolation)
         # --tools "": disables ALL tools → pure JSON text output
         # --json-schema: forces structured_output in response (v2.1)
-        # --model haiku: Planner = pure JSON planning, no tools needed → haiku 충분
-        #   속도 개선: haiku는 sonnet 대비 ~3x 빠름, 비용 ~10x 저렴
+        # --model sonnet: Sprint_Contract DAG 설계 + 위험도 평가는 복잡한 구조적 추론 필요
+        #   haiku 지양 — 제약조건 추출 품질이 전체 파이프라인 품질을 결정함
         # 공식 근거: code.claude.com/docs/en/cli-reference.md
-        echo "$INPUT" | run_with_timeout 120 claude --print \
+        echo "$INPUT" | run_with_timeout 180 claude --print \
           --bare \
-          --model haiku \
+          --model sonnet \
           --system-prompt "$SYSTEM_PROMPT" \
           --output-format json \
           --json-schema "$PLANNER_SCHEMA" \
-          --max-turns 2 \
+          --max-turns 3 \
           --tools "" \
           > "$TMP_OUTPUT" 2>/dev/null
         ;;
       reviewer)
         # --json-schema: forces verdict schema validation (v2.1)
-        # --model haiku: Reviewer = pure JSON verdict, no tools → haiku 충분
-        #   속도 개선: 병렬 Reviewer는 각 step 단위 → 짧은 입력, haiku 적합
+        # --model sonnet: WCAG 대비, 디자인 품질, constraint 위반 판단은 정확성 필요
+        #   haiku 지양 — adversarial review 품질이 낮으면 파이프라인 신뢰도 하락
+        # 병렬 실행으로 속도 보완 (per-step 병렬화로 wall-clock time 단축)
         # 공식 근거: code.claude.com/docs/en/agent-sdk/structured-outputs.md
-        echo "$INPUT" | run_with_timeout 180 claude --print \
+        echo "$INPUT" | run_with_timeout 360 claude --print \
           --bare \
-          --model haiku \
+          --model sonnet \
           --system-prompt "$SYSTEM_PROMPT" \
           --output-format json \
           --json-schema "$REVIEWER_SCHEMA" \
-          --max-turns 2 \
+          --max-turns 3 \
           --tools "" \
           > "$TMP_OUTPUT" 2>/dev/null
         ;;
