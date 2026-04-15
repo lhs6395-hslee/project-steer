@@ -105,12 +105,14 @@ call_agent_once() {
 
     case "$ROLE" in
       planner)
-        # --bare: skips hooks, MCP, CLAUDE.md (full isolation)
+        # --bare: skips hooks, MCP, CLAUDE.md (full isolation, faster start)
+        #   공식 근거: code.claude.com/docs/en/cli-reference.md#--bare
         # --tools "": disables ALL tools → pure JSON text output
-        # --json-schema: forces structured_output in response (v2.1)
-        # --model sonnet: Sprint_Contract DAG 설계 + 위험도 평가는 복잡한 구조적 추론 필요
-        #   haiku 지양 — 제약조건 추출 품질이 전체 파이프라인 품질을 결정함
-        # 공식 근거: code.claude.com/docs/en/cli-reference.md
+        # --json-schema: structured_output 필드에 schema-validated JSON 반환
+        #   공식 근거: code.claude.com/docs/en/agent-sdk/structured-outputs
+        # --model sonnet: Sprint_Contract DAG + 위험도/제약조건 추출 → 복잡한 추론 필요
+        # --exclude-dynamic-system-prompt-sections: 프롬프트 캐시 재사용 개선 (속도↑)
+        #   공식 근거: code.claude.com/docs/en/cli-reference.md (신규 플래그)
         echo "$INPUT" | run_with_timeout 180 claude --print \
           --bare \
           --model sonnet \
@@ -119,47 +121,59 @@ call_agent_once() {
           --json-schema "$PLANNER_SCHEMA" \
           --max-turns 3 \
           --tools "" \
+          --exclude-dynamic-system-prompt-sections \
           > "$TMP_OUTPUT" 2>/dev/null
         ;;
       reviewer)
-        # --json-schema: forces verdict schema validation (v2.1)
         # --model: REVIEWER_MODEL env (default sonnet, opus for critical tasks)
-        #   adversarial review 품질이 파이프라인 신뢰도를 결정 — 모델 타협 금지
+        #   adversarial review 품질이 파이프라인 신뢰도를 결정 — 품질 타협 금지
         #   속도는 parallel_reviewer.py의 per-step 병렬화로 보완
-        # 공식 근거: code.claude.com/docs/en/agent-sdk/structured-outputs.md
+        # --effort: REVIEWER_EFFORT env (default high) — 품질 중시
+        #   공식 근거: code.claude.com/docs/en/cli-reference.md#--effort
+        #   options: low, medium, high, max (max는 Opus 4.6 전용)
+        # --exclude-dynamic-system-prompt-sections: 병렬 Reviewer 캐시 재사용 (속도↑)
+        # 공식 근거: code.claude.com/docs/en/agent-sdk/structured-outputs
         local REVIEW_MODEL="${REVIEWER_MODEL:-sonnet}"
+        local REVIEW_EFFORT="${REVIEWER_EFFORT:-high}"
         echo "$INPUT" | run_with_timeout 360 claude --print \
           --bare \
           --model "$REVIEW_MODEL" \
+          --effort "$REVIEW_EFFORT" \
           --system-prompt "$SYSTEM_PROMPT" \
           --output-format json \
           --json-schema "$REVIEWER_SCHEMA" \
           --max-turns 3 \
           --tools "" \
+          --exclude-dynamic-system-prompt-sections \
           > "$TMP_OUTPUT" 2>/dev/null
         ;;
       executor)
-        # --bare: skips hooks + CLAUDE.md (prevents recursive pipeline)
+        # --bare: skips hooks + CLAUDE.md (prevents recursive pipeline trigger)
         # --mcp-config: explicitly load needed MCP servers
         # --permission-mode bypassPermissions: auto-approve all tools including MCP
-        # --json-schema: forces constraint_compliance output (v2.1)
-        # --model sonnet: tool use + execution (opus if set via EXECUTOR_MODEL env)
-        # --max-turns: adaptive via EXECUTOR_MAX_TURNS env (default 20)
-        #   low complexity → 10 turns, medium → 20, high → 40
-        # 공식 근거: code.claude.com/docs/en/cli-reference.md
+        #   공식 근거: code.claude.com/docs/en/permission-modes
+        # --json-schema: constraint_compliance 필드 강제
+        # --model: EXECUTOR_MODEL env (default sonnet, opus for complex tasks)
+        # --effort: EXECUTOR_EFFORT env (default high)
+        # --max-turns: adaptive via EXECUTOR_MAX_TURNS (complexity 기반: low=10, med=20, high=40)
+        # --fallback-model: 모델 과부하 시 sonnet으로 fallback
+        #   공식 근거: code.claude.com/docs/en/cli-reference.md (신규 플래그)
         local MCP_CONFIG=".mcp.json"
         local EXEC_MODEL="${EXECUTOR_MODEL:-sonnet}"
         local EXEC_TURNS="${EXECUTOR_MAX_TURNS:-20}"
         local EXEC_TIMEOUT="${EXECUTOR_TIMEOUT:-900}"
+        local EXEC_EFFORT="${EXECUTOR_EFFORT:-high}"
         echo "$INPUT" | run_with_timeout "$EXEC_TIMEOUT" claude --print \
           --bare \
           --model "$EXEC_MODEL" \
+          --effort "$EXEC_EFFORT" \
           --system-prompt "$SYSTEM_PROMPT" \
           --output-format json \
           --json-schema "$EXECUTOR_SCHEMA" \
           --max-turns "$EXEC_TURNS" \
           --permission-mode bypassPermissions \
           --mcp-config "$MCP_CONFIG" \
+          --fallback-model sonnet \
           > "$TMP_OUTPUT" 2>/dev/null
         ;;
       *)
