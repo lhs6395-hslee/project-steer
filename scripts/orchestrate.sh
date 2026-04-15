@@ -143,6 +143,29 @@ fi
 if [ -f "skills/planner/scripts/validate_plan.sh" ]; then
   bash skills/planner/scripts/validate_plan.sh "$PLAN_OUTPUT" || true
 fi
+
+# ── Plan Transparency (Anthropic trustworthy-agents 2026-04-09) ──
+# "Plan Mode: users review and authorize the complete plan before execution"
+# "shifts oversight from the individual step to the overall strategy"
+# PLAN_REVIEW=1 env로 활성화 (CI/자동화 환경에서는 생략)
+if [ "${PLAN_REVIEW:-0}" = "1" ]; then
+  echo "── Sprint_Contract (review before execution) ──"
+  python3 -c "
+import json, sys
+with open('$PLAN_OUTPUT') as f: p = json.load(f)
+print(f\"Task: {p.get('task','')}\")
+print(f\"Steps ({len(p.get('steps',[]))}):\" )
+for s in p.get('steps',[]): print(f\"  [{s.get('id')}] {s.get('action','')} [{s.get('estimated_complexity','')}]\")
+print(f\"Constraints: {len(p.get('constraints',[]))} | Risks: {len(p.get('risks',[]))}\")
+"
+  echo ""
+  printf "Proceed with execution? [Y/n] "
+  read -r CONFIRM
+  if [[ "${CONFIRM,,}" == "n" ]]; then
+    echo "Execution cancelled by user (Plan Review)"
+    exit 0
+  fi
+fi
 echo ""
 
 # ── Step 3-5: Execute → Review → Retry Loop ──
