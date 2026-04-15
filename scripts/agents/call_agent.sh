@@ -36,6 +36,27 @@ SKILL_FILE="skills/${ROLE}/SKILL.md"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
+# ── Load provider env from ~/.claude/settings.json ──
+# --bare 모드는 settings.json을 로드하지 않으므로 model alias 핀닝을 직접 export
+# 공식 근거: code.claude.com/docs/en/model-config#environment-variables
+_SETTINGS="$HOME/.claude/settings.json"
+if [ -f "$_SETTINGS" ]; then
+  eval "$(python3 - "$_SETTINGS" << 'PYEOF'
+import json, sys
+with open(sys.argv[1]) as f:
+    s = json.load(f)
+env = s.get('env', {})
+for k in ('ANTHROPIC_DEFAULT_OPUS_MODEL','ANTHROPIC_DEFAULT_SONNET_MODEL',
+          'ANTHROPIC_DEFAULT_HAIKU_MODEL','CLAUDE_CODE_USE_VERTEX',
+          'CLAUDE_CODE_USE_BEDROCK','CLOUD_ML_REGION',
+          'ANTHROPIC_VERTEX_PROJECT_ID','AWS_REGION'):
+    v = env.get(k)
+    if v:
+        print(f"export {k}={v!r}")
+PYEOF
+  2>/dev/null)" 2>/dev/null || true
+fi
+
 if [ ! -f "$SKILL_FILE" ]; then
   echo "ERROR: Skill file not found: $SKILL_FILE" >&2
   exit 1
