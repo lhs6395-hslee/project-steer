@@ -104,19 +104,22 @@ PLANNER_SCHEMA="$(cat "$PROJECT_ROOT/schemas/sprint_contract.schema.json")"
 REVIEWER_SCHEMA="$(cat "$PROJECT_ROOT/schemas/verdict.schema.json")"
 EXECUTOR_SCHEMA="$(cat "$PROJECT_ROOT/schemas/executor_output.schema.json")"
 
-# ─── Timeout command detection (macOS compatibility) ───
-# env -i로 완전히 깨끗한 환경 시작 후 필요한 변수만 전달
+# ─── env -i 기반 깨끗한 환경 구성 ───
+# env -i로 부모 shell의 모든 env를 차단하고 명시한 변수만 전달
 # 근거: `env VAR=` 는 unset이 아니라 빈 문자열 set — 충돌 방지 불충분
-# env -i는 부모 shell의 모든 env를 차단하고 명시한 변수만 전달
-# HOME, PATH, TMPDIR, USER는 claude CLI 동작에 필요하므로 명시 전달
+# provider 변수는 settings.json에서 eval로 현재 shell에 export된 값 사용
+# (eval 블록에서 이미 stale env를 unset하고 settings.json 값만 export함)
+# Bedrock/Vertex 양쪽 변수를 모두 포함 — 활성 provider만 값이 있고 나머지는 빈값
 _ENV_PREFIX="env -i \
   HOME=${HOME} \
   PATH=${PATH} \
   TMPDIR=${TMPDIR:-/tmp} \
   USER=${USER:-$(id -un)} \
   CLAUDE_CODE_USE_VERTEX=${CLAUDE_CODE_USE_VERTEX:-} \
+  CLAUDE_CODE_USE_BEDROCK=${CLAUDE_CODE_USE_BEDROCK:-} \
   CLOUD_ML_REGION=${CLOUD_ML_REGION:-} \
   ANTHROPIC_VERTEX_PROJECT_ID=${ANTHROPIC_VERTEX_PROJECT_ID:-} \
+  AWS_REGION=${AWS_REGION:-} \
   ANTHROPIC_DEFAULT_OPUS_MODEL=${_RESOLVED_OPUS} \
   ANTHROPIC_DEFAULT_SONNET_MODEL=${_RESOLVED_SONNET} \
   ANTHROPIC_DEFAULT_HAIKU_MODEL=${_RESOLVED_HAIKU}"
