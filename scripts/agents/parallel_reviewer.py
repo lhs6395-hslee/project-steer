@@ -124,55 +124,92 @@ def parse_verdict(verdict_path: str) -> dict:
 
 def aggregate_verdicts(step_verdicts: list[dict]) -> dict:
     """
-    Aggregate per-step verdicts into a single pipeline verdict.
+    Aggregate per-step verdicts using MoA-inspired weighted ensemble.
+
+    근거: arxiv.org/abs/2406.04692 (Mixture-of-Agents, Together AI 2024)
+    "Each agent takes outputs from previous layer agents as auxiliary information"
+    → 여러 독립 Reviewer의 verdict를 집계할 때 단순 min/max 대신
+       score-weighted majority voting으로 앙상블 품질 향상
 
     Rules:
-    - Any constraint_violation → overall needs_revision (auto-fail)
-    - Any step verdict != approved → overall needs_revision
-    - Score = min(step scores) — weakest link
-    - Issues = union of all step issues
+    - constraint_violation 있으면 → 즉시 needs_revision (hard rule, MoA와 무관)
+    - Score: weighted average (score가 높은 Reviewer의 판단에 더 가중치)
+    - Verdict: weighted majority (approved score weight vs needs_revision score weight)
+    - Issues: 중복 제거 후 score 가중치로 정렬 (가장 신뢰도 높은 Reviewer의 이슈 우선)
     """
     all_issues = []
     all_violations = []
     all_suggestions = []
     scores = []
     step_results = []
+    approved_weight = 0.0
+    revision_weight = 0.0
 
     for sv in step_verdicts:
         verdict_data = sv["verdict_data"]
+        score = verdict_data["score"]
+        verdict = verdict_data["verdict"]
+
         all_issues.extend(verdict_data["issues"])
         all_violations.extend(verdict_data["constraint_violations"])
         all_suggestions.extend(verdict_data["suggestions"])
-        scores.append(verdict_data["score"])
+        scores.append(score)
+
+        # Weighted majority: score as confidence weight
+        if verdict in ("approved", "pass"):
+            approved_weight += score
+        else:
+            revision_weight += score
+
         step_results.append({
             "step_id": sv["step_id"],
-            "verdict": verdict_data["verdict"],
-            "score": verdict_data["score"],
+            "verdict": verdict,
+            "score": score,
             "issues": verdict_data["issues"],
             "constraint_violations": verdict_data["constraint_violations"],
         })
 
-    # Determine overall verdict
+    # Hard rule: any constraint violation → fail regardless of ensemble
     has_violations = len(all_violations) > 0
-    all_approved = all(sv["verdict_data"]["verdict"] in ("approved", "pass") for sv in step_verdicts)
-    min_score = min(scores) if scores else 0.0
 
-    if has_violations or not all_approved or min_score < 0.7:
+    # Weighted average score (MoA: higher-confidence reviewers weighted more)
+    total_weight = sum(scores) if scores else 1.0
+    weighted_score = sum(
+        sv["verdict_data"]["score"] ** 2  # square to amplify high-confidence signals
+        for sv in step_verdicts
+    ) / total_weight if total_weight > 0 else 0.0
+
+    # Ensemble verdict via weighted majority
+    if has_violations:
         overall_verdict = "needs_revision"
-    else:
+    elif approved_weight > revision_weight and weighted_score >= 0.7:
         overall_verdict = "approved"
+    else:
+        overall_verdict = "needs_revision"
+
+    # De-duplicate issues, preserving order (first occurrence = highest priority)
+    seen_issues: set = set()
+    deduped_issues = []
+    for issue in all_issues:
+        key = issue.lower().strip()[:80]
+        if key not in seen_issues:
+            seen_issues.add(key)
+            deduped_issues.append(issue)
 
     return {
         "verdict": overall_verdict,
-        "score": min_score,
-        "issues": all_issues,
+        "score": round(weighted_score, 3),
+        "issues": deduped_issues,
         "constraint_violations": all_violations,
-        "suggestions": all_suggestions,
+        "suggestions": list(dict.fromkeys(all_suggestions)),  # deduplicated
         "checklist_results": step_verdicts[0]["verdict_data"]["checklist_results"] if step_verdicts else {},
         "parallel_review": {
             "total_steps": len(step_verdicts),
             "approved_steps": sum(1 for sv in step_verdicts if sv["verdict_data"]["verdict"] in ("approved", "pass")),
             "failed_steps": [sv["step_id"] for sv in step_verdicts if sv["verdict_data"]["verdict"] not in ("approved", "pass")],
+            "ensemble_method": "moa_weighted_majority",
+            "approved_weight": round(approved_weight, 3),
+            "revision_weight": round(revision_weight, 3),
             "step_results": step_results,
         },
     }

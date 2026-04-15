@@ -160,7 +160,10 @@ call_agent_once() {
         #   공식 근거: code.claude.com/docs/en/sub-agents#choose-a-model
         # --exclude-dynamic-system-prompt-sections: prompt cache reuse 개선 (속도↑)
         #   공식 근거: code.claude.com/docs/en/cli-reference.md
-        local PLAN_MODEL="${PLANNER_MODEL:-sonnet}"
+        # --model opus: Planner가 파이프라인 품질 병목
+        #   근거: arXiv 2024 "weak planner degrades overall performance more than weak executor"
+        #   Planner만 opus 사용 → DAG 설계/위험도/제약조건 추출 품질 극대화
+        local PLAN_MODEL="${PLANNER_MODEL:-opus}"
         local PLAN_EFFORT="${PLANNER_EFFORT:-high}"
         echo "$INPUT" | run_with_timeout 180 claude --print \
           --bare \

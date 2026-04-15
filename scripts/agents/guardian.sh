@@ -1,5 +1,5 @@
 #!/bin/bash
-# Guardian — Pattern_Matcher 기반 위험 명령 차단
+# Guardian — Pattern_Matcher 기반 위험 명령/MCP tool 차단
 # Claude API 호출 없이 정규식만으로 즉각 판정 (200ms 이내)
 #
 # Exit codes:
@@ -7,11 +7,52 @@
 #   2 = 차단
 #
 # Usage: echo '{"tool_input":{"command":"rm -rf /"}}' | bash scripts/agents/guardian.sh
+#        echo '{"tool_input":{"path":"/etc/passwd"}}' | bash scripts/agents/guardian.sh
+#
+# Indirect Prompt Injection 방어 (ClawGuard/CoopGuard 패턴)
+# 근거: arXiv 2024 — "user-confirmed rule set at every tool-call boundary"
+#       "attackers embed malicious instructions within tool-returned content"
 
 set -euo pipefail
 trap 'echo "ERROR: Unhandled exception in guardian.sh (line $LINENO)" >&2; exit 2' ERR
 INPUT=$(cat)
-CMD=$(echo "$INPUT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('tool_input',{}).get('command',''))" 2>/dev/null || echo "")
+
+# Extract both command and tool-specific fields
+CMD=$(echo "$INPUT" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+ti = data.get('tool_input', {})
+# Bash command
+cmd = ti.get('command', '')
+# MCP/file tool fields — check path, file_path, content for injection
+path = ti.get('path', ti.get('file_path', ''))
+tool_name = data.get('tool_name', '')
+# Combine for pattern matching
+print(cmd or path or '')
+" 2>/dev/null || echo "")
+
+# ── MCP Tool-level checks (Indirect Prompt Injection 방어) ──
+# 근거: arXiv 2024 ClawGuard — "rule set at every tool-call boundary"
+MCP_TOOL=$(echo "$INPUT" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print(data.get('tool_name', data.get('tool_use_name', '')))
+" 2>/dev/null || echo "")
+
+# Block MCP tools attempting to access sensitive system paths
+if [ -n "$MCP_TOOL" ] && echo "$MCP_TOOL" | grep -qiE "^mcp__"; then
+  TOOL_INPUT_STR=$(echo "$INPUT" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print(json.dumps(data.get('tool_input', {})))
+" 2>/dev/null || echo "")
+  # Check for path traversal or sensitive system paths in MCP tool inputs
+  if echo "$TOOL_INPUT_STR" | grep -qiE '(\.\./){2,}|/etc/passwd|/etc/shadow|/root/\.ssh|~/.claude/settings'; then
+    echo "BLOCKED: MCP tool '$MCP_TOOL' attempting to access sensitive path" >&2
+    echo "Input: $TOOL_INPUT_STR" >&2
+    exit 2
+  fi
+fi
 
 if [ -z "$CMD" ]; then
   exit 0  # 명령이 아닌 경우 허용
