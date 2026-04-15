@@ -27,7 +27,7 @@ JSON
 
 vertex_env() {
   # Vertex AI 모델 ID — 공식 문서 기준 (code.claude.com/docs/en/google-vertex-ai)
-  # Vertex는 Bedrock의 "us.anthropic.*" 형식이 아닌 "claude-*" 형식 사용
+  # Vertex는 "claude-*" 형식 사용 (Bedrock의 "us.anthropic.*"와 다름)
   cat <<'JSON'
 {
   "CLAUDE_CODE_USE_VERTEX": "1",
