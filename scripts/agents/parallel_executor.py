@@ -267,7 +267,7 @@ def main():
         # Execute all steps in parallel using subprocess
         # Adaptive max-turns based on step complexity (sprint_contract estimated_complexity)
         # MCP tool use + --json-schema 조합: tool turns + structured output 생성 turns 필요
-        COMPLEXITY_TURNS = {"low": 20, "medium": 40, "high": 60}
+        COMPLEXITY_TURNS = {"low": 40, "medium": 80, "high": 120}
         COMPLEXITY_TIMEOUT = {"low": 300, "medium": 600, "high": 900}
 
         processes = {}

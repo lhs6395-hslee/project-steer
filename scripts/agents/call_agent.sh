@@ -263,7 +263,7 @@ call_agent_once() {
         # Use MCP_FILE from ide_adapter if available, fallback to .mcp.json (#27 audit fix)
         local MCP_CONFIG="${MCP_FILE:-.mcp.json}"
         local EXEC_MODEL="${EXECUTOR_MODEL:-$_RESOLVED_SONNET}"
-        local EXEC_TURNS="${EXECUTOR_MAX_TURNS:-40}"
+        local EXEC_TURNS="${EXECUTOR_MAX_TURNS:-80}"
         local EXEC_TIMEOUT="${EXECUTOR_TIMEOUT:-900}"
         local EXEC_EFFORT="${EXECUTOR_EFFORT:-medium}"
         # --json-schema + MCP tool use 조합: structured output 생성 전 tool turns 필요
