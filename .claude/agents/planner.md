@@ -5,6 +5,8 @@ description: >
   Pure planning agent — no execution, no tools. Outputs JSON only.
 model: sonnet
 tools: []
+effort: high
+maxTurns: 3
 ---
 
 # Planner Agent

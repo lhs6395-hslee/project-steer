@@ -6,6 +6,9 @@ description: >
   Pure evaluation — no tools, outputs JSON verdict only.
 model: sonnet
 tools: []
+effort: high
+maxTurns: 3
+memory: project
 ---
 
 # Reviewer Agent

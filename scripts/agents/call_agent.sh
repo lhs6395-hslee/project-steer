@@ -88,13 +88,58 @@ MAX_RETRIES=2
 ATTEMPT=0
 
 # Extract structured_output from claude --print JSON response
-# 공식 근거: code.claude.com/docs/en/headless.md
-# With --json-schema: response has "structured_output" field (schema-validated JSON)
-# Without --json-schema: response has "result" field (text, needs markdown stripping)
+# 공식 근거: code.claude.com/docs/en/agent-sdk/structured-outputs
+#   result message: { "type": "result", "subtype": "success", "structured_output": {...} }
+#   failure case:   { "type": "result", "subtype": "error_max_structured_output_retries" }
+# extract_result.py가 없으므로 인라인 Python으로 처리
 extract_structured_output() {
   local TMP_OUTPUT="$1"
   local DEST="$2"
-  python3 "$SCRIPT_DIR/../utils/extract_result.py" "$TMP_OUTPUT" "$DEST" 2>&1
+  python3 - "$TMP_OUTPUT" "$DEST" << 'PYEOF'
+import json, sys, re
+
+src, dst = sys.argv[1], sys.argv[2]
+try:
+    raw = open(src).read().strip()
+except Exception as e:
+    print(f"ERROR: cannot read {src}: {e}", file=sys.stderr); sys.exit(1)
+
+# Try parsing as JSON (--output-format json response)
+try:
+    data = json.loads(raw)
+    # 공식 포맷: {"type":"result","subtype":"success","structured_output":{...}}
+    subtype = data.get("subtype", "")
+    if subtype == "error_max_structured_output_retries":
+        print("ERROR: structured output retries exhausted", file=sys.stderr)
+        sys.exit(1)
+    if "structured_output" in data and data["structured_output"] is not None:
+        with open(dst, "w") as f:
+            json.dump(data["structured_output"], f, ensure_ascii=False, indent=2)
+        sys.exit(0)
+    # Fallback: "result" field (no --json-schema)
+    if "result" in data:
+        result_text = data["result"]
+        # Strip markdown code fences if present
+        result_text = re.sub(r'^```(?:json)?\s*', '', result_text.strip(), flags=re.MULTILINE)
+        result_text = re.sub(r'```\s*$', '', result_text.strip(), flags=re.MULTILINE)
+        parsed = json.loads(result_text.strip())
+        with open(dst, "w") as f:
+            json.dump(parsed, f, ensure_ascii=False, indent=2)
+        sys.exit(0)
+except json.JSONDecodeError:
+    pass
+
+# Last resort: raw text might be JSON directly
+try:
+    stripped = re.sub(r'^```(?:json)?\s*|\s*```$', '', raw.strip(), flags=re.MULTILINE)
+    parsed = json.loads(stripped.strip())
+    with open(dst, "w") as f:
+        json.dump(parsed, f, ensure_ascii=False, indent=2)
+    sys.exit(0)
+except Exception as e:
+    print(f"ERROR: cannot extract JSON from output: {e}", file=sys.stderr)
+    sys.exit(1)
+PYEOF
 }
 
 call_agent_once() {
@@ -105,17 +150,22 @@ call_agent_once() {
 
     case "$ROLE" in
       planner)
-        # --bare: skips hooks, MCP, CLAUDE.md (full isolation, faster start)
+        # --bare: full isolation, faster start (skips hooks/MCP/CLAUDE.md)
         #   공식 근거: code.claude.com/docs/en/cli-reference.md#--bare
-        # --tools "": disables ALL tools → pure JSON text output
-        # --json-schema: structured_output 필드에 schema-validated JSON 반환
+        # --tools "": disable ALL tools — pure JSON planning only
+        # --json-schema: structured_output validated against sprint_contract.schema.json
         #   공식 근거: code.claude.com/docs/en/agent-sdk/structured-outputs
-        # --model sonnet: Sprint_Contract DAG + 위험도/제약조건 추출 → 복잡한 추론 필요
-        # --exclude-dynamic-system-prompt-sections: 프롬프트 캐시 재사용 개선 (속도↑)
-        #   공식 근거: code.claude.com/docs/en/cli-reference.md (신규 플래그)
+        # --model/--effort/--max-turns: env override (default from frontmatter: sonnet/high/3)
+        #   모델 우선순위: env CLAUDE_CODE_SUBAGENT_MODEL > per-invocation > frontmatter > session
+        #   공식 근거: code.claude.com/docs/en/sub-agents#choose-a-model
+        # --exclude-dynamic-system-prompt-sections: prompt cache reuse 개선 (속도↑)
+        #   공식 근거: code.claude.com/docs/en/cli-reference.md
+        local PLAN_MODEL="${PLANNER_MODEL:-sonnet}"
+        local PLAN_EFFORT="${PLANNER_EFFORT:-high}"
         echo "$INPUT" | run_with_timeout 180 claude --print \
           --bare \
-          --model sonnet \
+          --model "$PLAN_MODEL" \
+          --effort "$PLAN_EFFORT" \
           --system-prompt "$SYSTEM_PROMPT" \
           --output-format json \
           --json-schema "$PLANNER_SCHEMA" \
@@ -125,14 +175,12 @@ call_agent_once() {
           > "$TMP_OUTPUT" 2>/dev/null
         ;;
       reviewer)
-        # --model: REVIEWER_MODEL env (default sonnet, opus for critical tasks)
-        #   adversarial review 품질이 파이프라인 신뢰도를 결정 — 품질 타협 금지
-        #   속도는 parallel_reviewer.py의 per-step 병렬화로 보완
-        # --effort: REVIEWER_EFFORT env (default high) — 품질 중시
-        #   공식 근거: code.claude.com/docs/en/cli-reference.md#--effort
-        #   options: low, medium, high, max (max는 Opus 4.6 전용)
-        # --exclude-dynamic-system-prompt-sections: 병렬 Reviewer 캐시 재사용 (속도↑)
-        # 공식 근거: code.claude.com/docs/en/agent-sdk/structured-outputs
+        # --model/--effort: env override (default: sonnet/high — 품질 타협 금지)
+        #   속도는 parallel_reviewer.py per-step 병렬화로 보완
+        # --exclude-dynamic-system-prompt-sections: 병렬 Reviewer 캐시 재사용
+        # --max-turns 3: verdict is single-turn JSON, 3 turns = schema retry budget
+        #   공식 근거: code.claude.com/docs/en/agent-sdk/structured-outputs
+        #              (error_max_structured_output_retries — agent retries internally)
         local REVIEW_MODEL="${REVIEWER_MODEL:-sonnet}"
         local REVIEW_EFFORT="${REVIEWER_EFFORT:-high}"
         echo "$INPUT" | run_with_timeout 360 claude --print \
@@ -148,16 +196,17 @@ call_agent_once() {
           > "$TMP_OUTPUT" 2>/dev/null
         ;;
       executor)
-        # --bare: skips hooks + CLAUDE.md (prevents recursive pipeline trigger)
-        # --mcp-config: explicitly load needed MCP servers
-        # --permission-mode bypassPermissions: auto-approve all tools including MCP
+        # --bare: prevents recursive pipeline trigger (no CLAUDE.md/hooks)
+        # --permission-mode bypassPermissions: auto-approve MCP tools
         #   공식 근거: code.claude.com/docs/en/permission-modes
-        # --json-schema: constraint_compliance 필드 강제
-        # --model: EXECUTOR_MODEL env (default sonnet, opus for complex tasks)
-        # --effort: EXECUTOR_EFFORT env (default high)
-        # --max-turns: adaptive via EXECUTOR_MAX_TURNS (complexity 기반: low=10, med=20, high=40)
-        # --fallback-model: 모델 과부하 시 sonnet으로 fallback
-        #   공식 근거: code.claude.com/docs/en/cli-reference.md (신규 플래그)
+        # --model/--effort: env override (default: sonnet/high)
+        #   opus 사용 시: EXECUTOR_MODEL=opus (결과 품질 우선)
+        # --max-turns: complexity 기반 adaptive (low=10, medium=20, high=40)
+        #   frontmatter maxTurns=20 (medium default); env로 override 가능
+        # --fallback-model: 모델 과부하 시 sonnet 자동 fallback
+        #   공식 근거: code.claude.com/docs/en/cli-reference.md#--fallback-model
+        # isolation:worktree → frontmatter에서 처리 (병렬 step 파일 충돌 방지)
+        #   공식 근거: code.claude.com/docs/en/sub-agents#supported-frontmatter-fields
         local MCP_CONFIG=".mcp.json"
         local EXEC_MODEL="${EXECUTOR_MODEL:-sonnet}"
         local EXEC_TURNS="${EXECUTOR_MAX_TURNS:-20}"

@@ -5,6 +5,9 @@ description: >
   Has access to all MCP servers and file system tools.
 model: sonnet
 permissionMode: bypassPermissions
+effort: high
+maxTurns: 20
+isolation: worktree
 ---
 
 # Executor Agent
