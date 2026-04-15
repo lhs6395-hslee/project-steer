@@ -170,33 +170,33 @@ def aggregate_results(run_dir, contract_file, output_file):
         if not m:
             continue
         step_id = int(m.group(1))
-            filepath = os.path.join(run_dir, file)
+        filepath = os.path.join(run_dir, file)
 
-            try:
-                with open(filepath, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                data = json.load(f)
 
-                step_results.append({
-                    'step_id': step_id,
-                    'status': 'success',
-                    'output': data
-                })
+            step_results.append({
+                'step_id': step_id,
+                'status': 'success',
+                'output': data
+            })
 
-                # Aggregate fields
-                if 'constraint_compliance' in data:
-                    all_constraint_compliance.extend(data['constraint_compliance'])
-                if 'outputs' in data:
-                    all_outputs.extend(data['outputs'])
-                if 'artifacts' in data:
-                    all_artifacts.extend(data['artifacts'])
+            # Aggregate fields
+            if 'constraint_compliance' in data:
+                all_constraint_compliance.extend(data['constraint_compliance'])
+            if 'outputs' in data:
+                all_outputs.extend(data['outputs'])
+            if 'artifacts' in data:
+                all_artifacts.extend(data['artifacts'])
 
-            except Exception as e:
-                step_results.append({
-                    'step_id': step_id,
-                    'status': 'failed',
-                    'error': f'Invalid JSON: {str(e)}'
-                })
-                failed_steps.append(step_id)
+        except Exception as e:
+            step_results.append({
+                'step_id': step_id,
+                'status': 'failed',
+                'error': f'Invalid JSON: {str(e)}'
+            })
+            failed_steps.append(step_id)
 
     # Determine overall status
     overall_status = 'success' if len(failed_steps) == 0 else 'partial_success'
