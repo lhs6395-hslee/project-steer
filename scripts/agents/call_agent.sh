@@ -105,10 +105,15 @@ REVIEWER_SCHEMA="$(cat "$PROJECT_ROOT/schemas/verdict.schema.json")"
 EXECUTOR_SCHEMA="$(cat "$PROJECT_ROOT/schemas/executor_output.schema.json")"
 
 # ─── Timeout command detection (macOS compatibility) ───
-# env 명시 전달 wrapper: 부모 shell의 stale BEDROCK env를 차단하고
-# settings.json 값으로 강제 오버라이드해서 claude 호출
-# env -i로 깨끗한 환경 시작 후 필요한 변수만 전달
-_ENV_PREFIX="env CLAUDE_CODE_USE_BEDROCK= AWS_REGION= \
+# env -i로 완전히 깨끗한 환경 시작 후 필요한 변수만 전달
+# 근거: `env VAR=` 는 unset이 아니라 빈 문자열 set — 충돌 방지 불충분
+# env -i는 부모 shell의 모든 env를 차단하고 명시한 변수만 전달
+# HOME, PATH, TMPDIR, USER는 claude CLI 동작에 필요하므로 명시 전달
+_ENV_PREFIX="env -i \
+  HOME=${HOME} \
+  PATH=${PATH} \
+  TMPDIR=${TMPDIR:-/tmp} \
+  USER=${USER:-$(id -un)} \
   CLAUDE_CODE_USE_VERTEX=${CLAUDE_CODE_USE_VERTEX:-} \
   CLOUD_ML_REGION=${CLOUD_ML_REGION:-} \
   ANTHROPIC_VERTEX_PROJECT_ID=${ANTHROPIC_VERTEX_PROJECT_ID:-} \
@@ -192,6 +197,12 @@ call_agent_once() {
   # ── 1. Claude Code (preferred) ──
   if command -v claude &>/dev/null; then
     local TMP_OUTPUT
+    # system prompt를 파일로 저장 — 큰 문자열을 인수로 전달 시 pipe blocking 방지
+    local TMP_PROMPT TMP_INPUT
+    TMP_PROMPT=$(mktemp)
+    TMP_INPUT=$(mktemp)
+    printf '%s' "$SYSTEM_PROMPT" > "$TMP_PROMPT"
+    printf '%s' "$INPUT" > "$TMP_INPUT"
     TMP_OUTPUT=$(mktemp)
 
     case "$ROLE" in
@@ -215,16 +226,17 @@ call_agent_once() {
         # effort medium: --json-schema + opus 조합에서 thinking 모드 비활성화
         # high/max effort는 thinking을 활성화해 tool_use API 제약과 충돌
         local PLAN_EFFORT="${PLANNER_EFFORT:-medium}"
-        echo "$INPUT" | run_with_timeout 180 $_ENV_PREFIX claude --print \
+        run_with_timeout 180 $_ENV_PREFIX claude --print \
           --bare \
           --model "$PLAN_MODEL" \
           --effort "$PLAN_EFFORT" \
-          --system-prompt "$SYSTEM_PROMPT" \
+          --system-prompt-file "$TMP_PROMPT" \
           --output-format json \
           --json-schema "$PLANNER_SCHEMA" \
           --max-turns 3 \
           --tools "" \
           --exclude-dynamic-system-prompt-sections \
+          < "$TMP_INPUT" \
           > "$TMP_OUTPUT" 2>/dev/null
         ;;
       reviewer)
@@ -236,16 +248,17 @@ call_agent_once() {
         #              (error_max_structured_output_retries — agent retries internally)
         local REVIEW_MODEL="${REVIEWER_MODEL:-$_RESOLVED_SONNET}"
         local REVIEW_EFFORT="${REVIEWER_EFFORT:-medium}"
-        echo "$INPUT" | run_with_timeout 360 $_ENV_PREFIX claude --print \
+        run_with_timeout 360 $_ENV_PREFIX claude --print \
           --bare \
           --model "$REVIEW_MODEL" \
           --effort "$REVIEW_EFFORT" \
-          --system-prompt "$SYSTEM_PROMPT" \
+          --system-prompt-file "$TMP_PROMPT" \
           --output-format json \
           --json-schema "$REVIEWER_SCHEMA" \
           --max-turns 3 \
           --tools "" \
           --exclude-dynamic-system-prompt-sections \
+          < "$TMP_INPUT" \
           > "$TMP_OUTPUT" 2>/dev/null
         ;;
       executor)
@@ -269,17 +282,18 @@ call_agent_once() {
         # --json-schema + MCP tool use 조합: structured output 생성 전 tool turns 필요
         # max-turns를 40으로 올려야 MCP 실행 후 structured output 반환 가능
         # 공식 근거: code.claude.com/docs/en/cli-reference.md#--max-turns
-        echo "$INPUT" | run_with_timeout "$EXEC_TIMEOUT" $_ENV_PREFIX claude --print \
+        run_with_timeout "$EXEC_TIMEOUT" $_ENV_PREFIX claude --print \
           --bare \
           --model "$EXEC_MODEL" \
           --effort "$EXEC_EFFORT" \
-          --system-prompt "$SYSTEM_PROMPT" \
+          --system-prompt-file "$TMP_PROMPT" \
           --output-format json \
           --json-schema "$EXECUTOR_SCHEMA" \
           --max-turns "$EXEC_TURNS" \
           --permission-mode bypassPermissions \
           --mcp-config "$MCP_CONFIG" \
           --fallback-model "$_RESOLVED_SONNET" \
+          < "$TMP_INPUT" \
           > "$TMP_OUTPUT" 2>/dev/null
         ;;
       *)
@@ -305,7 +319,7 @@ call_agent_once() {
     # Extract structured_output or .result field from wrapper JSON
     extract_structured_output "$TMP_OUTPUT" "$OUTPUT_FILE"
     local EXTRACT_STATUS=$?
-    rm -f "$TMP_OUTPUT"
+    rm -f "$TMP_OUTPUT" "$TMP_PROMPT" "$TMP_INPUT"
     return $EXTRACT_STATUS
   fi
 
