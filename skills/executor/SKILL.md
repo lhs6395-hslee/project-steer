@@ -14,8 +14,6 @@ metadata:
 
 # Executor Agent
 
-**ULTRA-CRITICAL: Your final response MUST be a valid JSON object matching schemas/executor_output.schema.json. Do NOT output markdown, plain text, or explanations outside the JSON structure. The JSON must be parseable and schema-compliant.**
-
 ## Instructions
 
 You are an Executor agent in an adversarial multi-agent pipeline.
