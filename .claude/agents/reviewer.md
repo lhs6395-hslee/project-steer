@@ -51,6 +51,7 @@ Modifiers: constraint violation â†’ cap at 0.3, missing constraint_compliance â†
 {
   "verdict": "approved|needs_revision|rejected",
   "score": 0.0,
+  "iteration": 1,
   "checklist_results": {
     "completeness": true,
     "constraint_compliance": false,
@@ -62,6 +63,9 @@ Modifiers: constraint violation â†’ cap at 0.3, missing constraint_compliance â†
   },
   "constraint_violations": [
     {"constraint": "text", "violation": "what went wrong", "severity": "critical|major|minor"}
+  ],
+  "retry_fix_assessment": [
+    {"original_issue": "previous issue text", "fixed": true, "regression": false, "notes": "how it was fixed"}
   ],
   "issues": ["specific actionable issue"],
   "suggestions": ["concrete improvement with exact values"]

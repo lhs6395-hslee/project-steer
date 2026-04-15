@@ -1,10 +1,9 @@
 {
   "title": "Executor_Output",
-  "description": "Executor가 생성하는 실행 결과 (v2.0 — Constraint-Aware)",
+  "description": "Executor가 생성하는 실행 결과 (v2.1 — Constraint-Aware, plan field removed)",
   "type": "object",
-  "required": ["plan", "constraint_compliance", "outputs", "status", "artifacts"],
+  "required": ["constraint_compliance", "outputs", "status", "artifacts"],
   "properties": {
-    "plan": { "type": "string" },
     "constraint_compliance": {
       "type": "object",
       "required": ["constraints_checked", "violations"],
@@ -32,6 +31,7 @@
       "type": "array",
       "items": {
         "type": "object",
+        "required": ["issue", "fix_applied", "verified"],
         "properties": {
           "issue": { "type": "string" },
           "fix_applied": { "type": "string" },
@@ -39,7 +39,6 @@
         }
       }
     },
-    "deviations": { "type": "array", "items": { "type": "string" } },
     "status": { "type": "string", "enum": ["completed", "partial", "failed"] },
     "artifacts": { "type": "array", "items": { "type": "string" } }
   }

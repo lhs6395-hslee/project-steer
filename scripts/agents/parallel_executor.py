@@ -15,6 +15,7 @@ Features:
 import json
 import sys
 import os
+import re
 import subprocess
 from collections import defaultdict
 from pathlib import Path
@@ -24,6 +25,37 @@ def load_sprint_contract(filepath):
     """Load Sprint_Contract JSON"""
     with open(filepath, 'r', encoding='utf-8') as f:
         return json.load(f)
+
+def validate_dag(steps):
+    """Validate sprint_contract steps form a valid DAG (no cycles). (#17 audit fix)"""
+    step_ids = {s['id'] for s in steps}
+    adj = {s['id']: s.get('dependencies', []) for s in steps}
+
+    visited = set()
+    rec_stack = set()
+
+    def has_cycle(node):
+        visited.add(node)
+        rec_stack.add(node)
+        for dep in adj.get(node, []):
+            if dep not in step_ids:
+                print(f"  WARNING: Step {node} depends on unknown step {dep}", file=sys.stderr)
+                continue
+            if dep not in visited:
+                if has_cycle(dep):
+                    return True
+            elif dep in rec_stack:
+                print(f"  ERROR: Circular dependency detected: {node} → {dep}", file=sys.stderr)
+                return True
+        rec_stack.discard(node)
+        return False
+
+    for s in steps:
+        if s['id'] not in visited:
+            if has_cycle(s['id']):
+                return False
+    return True
+
 
 def analyze_dependencies(steps):
     """Build dependency levels for parallel execution"""
@@ -131,10 +163,13 @@ def aggregate_results(run_dir, contract_file, output_file):
     all_artifacts = []
     failed_steps = []
 
-    # Collect all step outputs
+    # Collect all step outputs — use regex to avoid IndexError (#4 audit fix)
+    STEP_PATTERN = re.compile(r'^step_(\d+)_output\.json$')
     for file in sorted(os.listdir(run_dir)):
-        if file.startswith('step_') and file.endswith('_output.json'):
-            step_id = int(file.split('_')[1])
+        m = STEP_PATTERN.match(file)
+        if not m:
+            continue
+        step_id = int(m.group(1))
             filepath = os.path.join(run_dir, file)
 
             try:
@@ -199,6 +234,11 @@ def main():
     contract = load_sprint_contract(contract_file)
     steps = contract.get('steps', [])
 
+    # Validate DAG before execution (#17 audit fix: cycle detection)
+    if not validate_dag(steps):
+        print("  ERROR: Sprint_Contract contains circular dependencies — aborting", file=sys.stderr)
+        sys.exit(1)
+
     # Analyze dependencies
     levels, step_deps = analyze_dependencies(steps)
     max_level = max(levels.keys()) if levels else 0
@@ -258,8 +298,10 @@ def main():
         import time as _time
         start = _time.time()
         for step_id, proc in processes.items():
+            # Use EXECUTOR_TIMEOUT env (same as call_agent.sh) + buffer (#10 audit fix)
+            step_timeout = int(os.environ.get('EXECUTOR_TIMEOUT', '900')) + 60
             try:
-                proc.wait(timeout=720)  # 12min per step (공식: executor max-turns=40)
+                proc.wait(timeout=step_timeout)
                 if proc.returncode == 0:
                     completed_outputs.add(step_id)
                     print(f"  [Parallel Executor] ✓ Step {step_id} done ({_time.time()-start:.0f}s)")

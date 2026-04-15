@@ -210,7 +210,8 @@ call_agent_once() {
         #   공식 근거: code.claude.com/docs/en/cli-reference.md#--fallback-model
         # isolation:worktree → frontmatter에서 처리 (병렬 step 파일 충돌 방지)
         #   공식 근거: code.claude.com/docs/en/sub-agents#supported-frontmatter-fields
-        local MCP_CONFIG=".mcp.json"
+        # Use MCP_FILE from ide_adapter if available, fallback to .mcp.json (#27 audit fix)
+        local MCP_CONFIG="${MCP_FILE:-.mcp.json}"
         local EXEC_MODEL="${EXECUTOR_MODEL:-sonnet}"
         local EXEC_TURNS="${EXECUTOR_MAX_TURNS:-20}"
         local EXEC_TIMEOUT="${EXECUTOR_TIMEOUT:-900}"

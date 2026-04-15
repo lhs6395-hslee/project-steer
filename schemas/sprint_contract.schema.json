@@ -22,6 +22,19 @@
     },
     "acceptance_criteria": { "type": "array", "items": { "type": "string" } },
     "constraints": { "type": "array", "items": { "type": "string" } },
-    "risks": { "type": "array", "items": { "type": "string" } }
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "likelihood", "impact", "mitigation"],
+        "properties": {
+          "id": { "type": "string" },
+          "description": { "type": "string" },
+          "likelihood": { "type": "string", "enum": ["low", "medium", "high"] },
+          "impact": { "type": "string", "enum": ["low", "medium", "high"] },
+          "mitigation": { "type": "string" }
+        }
+      }
+    }
   }
 }

@@ -1,13 +1,14 @@
 {
   "title": "Verdict",
-  "description": "Reviewer가 생성하는 검증 결과 (v2.0 — Constraint Verification)",
+  "description": "Reviewer가 생성하는 검증 결과 (v2.1 — Constraint Verification + Retry Assessment)",
   "type": "object",
-  "required": ["verdict", "score", "checklist_results", "issues", "suggestions"],
+  "required": ["verdict", "score", "checklist_results", "constraint_violations", "issues", "suggestions"],
   "properties": {
     "verdict": { "type": "string", "enum": ["approved", "needs_revision", "rejected"] },
     "score": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
     "checklist_results": {
       "type": "object",
+      "required": ["completeness", "constraint_compliance", "content_accuracy", "design_quality"],
       "properties": {
         "completeness": { "type": "boolean" },
         "constraint_compliance": { "type": "boolean" },
@@ -23,6 +24,7 @@
       "type": "array",
       "items": {
         "type": "object",
+        "required": ["constraint", "violation", "severity"],
         "properties": {
           "constraint": { "type": "string" },
           "violation": { "type": "string" },
@@ -34,6 +36,7 @@
       "type": "array",
       "items": {
         "type": "object",
+        "required": ["original_issue", "fixed"],
         "properties": {
           "original_issue": { "type": "string" },
           "fixed": { "type": "boolean" },

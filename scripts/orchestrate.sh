@@ -80,9 +80,14 @@ echo "── Step 0: Confidence_Trigger ──"
 CT_RESULT=$(bash scripts/agents/confidence_trigger.sh "$TASK" "${MODULES%%,*}")
 echo "$CT_RESULT" | tee "$RUN_DIR/confidence_trigger.json"
 
-MODE=$(echo "$CT_RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin)['mode'])")
-MAX_RETRIES=$(echo "$CT_RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin)['max_retries'])")
-ULTRAPLAN=$(echo "$CT_RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin)['ultraplan'])")
+# Parse all CT fields in a single Python call (avoid redundant JSON parsing x3)
+eval "$(echo "$CT_RESULT" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print(f\"MODE={d['mode']}\")
+print(f\"MAX_RETRIES={d['max_retries']}\")
+print(f\"ULTRAPLAN={d['ultraplan']}\")
+" 2>/dev/null || echo "MODE=multi_full; MAX_RETRIES=3; ULTRAPLAN=False")"
 
 echo "  Mode: $MODE | Max retries: $MAX_RETRIES | UltraPlan: $ULTRAPLAN"
 echo ""
@@ -177,8 +182,10 @@ while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ] && [ "$V
   echo "── Attempt $ATTEMPT/$MAX_RETRIES ──"
 
   # ── Guardian check ──
+  # JSON-safe task encoding: use python json.dumps to avoid injection (#1 audit fix)
   echo "  [Guardian] Pre-execution safety check..."
-  GUARDIAN_TASK="$TASK" python3 -c "import json,os; print(json.dumps({'tool_input':{'command':os.environ['GUARDIAN_TASK']}}))" | bash scripts/agents/guardian.sh || {
+  python3 -c "import json,sys; print(json.dumps({'tool_input':{'command':sys.argv[1]}}))" "$TASK" \
+    | bash scripts/agents/guardian.sh || {
     EXIT_CODE=$?
     if [ "$EXIT_CODE" -eq 2 ]; then
       echo "  [Guardian] BLOCKED — aborting pipeline"
@@ -214,14 +221,18 @@ while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ] && [ "$V
 
   # ── Parallel Execution (dependency-aware) ──
   echo "  [Executor] Running in parallel mode (dependency-aware)..."
-  python3 scripts/agents/parallel_executor.py "$PLAN_OUTPUT" "$MODULE" "$RUN_DIR"
+  # Error handling: check return code (#2 audit fix)
+  if ! python3 scripts/agents/parallel_executor.py "$PLAN_OUTPUT" "$MODULE" "$RUN_DIR"; then
+    echo "ERROR: Parallel execution failed (exit code $?)"
+    exit 1
+  fi
 
-  # Use aggregated output from parallel execution
+  # Use aggregated output — check file exists AND is non-empty (#3 audit fix: -s not -f)
   PARALLEL_OUTPUT="$RUN_DIR/aggregated_output.json"
-  if [ -f "$PARALLEL_OUTPUT" ]; then
+  if [ -s "$PARALLEL_OUTPUT" ]; then
     cp "$PARALLEL_OUTPUT" "$EXEC_OUTPUT"
   else
-    echo "ERROR: Parallel execution failed - no aggregated output"
+    echo "ERROR: Parallel execution produced empty or missing output"
     exit 1
   fi
 
@@ -254,33 +265,28 @@ while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ] && [ "$V
 
   # Parse verdict (v2.1 — constraint_violations aware)
   # 공식 근거: schemas/verdict.schema.json (v2.0 — Constraint Verification)
-  VERDICT=$(python3 -c "
+  # Parse verdict + score in single Python call (#11 audit fix: single JSON parse)
+  # Approval threshold: score >= 0.85 (aligns with reviewer.md 0.9-1.0 = high quality)
+  # (#30 audit fix: consistent threshold — was 0.7 in script vs 0.9 in .md)
+  eval "$(python3 - "$VERDICT_FILE" << 'PYEOF'
 import json, sys
 try:
-    with open('$VERDICT_FILE') as f:
+    with open(sys.argv[1]) as f:
         data = json.load(f)
-    v = data.get('verdict', data.get('overall_status', 'needs_revision'))
+    v = data.get('verdict', 'needs_revision')
     s = float(data.get('score', 0))
-    # v2.1: constraint_violations가 있으면 자동 실패
     violations = data.get('constraint_violations', [])
-    if violations:
-        print('needs_revision')
-    elif v in ('approved', 'pass') and s >= 0.7:
-        print('approved')
+    if violations or v not in ('approved', 'pass') or s < 0.85:
+        verdict = 'needs_revision'
     else:
-        print('needs_revision')
-except:
-    print('needs_revision')
-" 2>/dev/null || echo "needs_revision")
-
-  SCORE=$(python3 -c "
-import json
-try:
-    with open('$VERDICT_FILE') as f:
-        print(json.load(f).get('score', 0))
-except:
-    print(0)
-" 2>/dev/null || echo "0")
+        verdict = 'approved'
+    print(f"VERDICT={verdict}")
+    print(f"SCORE={s}")
+except Exception as e:
+    print("VERDICT=needs_revision")
+    print("SCORE=0")
+PYEOF
+  2>/dev/null || echo "VERDICT=needs_revision; SCORE=0")"
 
   echo "  [Orchestrator] Verdict: $VERDICT | Score: $SCORE (attempt $ATTEMPT)"
 

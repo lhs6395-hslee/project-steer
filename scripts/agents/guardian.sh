@@ -46,11 +46,23 @@ import json, sys
 data = json.load(sys.stdin)
 print(json.dumps(data.get('tool_input', {})))
 " 2>/dev/null || echo "")
-  # Check for path traversal or sensitive system paths in MCP tool inputs
-  if echo "$TOOL_INPUT_STR" | grep -qiE '(\.\./){2,}|/etc/passwd|/etc/shadow|/root/\.ssh|~/.claude/settings'; then
-    echo "BLOCKED: MCP tool '$MCP_TOOL' attempting to access sensitive path" >&2
-    echo "Input: $TOOL_INPUT_STR" >&2
-    exit 2
+  # Allow-list approach: block anything outside safe project/tmp paths (#28 audit fix)
+  # Block-list is bypassable; allow-list is not
+  FILE_PATH=$(echo "$TOOL_INPUT_STR" | python3 -c "
+import json, sys
+d = json.loads(sys.stdin.read())
+print(d.get('path', d.get('file_path', d.get('destination', ''))))
+" 2>/dev/null || echo "")
+
+  if [ -n "$FILE_PATH" ]; then
+    # Normalize: resolve .. sequences
+    NORMALIZED=$(python3 -c "import os,sys; print(os.path.normpath(sys.argv[1]))" "$FILE_PATH" 2>/dev/null || echo "$FILE_PATH")
+    # Allow only paths under project dir, /tmp, or home claude dir
+    PROJECT_ROOT_ABS=$(cd "$SCRIPT_DIR/../.." && pwd)
+    if ! echo "$NORMALIZED" | grep -qE "^($PROJECT_ROOT_ABS|/tmp|$HOME/.claude/(projects|agent-memory))"; then
+      echo "BLOCKED: MCP tool '$MCP_TOOL' accessing path outside allowed dirs: $NORMALIZED" >&2
+      exit 2
+    fi
   fi
 fi
 

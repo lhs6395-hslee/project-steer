@@ -215,6 +215,19 @@ def aggregate_verdicts(step_verdicts: list[dict]) -> dict:
     }
 
 
+def write_fallback_verdict(verdict_file: Path, reason: str):
+    """Always write a verdict file even on error — orchestrate.sh depends on it. (#18 audit fix)"""
+    write_json(str(verdict_file), {
+        "verdict": "needs_revision",
+        "score": 0.0,
+        "checklist_results": {"completeness": False, "constraint_compliance": False,
+                               "content_accuracy": False, "design_quality": False},
+        "constraint_violations": [],
+        "issues": [f"Parallel reviewer error: {reason}"],
+        "suggestions": [],
+    })
+
+
 def main():
     if len(sys.argv) < 5:
         print("Usage: parallel_reviewer.py <sprint_contract.json> <aggregated_output.json> <module> <run_dir> [attempt]")
@@ -226,9 +239,16 @@ def main():
     run_dir = Path(sys.argv[4])
     attempt = int(sys.argv[5]) if len(sys.argv) > 5 else 1
 
-    print(f"  [Parallel Reviewer] Loading Sprint_Contract and aggregated output...")
-    contract = load_json(contract_file)
-    aggregated = load_json(aggregated_output_file)
+    verdict_file = run_dir / f"verdict_{attempt}.json"
+
+    try:
+        print(f"  [Parallel Reviewer] Loading Sprint_Contract and aggregated output...")
+        contract = load_json(contract_file)
+        aggregated = load_json(aggregated_output_file)
+    except Exception as e:
+        print(f"  ERROR: Failed to load input files: {e}", file=sys.stderr)
+        write_fallback_verdict(verdict_file, str(e))
+        sys.exit(0)  # Always exit 0; verdict file contains the failure
 
     # Extract per-step outputs
     step_outputs = {}
@@ -264,7 +284,10 @@ def main():
     start_time = time.time()
 
     run_results = {}
-    max_workers = min(len(review_tasks), 4)  # Cap at 4 concurrent reviewers
+    # Dynamic thread pool: use cpu_count//2, min 2, max 8 (#13 audit fix)
+    import os as _os
+    cpu_cap = max(2, (_os.cpu_count() or 4) // 2)
+    max_workers = min(len(review_tasks), cpu_cap, 8)
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         futures = {
             pool.submit(
@@ -305,8 +328,9 @@ def main():
     print(f"  [Parallel Reviewer] Overall: {aggregated_verdict['verdict']} (score={aggregated_verdict['score']:.2f})")
     print(f"  [Parallel Reviewer] Verdict written: {verdict_file}")
 
-    # Exit code signals verdict to orchestrate.sh
-    sys.exit(0 if aggregated_verdict["verdict"] in ("approved", "pass") else 1)
+    # Always exit 0 — orchestrate.sh reads verdict file to determine outcome (#18 audit fix)
+    # Writing verdict file is the contract; exit code is secondary
+    sys.exit(0)
 
 
 if __name__ == "__main__":
