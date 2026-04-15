@@ -36,23 +36,33 @@ SKILL_FILE="skills/${ROLE}/SKILL.md"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# ── Load provider env from ~/.claude/settings.json ──
-# --bare 모드는 settings.json을 로드하지 않으므로 model alias 핀닝을 직접 export
+# ── Resolve actual model IDs from ~/.claude/settings.json ──
+# --bare 모드는 settings.json을 로드하지 않아 alias(opus/sonnet)가 resolve되지 않음
+# settings.json의 ANTHROPIC_DEFAULT_*_MODEL을 읽어 실제 모델 ID로 직접 사용
 # 공식 근거: code.claude.com/docs/en/model-config#environment-variables
 _SETTINGS="$HOME/.claude/settings.json"
+_RESOLVED_OPUS="opus"
+_RESOLVED_SONNET="sonnet"
+_RESOLVED_HAIKU="haiku"
 if [ -f "$_SETTINGS" ]; then
   eval "$(python3 - "$_SETTINGS" << 'PYEOF'
-import json, sys
+import json, sys, os
 with open(sys.argv[1]) as f:
     s = json.load(f)
 env = s.get('env', {})
-for k in ('ANTHROPIC_DEFAULT_OPUS_MODEL','ANTHROPIC_DEFAULT_SONNET_MODEL',
-          'ANTHROPIC_DEFAULT_HAIKU_MODEL','CLAUDE_CODE_USE_VERTEX',
-          'CLAUDE_CODE_USE_BEDROCK','CLOUD_ML_REGION',
-          'ANTHROPIC_VERTEX_PROJECT_ID','AWS_REGION'):
+# Export provider env vars
+for k in ('CLAUDE_CODE_USE_VERTEX','CLAUDE_CODE_USE_BEDROCK',
+          'CLOUD_ML_REGION','ANTHROPIC_VERTEX_PROJECT_ID','AWS_REGION'):
     v = env.get(k)
     if v:
         print(f"export {k}={v!r}")
+# Resolve model aliases to actual IDs
+opus   = env.get('ANTHROPIC_DEFAULT_OPUS_MODEL', 'opus')
+sonnet = env.get('ANTHROPIC_DEFAULT_SONNET_MODEL', 'sonnet')
+haiku  = env.get('ANTHROPIC_DEFAULT_HAIKU_MODEL', 'haiku')
+print(f"_RESOLVED_OPUS={opus!r}")
+print(f"_RESOLVED_SONNET={sonnet!r}")
+print(f"_RESOLVED_HAIKU={haiku!r}")
 PYEOF
   2>/dev/null)" 2>/dev/null || true
 fi
@@ -186,7 +196,7 @@ call_agent_once() {
         #   Planner만 opus 사용 → DAG 설계/위험도/제약조건 추출 품질 극대화
         # ANTHROPIC_DEFAULT_OPUS_MODEL이 settings.json에 provider별로 핀닝되어 있으므로
         # alias "opus"를 그대로 사용 — 실제 모델 ID는 env var이 결정
-        local PLAN_MODEL="${PLANNER_MODEL:-opus}"
+        local PLAN_MODEL="${PLANNER_MODEL:-$_RESOLVED_OPUS}"
         local PLAN_EFFORT="${PLANNER_EFFORT:-high}"
         echo "$INPUT" | run_with_timeout 180 claude --print \
           --bare \
@@ -207,7 +217,7 @@ call_agent_once() {
         # --max-turns 3: verdict is single-turn JSON, 3 turns = schema retry budget
         #   공식 근거: code.claude.com/docs/en/agent-sdk/structured-outputs
         #              (error_max_structured_output_retries — agent retries internally)
-        local REVIEW_MODEL="${REVIEWER_MODEL:-sonnet}"
+        local REVIEW_MODEL="${REVIEWER_MODEL:-$_RESOLVED_SONNET}"
         local REVIEW_EFFORT="${REVIEWER_EFFORT:-high}"
         echo "$INPUT" | run_with_timeout 360 claude --print \
           --bare \
@@ -235,7 +245,7 @@ call_agent_once() {
         #   공식 근거: code.claude.com/docs/en/sub-agents#supported-frontmatter-fields
         # Use MCP_FILE from ide_adapter if available, fallback to .mcp.json (#27 audit fix)
         local MCP_CONFIG="${MCP_FILE:-.mcp.json}"
-        local EXEC_MODEL="${EXECUTOR_MODEL:-sonnet}"
+        local EXEC_MODEL="${EXECUTOR_MODEL:-$_RESOLVED_SONNET}"
         local EXEC_TURNS="${EXECUTOR_MAX_TURNS:-40}"
         local EXEC_TIMEOUT="${EXECUTOR_TIMEOUT:-900}"
         local EXEC_EFFORT="${EXECUTOR_EFFORT:-high}"
@@ -252,7 +262,7 @@ call_agent_once() {
           --max-turns "$EXEC_TURNS" \
           --permission-mode bypassPermissions \
           --mcp-config "$MCP_CONFIG" \
-          --fallback-model sonnet \
+          --fallback-model "$_RESOLVED_SONNET" \
           > "$TMP_OUTPUT" 2>/dev/null
         ;;
       *)
