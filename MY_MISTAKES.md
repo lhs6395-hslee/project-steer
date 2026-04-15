@@ -30,3 +30,9 @@
 10. **토큰 트래커 허위 보고** — token_tracker.sh가 실제로 집계하지 않는데도 구조가 있다고 설명. 실제 비용 확인 방법(Claude.ai 사용 내역)을 안내하지 않음.
 11. **Reviewer python-pptx 검증 미실행** — reviewer SKILL.md에 "PPTX 모듈 작업이면 반드시 python-pptx로 결과 파일을 직접 열어 검증한다"고 명시됐는데 text-only 리뷰어 실행. 중제목 흰색, Chevron, 섹션 오배정, 색상 오류 등 시각적 문제 전부 통과시킴.
 12. **python-pptx.save()로 슬라이드 번호 충돌 유발 후 단순 복원으로 마무리** — 비순차 번호(slide1,2,41-45,6) PPTX에 prs.save() 실행 시 재번호 과정에서 Thank You 슬라이드가 덮어씌워짐. 단순 복원만 하고 재발 방지 로직을 구현하지 않아 사용자가 지적. 앞으로 prs.save() 금지, PptxSafeEditor(scripts/utils/pptx_safe_edit.py) 사용 필수.
+15. **check_text_corner_overlap() detect-only를 "동적 처리"라고 허위 보고** — 함수는 감지만 하고 실제 수정은 하드코딩된 delta로 적용. 탐지와 수정을 분리하지 않은 것 자체가 문제. 이후 `auto_position_card_content()`과 `min_safe_y_for_textbox()`를 pptx_safe_edit.py에 추가하여 실제 동적 수정 구현.
+16. **MSK Cluster (E6F0FF 배경) FFFFFF 텍스트로 생성** — WCAG 2.1 대비율 1.15:1(사실상 안 보임). 외부 자료(WCAG) 검토 없이 비교용 파일 색상 복사. FFFFFF → 1B3A5C(대비율 10.12:1)로 수정.
+17. **auto_fix_corner_overlap margin 과다(0.76cm)로 flow label 포함 전체 이동** — margin_emu=274320(0.76cm) 적용 → TextBox 17-26 잘못 이동. 올바른 값: margin_emu=91440(0.25cm). flow label(vibrant RR와 동일 위치)은 이동 제외해야 함. `auto_position_card_content()`에서 x-column 정렬 제외 로직으로 해결.
+18. **auto_position_card_content 초기 버전에서 x-column 정렬 sub-label 미제외** — TextBox 24/25/26(App/SDK, Topic/Part., Consumer Grp)이 vibrant shape과 x 정렬된 sub-label임에도 일반 카드 텍스트로 처리되어 위치 변경됨. vibrant_xs 집합으로 ±0.25cm tolerance x-column 제외 로직 추가.
+19. **L02 카드 내용 12pt로 생성(13pt 기준 위반)** — 다른 슬라이드 내용은 모두 13pt인데 L02만 12pt. MCP 생성 시 잘못된 sz 값 지정. 전체 rPr sz=1200 → sz=1300으로 수정.
+20. **보더 규칙 slide_idx 기반 하드코딩** — L01 flow area 0043DA, L02 E6F0FF 0043DA를 slide index로 적용. 올바른 규칙: fill color 기반(vibrant→noFill, light→DCDCDC 6350). 도형이 달라져도 fill color만으로 동적 판별.
