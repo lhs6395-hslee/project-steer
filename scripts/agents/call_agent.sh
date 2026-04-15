@@ -105,6 +105,17 @@ REVIEWER_SCHEMA="$(cat "$PROJECT_ROOT/schemas/verdict.schema.json")"
 EXECUTOR_SCHEMA="$(cat "$PROJECT_ROOT/schemas/executor_output.schema.json")"
 
 # ─── Timeout command detection (macOS compatibility) ───
+# env 명시 전달 wrapper: 부모 shell의 stale BEDROCK env를 차단하고
+# settings.json 값으로 강제 오버라이드해서 claude 호출
+# env -i로 깨끗한 환경 시작 후 필요한 변수만 전달
+_ENV_PREFIX="env CLAUDE_CODE_USE_BEDROCK= AWS_REGION= \
+  CLAUDE_CODE_USE_VERTEX=${CLAUDE_CODE_USE_VERTEX:-} \
+  CLOUD_ML_REGION=${CLOUD_ML_REGION:-} \
+  ANTHROPIC_VERTEX_PROJECT_ID=${ANTHROPIC_VERTEX_PROJECT_ID:-} \
+  ANTHROPIC_DEFAULT_OPUS_MODEL=${_RESOLVED_OPUS} \
+  ANTHROPIC_DEFAULT_SONNET_MODEL=${_RESOLVED_SONNET} \
+  ANTHROPIC_DEFAULT_HAIKU_MODEL=${_RESOLVED_HAIKU}"
+
 run_with_timeout() {
   local timeout_seconds="$1"
   shift
@@ -204,7 +215,7 @@ call_agent_once() {
         # effort medium: --json-schema + opus 조합에서 thinking 모드 비활성화
         # high/max effort는 thinking을 활성화해 tool_use API 제약과 충돌
         local PLAN_EFFORT="${PLANNER_EFFORT:-medium}"
-        echo "$INPUT" | run_with_timeout 180 claude --print \
+        echo "$INPUT" | run_with_timeout 180 $_ENV_PREFIX claude --print \
           --bare \
           --model "$PLAN_MODEL" \
           --effort "$PLAN_EFFORT" \
@@ -225,7 +236,7 @@ call_agent_once() {
         #              (error_max_structured_output_retries — agent retries internally)
         local REVIEW_MODEL="${REVIEWER_MODEL:-$_RESOLVED_SONNET}"
         local REVIEW_EFFORT="${REVIEWER_EFFORT:-medium}"
-        echo "$INPUT" | run_with_timeout 360 claude --print \
+        echo "$INPUT" | run_with_timeout 360 $_ENV_PREFIX claude --print \
           --bare \
           --model "$REVIEW_MODEL" \
           --effort "$REVIEW_EFFORT" \
@@ -258,7 +269,7 @@ call_agent_once() {
         # --json-schema + MCP tool use 조합: structured output 생성 전 tool turns 필요
         # max-turns를 40으로 올려야 MCP 실행 후 structured output 반환 가능
         # 공식 근거: code.claude.com/docs/en/cli-reference.md#--max-turns
-        echo "$INPUT" | run_with_timeout "$EXEC_TIMEOUT" claude --print \
+        echo "$INPUT" | run_with_timeout "$EXEC_TIMEOUT" $_ENV_PREFIX claude --print \
           --bare \
           --model "$EXEC_MODEL" \
           --effort "$EXEC_EFFORT" \
