@@ -13,26 +13,34 @@ GLOBAL_SETTINGS="$HOME/.claude/settings.json"
 
 # ── Profiles ──────────────────────────────────────────────
 bedrock_env() {
+  # Bedrock 검증된 최신 모델 ID (us-east-1, 2026-04-15 기준)
   cat <<'JSON'
 {
   "CLAUDE_CODE_USE_BEDROCK": "1",
-  "AWS_REGION": "us-east-1"
+  "AWS_REGION": "us-east-1",
+  "ANTHROPIC_DEFAULT_OPUS_MODEL": "us.anthropic.claude-opus-4-6-v1",
+  "ANTHROPIC_DEFAULT_SONNET_MODEL": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "ANTHROPIC_DEFAULT_HAIKU_MODEL": "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 }
 JSON
 }
 
 vertex_env() {
+  # Vertex AI 검증된 최신 모델 ID (us-east5, 2026-04-15 기준)
   cat <<'JSON'
 {
   "CLAUDE_CODE_USE_VERTEX": "1",
   "CLOUD_ML_REGION": "us-east5",
-  "ANTHROPIC_VERTEX_PROJECT_ID": "architect-hslee-3572"
+  "ANTHROPIC_VERTEX_PROJECT_ID": "architect-hslee-3572",
+  "ANTHROPIC_DEFAULT_OPUS_MODEL": "us.anthropic.claude-opus-4-1-20250805-v1:0",
+  "ANTHROPIC_DEFAULT_SONNET_MODEL": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "ANTHROPIC_DEFAULT_HAIKU_MODEL": "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 }
 JSON
 }
 
-bedrock_model="us.anthropic.claude-opus-4-6-v1"
-vertex_model="claude-opus-4-6@20250514"
+bedrock_model="us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+vertex_model="us.anthropic.claude-sonnet-4-5-20250929-v1:0"
 
 # ── Helpers ───────────────────────────────────────────────
 require_jq() {

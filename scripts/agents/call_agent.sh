@@ -163,6 +163,8 @@ call_agent_once() {
         # --model opus: Planner가 파이프라인 품질 병목
         #   근거: arXiv 2024 "weak planner degrades overall performance more than weak executor"
         #   Planner만 opus 사용 → DAG 설계/위험도/제약조건 추출 품질 극대화
+        # ANTHROPIC_DEFAULT_OPUS_MODEL이 settings.json에 provider별로 핀닝되어 있으므로
+        # alias "opus"를 그대로 사용 — 실제 모델 ID는 env var이 결정
         local PLAN_MODEL="${PLANNER_MODEL:-opus}"
         local PLAN_EFFORT="${PLANNER_EFFORT:-high}"
         echo "$INPUT" | run_with_timeout 180 claude --print \
