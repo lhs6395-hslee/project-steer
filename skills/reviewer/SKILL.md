@@ -45,6 +45,45 @@ This isolation prevents self-confirmation bias.
 
 **Any constraint violation is an automatic FAIL** — do not compensate with high scores elsewhere.
 
+### Step 1b: PPTX Direct Verification (pptx module only)
+
+**PPTX 모듈 작업이면 반드시 python-pptx로 결과 파일을 직접 열어 검증한다.**
+Executor의 텍스트 보고만 믿지 말 것 — 직접 확인해야 한다.
+
+```python
+from pptx import Presentation
+from pptx.util import Inches, Pt
+prs = Presentation('results/pptx/AWS_MSK_Expert_Intro.pptx')
+```
+
+**필수 검증 항목:**
+
+1. **텍스트 검증**: 각 슬라이드 subtitle, shape 텍스트를 실제로 읽어서 확인
+   - 줄바꿈 위치: 단어 중간인지 경계인지 (`repr(text)`)
+   - 줄 수: paragraph 수가 max 2인지
+   - 폰트 크기: `run.font.size` 값 (Pt 단위)
+
+2. **겹침 검증**: shape 좌표로 overlap 계산
+   ```python
+   def overlaps(s1, s2):
+       return not (s1.left + s1.width <= s2.left or
+                   s2.left + s2.width <= s1.left or
+                   s1.top + s1.height <= s2.top or
+                   s2.top + s2.height <= s1.top)
+   ```
+   - 서로 다른 컨테이너 shape 간 겹침 → CRITICAL FAIL
+   - 흐름도와 카드 텍스트 겹침 → CRITICAL FAIL
+
+3. **아이콘 검증** (L04/L05):
+   - shape_type == MSO_SHAPE_TYPE.PICTURE 인지 확인 (Oval이면 FAIL)
+   - 각 카드별 아이콘 수: 카드 수와 1:1 대응인지
+   - 아이콘 위치: `left ≈ card_right - 0.65"`, `top ≈ card_bottom - 0.65"` (±0.05" 허용)
+   - 아이콘 크기: width == height == 411480 EMU
+
+4. **텍스트박스 불변 검증**: subtitle textbox의 width/height가 원본과 동일한지
+
+Bash 도구로 python3 스크립트를 직접 실행하여 검증하라.
+
 ### Step 2: Retry Fix Verification (if retry attempt)
 
 If the Executor output contains `retry_fixes`:
@@ -420,5 +459,13 @@ DESIGN_QUALITY_RULES = {
     # Icons — scope reduction detection
     "I1": {"name": "Icon is real image", "type": "PICTURE", "fail_if": "AUTO_SHAPE (Oval/Circle placeholder)"},
     "I2": {"name": "No blue circle fallback", "critical": True, "fail_if": "Oval shape used as icon placeholder"},
+
+    # L04/L05 per-card icon placement
+    "I3": {"name": "L04/L05 icon count matches card count", "critical": True,
+           "fail_if": "fewer icons than cards (e.g. 1 icon for 4 cards)"},
+    "I4": {"name": "L04/L05 icon position per card", "critical": True,
+           "formula": "left = card_right - 0.65in, top = card_bottom - 0.65in",
+           "margin": "min 0.20in gap between icon edge and card corner",
+           "fail_if": "icon placed at slide bottom-right (not card bottom-right), or margin < 0.10in"},
 }
 ```

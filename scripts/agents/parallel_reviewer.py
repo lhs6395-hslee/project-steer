@@ -28,6 +28,7 @@ Design:
 import json
 import sys
 import os
+import re
 import subprocess
 from pathlib import Path
 import time
@@ -36,6 +37,35 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_ROOT = SCRIPT_DIR.parent.parent
+
+
+def _step_label(step: dict) -> str:
+    """Generate user-friendly step label: e.g. '7p(L02) 흐름도 겹침 수정'"""
+    action = step.get('action', '') or step.get('description', '')
+    page_match = re.search(r'[Ss]lide\s*(\d+)', action)
+    layout_match = re.search(r'(L0[1-9]|L[1-9][0-9])', action)
+    keyword = ''
+    for kw, label in [
+        ('recon', '전체 슬라이드 분석'),
+        ('font', '폰트 수정'),
+        ('subtitle', 'subtitle 수정'),
+        ('icon', '아이콘 추가'),
+        ('merge', '병합 및 저장'),
+        ('save', '저장'),
+        ('overlap', '겹침 수정'),
+        ('fix', '수정'),
+    ]:
+        if kw in action.lower():
+            keyword = label
+            break
+    parts = []
+    if page_match:
+        parts.append(f"{page_match.group(1)}p")
+    if layout_match:
+        parts.append(f"({layout_match.group(1)})")
+    if keyword:
+        parts.append(keyword)
+    return ' '.join(parts) if parts else f"Step {step.get('id', '?')}"
 
 
 def load_json(filepath):
@@ -70,6 +100,35 @@ def build_review_input(contract: dict, step_output: dict, module: str, attempt: 
     ]
     if attempt > 1:
         lines.append("REQUIRED on retry: retry_fix_assessment for each previous issue.")
+
+    # PPTX 모듈: python-pptx로 결과 파일 직접 검증 지시
+    if module == "pptx":
+        lines += [
+            "",
+            "=== PPTX DIRECT VERIFICATION (MANDATORY) ===",
+            "You have Bash tool access. You MUST run python-pptx verification scripts directly.",
+            "Do NOT trust executor's text report alone — open the actual PPTX file and verify.",
+            "",
+            "REQUIRED checks (run via Bash tool):",
+            "1. Subtitle text: open results/pptx/*.pptx, check each subtitle shape text with repr() — verify line count <= 2, no mid-word breaks, no truncated characters",
+            "2. Overlap detection: for every pair of shapes on target slides, check if bounding boxes intersect (left, top, left+width, top+height). Flag any non-intentional overlaps.",
+            "3. Icon verification (L04/L05): confirm shape_type == PICTURE (not Oval), count matches card count, position = card_right-0.65\" / card_bottom-0.65\" (±0.05\" tolerance), size = 411480×411480 EMU",
+            "4. Font sizes: verify actual run.font.size values in EMU (10pt = 127000 EMU)",
+            "",
+            "Example script:",
+            "```python",
+            "from pptx import Presentation",
+            "from pptx.util import Pt",
+            "prs = Presentation('results/pptx/AWS_MSK_Expert_Intro.pptx')",
+            "slide = prs.slides[N]  # target slide index",
+            "for shape in slide.shapes:",
+            "    print(shape.name, shape.left/914400, shape.top/914400, shape.width/914400, shape.height/914400)",
+            "    try: print(repr(shape.text_frame.text))",
+            "    except: pass",
+            "```",
+            "Run this and report actual measured values, not executor's claimed values.",
+        ]
+
     return "\n".join(lines)
 
 
@@ -82,7 +141,7 @@ def run_reviewer(step_id, review_input_path, review_output_path, module):
             cmd,
             capture_output=True,
             text=True,
-            timeout=360,  # 공식 근거: call_agent.sh reviewer timeout=360s
+            timeout=900,  # reviewer --max-turns 10 + PPTX 직접 검증으로 시간 증가
         )
         return {
             "step_id": step_id,
@@ -250,14 +309,23 @@ def main():
         write_fallback_verdict(verdict_file, str(e))
         sys.exit(0)  # Always exit 0; verdict file contains the failure
 
-    # Extract per-step outputs
+    # Extract per-step outputs from individual step_N_output.json files (preferred)
     step_outputs = {}
-    for out in aggregated.get("outputs", []):
-        step_id = out.get("step_id")
-        if step_id is not None:
-            step_outputs[step_id] = out
+    for step_file in sorted(run_dir.glob("step_*_output.json")):
+        try:
+            step_id = int(step_file.name.split("_")[1])
+            step_outputs[step_id] = load_json(str(step_file))
+        except (ValueError, IndexError):
+            pass
 
-    # If no per-step outputs, review the whole aggregated output as one step
+    # Fallback: extract from aggregated outputs array
+    if not step_outputs:
+        for out in aggregated.get("outputs", []):
+            step_id = out.get("step_id")
+            if step_id is not None:
+                step_outputs[step_id] = out
+
+    # Last resort: review whole aggregated output as one step
     if not step_outputs:
         step_outputs = {"all": aggregated}
 
@@ -283,11 +351,27 @@ def main():
     print(f"  [Parallel Reviewer] Launching {len(review_tasks)} reviewer subprocess(es) concurrently...")
     start_time = time.time()
 
-    run_results = {}
-    # Dynamic thread pool: use cpu_count//2, min 2, max 8 (#13 audit fix)
+    # Write reviewer status file — 각 step 완료를 파일로 기록
     import os as _os
-    cpu_cap = max(2, (_os.cpu_count() or 4) // 2)
-    max_workers = min(len(review_tasks), cpu_cap, 8)
+    status_file = str(run_dir / "reviewer_status.json")
+
+    def write_reviewer_status(step_id, status):
+        try:
+            import json as _json
+            existing = {}
+            if _os.path.exists(status_file):
+                with open(status_file) as f:
+                    existing = _json.load(f)
+            existing[str(step_id)] = {"status": status}
+            tmp = status_file + ".tmp"
+            with open(tmp, "w") as f:
+                _json.dump(existing, f, indent=2)
+            _os.replace(tmp, status_file)
+        except Exception:
+            pass
+
+    run_results = {}
+    max_workers = min(len(review_tasks), max(4, (_os.cpu_count() or 4)), 8)
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         futures = {
             pool.submit(
@@ -299,11 +383,33 @@ def main():
             ): task["step_id"]
             for task in review_tasks
         }
+        print(f"  [Reviewer 시작] {len(review_tasks)}개 step 병렬 검증 중...", flush=True)
         for future in as_completed(futures):
-            result = future.result()
+            try:
+                result = future.result()
+            except Exception as e:
+                step_id = futures[future]
+                step = next((s for s in contract.get('steps', []) if s['id'] == step_id), {})
+                lbl = _step_label(step)
+                print(f"  ❌ [Reviewer 오류] {lbl} — {e}", flush=True)
+                write_reviewer_status(step_id, "error")
+                run_results[step_id] = {"step_id": step_id, "status": "error", "error": str(e)}
+                continue
             run_results[result["step_id"]] = result
-            status_icon = "✓" if result["status"] == "success" else "✗"
-            print(f"  [Parallel Reviewer] {status_icon} Step {result['step_id']} — {result['status']}")
+            step = next((s for s in contract.get('steps', []) if s['id'] == result["step_id"]), {})
+            lbl = _step_label(step)
+            if result["status"] == "timeout":
+                print(f"  ❌ [Reviewer 시간초과] {lbl} — 검증 시간 초과", flush=True)
+            elif result["status"] in ("failed", "error"):
+                print(f"  ❌ [Reviewer 실패] {lbl} — {result.get('error','')[:100]}", flush=True)
+            else:
+                print(f"  ✅ [Reviewer 완료] {lbl}", flush=True)
+            write_reviewer_status(result["step_id"], result["status"])
+
+    # 누락된 step 감지 — 실행됐어야 하는데 결과가 없는 step 경고
+    missing = [t["step_id"] for t in review_tasks if t["step_id"] not in run_results]
+    if missing:
+        print(f"  [Parallel Reviewer] ⚠ WARNING: Step(s) {missing} produced no result — skipped or crashed", flush=True)
 
     elapsed = time.time() - start_time
     print(f"  [Parallel Reviewer] All reviews completed in {elapsed:.1f}s")
@@ -315,8 +421,20 @@ def main():
         verdict_path = str(task["output_path"])
         verdict_data = parse_verdict(verdict_path)
         step_verdicts.append({"step_id": step_id, "verdict_data": verdict_data})
-        icon = "✓" if verdict_data["verdict"] in ("approved", "pass") else "✗"
-        print(f"  [Parallel Reviewer] {icon} Step {step_id}: {verdict_data['verdict']} (score={verdict_data['score']:.2f})")
+        step = next((s for s in contract.get('steps', []) if s.get('id') == step_id), {})
+        lbl = _step_label(step)
+        icon = "✅" if verdict_data["verdict"] in ("approved", "pass") else "⚠️"
+        # Summarize first 2 issues
+        raw_issues = verdict_data.get("issues") or []
+        issue_parts = []
+        for iss in raw_issues[:2]:
+            if isinstance(iss, str):
+                issue_parts.append(iss[:60])
+            elif isinstance(iss, dict):
+                issue_parts.append((iss.get("description") or iss.get("issue") or "")[:60])
+        issues_str = "; ".join(issue_parts)
+        suffix = f": {issues_str}" if issues_str else ""
+        print(f"  {icon} [Reviewer 결과] {lbl} — {verdict_data['verdict']} ({verdict_data['score']:.2f}){suffix}")
 
     # Aggregate
     aggregated_verdict = aggregate_verdicts(step_verdicts)

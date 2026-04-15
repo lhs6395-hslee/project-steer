@@ -222,7 +222,7 @@ while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ] && [ "$V
   # ── Parallel Execution (dependency-aware) ──
   echo "  [Executor] Running in parallel mode (dependency-aware)..."
   # Error handling: check return code (#2 audit fix)
-  if ! python3 scripts/agents/parallel_executor.py "$PLAN_OUTPUT" "$MODULE" "$RUN_DIR"; then
+  if ! python3 scripts/agents/parallel_executor.py "$PLAN_OUTPUT" "$MODULE" "$RUN_DIR" "$ATTEMPT"; then
     echo "ERROR: Parallel execution failed (exit code $?)"
     exit 1
   fi
@@ -327,17 +327,19 @@ bash scripts/mcp-toggle.sh "$MODULE" off 2>/dev/null || true
 
 # ── Step 8: Result ──
 echo ""
+echo "======================================"
 echo "=== Pipeline Result ==="
 if [ "$VERDICT" = "approved" ]; then
-  echo "Status: SUCCESS"
+  echo "✅ Status: SUCCESS"
 elif [ "$VERDICT" = "escalated" ]; then
-  echo "Status: ESCALATED (circular feedback — human review needed)"
+  echo "⚠️  Status: ESCALATED (circular feedback — human review needed)"
 else
-  echo "Status: FAILED (max retries exhausted)"
+  echo "❌ Status: FAILED (max retries exhausted)"
 fi
 
 echo "Attempts: $ATTEMPT"
 echo "Run dir: $RUN_DIR"
+echo "======================================"
 
 # ── Remove pipeline lock ──
 rm -f "$AGENT_DIR/running.lock"

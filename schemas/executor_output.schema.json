@@ -40,6 +40,16 @@
       }
     },
     "status": { "type": "string", "enum": ["completed", "partial", "failed"] },
-    "artifacts": { "type": "array", "items": { "type": "string" } }
+    "artifacts": { "type": "array", "items": { "type": "string" } },
+    "deviations": { "type": "array", "items": { "type": "string" } },
+    "parallel_execution": {
+      "type": "object",
+      "properties": {
+        "total_steps": { "type": "integer" },
+        "successful_steps": { "type": "integer" },
+        "failed_steps": { "type": "array", "items": { "type": "integer" } },
+        "step_details": { "type": "array" }
+      }
+    }
   }
 }
