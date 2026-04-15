@@ -206,33 +206,27 @@ while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ] && [ "$V
   echo "  [KAIROS] Quick lint check..."
   bash scripts/agents/kairos.sh "$EXEC_OUTPUT" 2>/dev/null || true
 
-  # ── Review (isolated — no executor context) ──
-  # INFORMATION BARRIER: Reviewer receives ONLY plan + output
-  echo "  [Reviewer] Running with --json-schema (verdict schema enforced)..."
-  REVIEW_INPUT="$RUN_DIR/review_input_${ATTEMPT}.txt"
+  # ── Review (parallel — per-step, information isolated) ──
+  # INFORMATION BARRIER: each Reviewer gets ONLY Sprint_Contract + its own step output
+  # 공식 근거: code.claude.com/docs/en/agent-sdk/subagents.md
+  #   "run style-checker, security-scanner, test-coverage simultaneously"
+  echo "  [Reviewer] Running parallel per-step review (information isolated)..."
   VERDICT_FILE="$RUN_DIR/verdict_${ATTEMPT}.json"
 
-  {
-    echo "SPRINT_CONTRACT:"
-    cat "$PLAN_OUTPUT"
-    echo ""
-    echo "EXECUTION OUTPUT:"
-    cat "$EXEC_OUTPUT"
-    echo ""
-    echo "Module: $MODULE"
-    echo "Attempt: $ATTEMPT"
-    echo "Review adversarially. Output JSON verdict following schemas/verdict.schema.json."
-    echo "REQUIRED: checklist_results, constraint_violations, issues, suggestions."
-    if [ "$ATTEMPT" -gt 1 ]; then
-      echo "REQUIRED on retry: retry_fix_assessment for each previous issue."
-    fi
-  } > "$REVIEW_INPUT"
+  python3 scripts/agents/parallel_reviewer.py \
+    "$PLAN_OUTPUT" "$EXEC_OUTPUT" "$MODULE" "$RUN_DIR" "$ATTEMPT" || true
 
-  bash scripts/agents/call_agent.sh reviewer "$REVIEW_INPUT" "$VERDICT_FILE" "$MODULE"
-
-  # Validate review
-  if [ -f "skills/reviewer/scripts/validate_review.sh" ]; then
-    bash skills/reviewer/scripts/validate_review.sh "$VERDICT_FILE" || true
+  if [ ! -f "$VERDICT_FILE" ]; then
+    echo "  WARNING: parallel_reviewer produced no verdict — falling back to single reviewer"
+    REVIEW_INPUT="$RUN_DIR/review_input_${ATTEMPT}.txt"
+    {
+      echo "SPRINT_CONTRACT:"; cat "$PLAN_OUTPUT"
+      echo ""; echo "EXECUTION OUTPUT:"; cat "$EXEC_OUTPUT"
+      echo ""; echo "Module: $MODULE"; echo "Attempt: $ATTEMPT"
+      echo "Review adversarially. Output JSON verdict following schemas/verdict.schema.json."
+      echo "REQUIRED: checklist_results, constraint_violations, issues, suggestions."
+    } > "$REVIEW_INPUT"
+    bash scripts/agents/call_agent.sh reviewer "$REVIEW_INPUT" "$VERDICT_FILE" "$MODULE"
   fi
 
   # Parse verdict (v2.1 — constraint_violations aware)

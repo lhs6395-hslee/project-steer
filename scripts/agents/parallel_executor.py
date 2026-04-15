@@ -49,8 +49,12 @@ def analyze_dependencies(steps):
 
     return levels, step_deps
 
-def create_step_input(contract, step_id, run_dir):
-    """Create input file for a specific step"""
+def create_step_input(contract, step_id, run_dir, completed_outputs=None):
+    """
+    Create input file for a specific step.
+    Includes outputs of completed dependency steps (minimal context, not full contract).
+    공식 근거: subagents.md — each subagent gets focused context for its task only.
+    """
     step = next((s for s in contract['steps'] if s['id'] == step_id), None)
     if not step:
         return None
@@ -59,20 +63,31 @@ def create_step_input(contract, step_id, run_dir):
 
     with open(input_path, 'w', encoding='utf-8') as f:
         f.write(f"TASK: {contract['task']}\n")
-        f.write(f"MODULE: {contract['module']}\n")
-        f.write(f"\n")
+        f.write(f"MODULE: {contract['module']}\n\n")
         f.write(f"STEP ID: {step_id}\n")
-        f.write(f"ACTION: {step['action']}\n")
-        f.write(f"\n")
+        f.write(f"ACTION: {step['action']}\n\n")
         f.write(f"ACCEPTANCE CRITERIA:\n")
         for criterion in step.get('acceptance_criteria', []):
             f.write(f"  - {criterion}\n")
-        f.write(f"\n")
-        f.write(f"CONSTRAINTS:\n")
+        f.write(f"\nCONSTRAINTS:\n")
         for constraint in contract.get('constraints', []):
             f.write(f"  - {constraint}\n")
-        f.write(f"\n")
-        f.write(f"Execute this step and provide JSON output following schemas/executor_output.schema.json\n")
+
+        # Include outputs from dependency steps (context for chained execution)
+        deps = step.get('dependencies', [])
+        if deps and completed_outputs:
+            f.write(f"\nDEPENDENCY OUTPUTS (steps this step depends on):\n")
+            for dep_id in deps:
+                dep_out_path = os.path.join(run_dir, f"step_{dep_id}_output.json")
+                if os.path.exists(dep_out_path):
+                    try:
+                        with open(dep_out_path, 'r', encoding='utf-8') as dep_f:
+                            dep_data = json.load(dep_f)
+                        f.write(f"Step {dep_id} output:\n{json.dumps(dep_data, ensure_ascii=False, indent=2)}\n\n")
+                    except Exception:
+                        f.write(f"Step {dep_id} output: (unreadable)\n")
+
+        f.write(f"\nExecute this step and provide JSON output following schemas/executor_output.schema.json\n")
 
     return input_path
 
@@ -190,6 +205,9 @@ def main():
 
     print(f"  [Parallel Executor] Found {max_level + 1} dependency levels")
 
+    # Track completed step IDs for dependency context
+    completed_outputs = set()
+
     # Execute steps level by level
     for level in range(max_level + 1):
         level_steps = levels.get(level, [])
@@ -199,10 +217,10 @@ def main():
         print(f"  [Parallel Executor] Level {level}: Starting parallel execution...")
         print(f"  [Parallel Executor] Level {level}: {len(level_steps)} steps to execute")
 
-        # Create inputs for all steps at this level
+        # Create inputs for all steps at this level (include dependency outputs)
         inputs = {}
         for step_id in level_steps:
-            input_path = create_step_input(contract, step_id, run_dir)
+            input_path = create_step_input(contract, step_id, run_dir, completed_outputs)
             if input_path:
                 inputs[step_id] = input_path
 
@@ -219,15 +237,20 @@ def main():
             )
             processes[step_id] = proc
 
-        # Wait for all processes to complete
+        # Wait for all processes to complete, track completed for next level
         print(f"  [Parallel Executor] Level {level}: Waiting for {len(processes)} steps...")
+        import time as _time
+        start = _time.time()
         for step_id, proc in processes.items():
             try:
-                proc.wait(timeout=1200)
-                if proc.returncode != 0:
-                    print(f"  WARNING: Step {step_id} failed with code {proc.returncode}")
+                proc.wait(timeout=720)  # 12min per step (공식: executor max-turns=40)
+                if proc.returncode == 0:
+                    completed_outputs.add(step_id)
+                    print(f"  [Parallel Executor] ✓ Step {step_id} done ({_time.time()-start:.0f}s)")
+                else:
+                    print(f"  WARNING: Step {step_id} failed (code {proc.returncode})")
             except subprocess.TimeoutExpired:
-                print(f"  WARNING: Step {step_id} timed out")
+                print(f"  WARNING: Step {step_id} timed out after 720s")
                 proc.kill()
 
         print(f"  [Parallel Executor] Level {level}: Completed {len(level_steps)} steps")
