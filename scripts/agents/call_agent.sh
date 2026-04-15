@@ -278,11 +278,24 @@ call_agent_once() {
     esac
 
     local CLI_STATUS=$?
+    # --json-schema 모드에서는 structured_output이 있으면 is_error=true여도 성공
+    # claude CLI가 JSON schema 강제 시 일부 경우 is_error=true를 반환하지만 결과는 유효
     if [ "$CLI_STATUS" -ne 0 ]; then
-      echo "ERROR: claude --print exited with status $CLI_STATUS" >&2
-      cat "$TMP_OUTPUT" >&2 2>/dev/null || true
-      rm -f "$TMP_OUTPUT"
-      return 1
+      # structured_output 존재 여부 먼저 확인
+      local HAS_SO
+      HAS_SO=$(python3 -c "
+import json,sys
+try:
+    d=json.load(open('$TMP_OUTPUT'))
+    print('yes' if d.get('structured_output') is not None else 'no')
+except: print('no')
+" 2>/dev/null)
+      if [ "$HAS_SO" != "yes" ]; then
+        echo "ERROR: claude --print exited with status $CLI_STATUS" >&2
+        cat "$TMP_OUTPUT" >&2 2>/dev/null || true
+        rm -f "$TMP_OUTPUT"
+        return 1
+      fi
     fi
 
     # Extract structured_output or .result field from wrapper JSON
