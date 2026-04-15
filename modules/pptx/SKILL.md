@@ -41,10 +41,28 @@ PPTX 생성은 두 가지 방식을 조합한다:
 - **python-pptx 유틸리티**: 기존 shape 텍스트 교체 (MCP manage_text에 replace 미지원), 템플릿 슬라이드 삭제/이동
 
 규칙:
-- 새 콘텐츠 추가 → MCP 도구 사용
+- 새 콘텐츠 추가 → MCP 도구 사용 (위반 시 Reviewer가 constraint_violation critical 처리)
 - 기존 shape 텍스트 교체 (표지/목차/끝맺음) → python-pptx 유틸리티 허용
 - 유틸리티 스크립트는 `scripts/utils/`에 배치
 - 템플릿(`templates/pptx_template.pptx`)에서 시작하여 슬라이드를 추가/수정한다.
+
+### MCP 도구 → python-pptx 유틸 매핑
+
+| 작업 | MCP (필수) | python-pptx 유틸 (허용 범위) |
+|------|-----------|---------------------------|
+| 새 슬라이드 추가 | `mcp__pptx__add_slide` | 금지 |
+| 도형 추가 | `mcp__pptx__add_shape` | 금지 |
+| 텍스트박스 추가 | `mcp__pptx__manage_text(operation="add")` | 금지 |
+| 이미지/아이콘 추가 | `mcp__pptx__manage_image(operation="add")` | 금지 |
+| 표 추가 | `mcp__pptx__add_table` | 금지 |
+| 저장 | `mcp__pptx__save_presentation` | `prs.save()` 절대 금지 |
+| 기존 텍스트 교체 | — | `scripts/utils/pptx_text_utils.py` |
+| 슬라이드 삭제/정렬 | — | `scripts/utils/delete_extra_slides.py`, `reorder_slides.py` |
+| 좌표 검증/안전 저장 | — | `scripts/utils/pptx_safe_edit.py` |
+| ZIP/XML 수정 | — | `scripts/utils/pptx_zip_cleaner.py` |
+| 프레젠테이션 병합 | — | `scripts/utils/merge_presentations.py` |
+
+> 레이아웃 생성 중 새로운 유틸리티가 추가되면 이 표와 `.claude/agents/executor.md`를 함께 업데이트한다.
 
 ### 참조 파일
 
