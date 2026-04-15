@@ -197,7 +197,9 @@ call_agent_once() {
         # ANTHROPIC_DEFAULT_OPUS_MODEL이 settings.json에 provider별로 핀닝되어 있으므로
         # alias "opus"를 그대로 사용 — 실제 모델 ID는 env var이 결정
         local PLAN_MODEL="${PLANNER_MODEL:-$_RESOLVED_OPUS}"
-        local PLAN_EFFORT="${PLANNER_EFFORT:-high}"
+        # effort medium: --json-schema + opus 조합에서 thinking 모드 비활성화
+        # high/max effort는 thinking을 활성화해 tool_use API 제약과 충돌
+        local PLAN_EFFORT="${PLANNER_EFFORT:-medium}"
         echo "$INPUT" | run_with_timeout 180 claude --print \
           --bare \
           --model "$PLAN_MODEL" \
@@ -218,7 +220,7 @@ call_agent_once() {
         #   공식 근거: code.claude.com/docs/en/agent-sdk/structured-outputs
         #              (error_max_structured_output_retries — agent retries internally)
         local REVIEW_MODEL="${REVIEWER_MODEL:-$_RESOLVED_SONNET}"
-        local REVIEW_EFFORT="${REVIEWER_EFFORT:-high}"
+        local REVIEW_EFFORT="${REVIEWER_EFFORT:-medium}"
         echo "$INPUT" | run_with_timeout 360 claude --print \
           --bare \
           --model "$REVIEW_MODEL" \
@@ -248,7 +250,7 @@ call_agent_once() {
         local EXEC_MODEL="${EXECUTOR_MODEL:-$_RESOLVED_SONNET}"
         local EXEC_TURNS="${EXECUTOR_MAX_TURNS:-40}"
         local EXEC_TIMEOUT="${EXECUTOR_TIMEOUT:-900}"
-        local EXEC_EFFORT="${EXECUTOR_EFFORT:-high}"
+        local EXEC_EFFORT="${EXECUTOR_EFFORT:-medium}"
         # --json-schema + MCP tool use 조합: structured output 생성 전 tool turns 필요
         # max-turns를 40으로 올려야 MCP 실행 후 structured output 반환 가능
         # 공식 근거: code.claude.com/docs/en/cli-reference.md#--max-turns
@@ -278,24 +280,11 @@ call_agent_once() {
     esac
 
     local CLI_STATUS=$?
-    # --json-schema 모드에서는 structured_output이 있으면 is_error=true여도 성공
-    # claude CLI가 JSON schema 강제 시 일부 경우 is_error=true를 반환하지만 결과는 유효
     if [ "$CLI_STATUS" -ne 0 ]; then
-      # structured_output 존재 여부 먼저 확인
-      local HAS_SO
-      HAS_SO=$(python3 -c "
-import json,sys
-try:
-    d=json.load(open('$TMP_OUTPUT'))
-    print('yes' if d.get('structured_output') is not None else 'no')
-except: print('no')
-" 2>/dev/null)
-      if [ "$HAS_SO" != "yes" ]; then
-        echo "ERROR: claude --print exited with status $CLI_STATUS" >&2
-        cat "$TMP_OUTPUT" >&2 2>/dev/null || true
-        rm -f "$TMP_OUTPUT"
-        return 1
-      fi
+      echo "ERROR: claude --print exited with status $CLI_STATUS" >&2
+      cat "$TMP_OUTPUT" >&2 2>/dev/null || true
+      rm -f "$TMP_OUTPUT"
+      return 1
     fi
 
     # Extract structured_output or .result field from wrapper JSON
