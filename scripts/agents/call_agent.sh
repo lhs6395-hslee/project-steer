@@ -123,13 +123,14 @@ call_agent_once() {
         ;;
       reviewer)
         # --json-schema: forces verdict schema validation (v2.1)
-        # --model sonnet: WCAG 대비, 디자인 품질, constraint 위반 판단은 정확성 필요
-        #   haiku 지양 — adversarial review 품질이 낮으면 파이프라인 신뢰도 하락
-        # 병렬 실행으로 속도 보완 (per-step 병렬화로 wall-clock time 단축)
+        # --model: REVIEWER_MODEL env (default sonnet, opus for critical tasks)
+        #   adversarial review 품질이 파이프라인 신뢰도를 결정 — 모델 타협 금지
+        #   속도는 parallel_reviewer.py의 per-step 병렬화로 보완
         # 공식 근거: code.claude.com/docs/en/agent-sdk/structured-outputs.md
+        local REVIEW_MODEL="${REVIEWER_MODEL:-sonnet}"
         echo "$INPUT" | run_with_timeout 360 claude --print \
           --bare \
-          --model sonnet \
+          --model "$REVIEW_MODEL" \
           --system-prompt "$SYSTEM_PROMPT" \
           --output-format json \
           --json-schema "$REVIEWER_SCHEMA" \
@@ -142,17 +143,21 @@ call_agent_once() {
         # --mcp-config: explicitly load needed MCP servers
         # --permission-mode bypassPermissions: auto-approve all tools including MCP
         # --json-schema: forces constraint_compliance output (v2.1)
-        # --model sonnet: faster execution for multi-turn tool use
-        # --max-turns 40: increased for detailed PPTX review with MCP tools
+        # --model sonnet: tool use + execution (opus if set via EXECUTOR_MODEL env)
+        # --max-turns: adaptive via EXECUTOR_MAX_TURNS env (default 20)
+        #   low complexity → 10 turns, medium → 20, high → 40
         # 공식 근거: code.claude.com/docs/en/cli-reference.md
         local MCP_CONFIG=".mcp.json"
-        echo "$INPUT" | run_with_timeout 1200 claude --print \
+        local EXEC_MODEL="${EXECUTOR_MODEL:-sonnet}"
+        local EXEC_TURNS="${EXECUTOR_MAX_TURNS:-20}"
+        local EXEC_TIMEOUT="${EXECUTOR_TIMEOUT:-900}"
+        echo "$INPUT" | run_with_timeout "$EXEC_TIMEOUT" claude --print \
           --bare \
-          --model sonnet \
+          --model "$EXEC_MODEL" \
           --system-prompt "$SYSTEM_PROMPT" \
           --output-format json \
           --json-schema "$EXECUTOR_SCHEMA" \
-          --max-turns 40 \
+          --max-turns "$EXEC_TURNS" \
           --permission-mode bypassPermissions \
           --mcp-config "$MCP_CONFIG" \
           > "$TMP_OUTPUT" 2>/dev/null

@@ -225,17 +225,33 @@ def main():
                 inputs[step_id] = input_path
 
         # Execute all steps in parallel using subprocess
+        # Adaptive max-turns based on step complexity (sprint_contract estimated_complexity)
+        COMPLEXITY_TURNS = {"low": 10, "medium": 20, "high": 40}
+        COMPLEXITY_TIMEOUT = {"low": 300, "medium": 600, "high": 900}
+
         processes = {}
         for step_id, input_path in inputs.items():
             output_path = os.path.join(run_dir, f"step_{step_id}_output.json")
             call_agent_path = os.path.join(script_dir, "call_agent.sh")
 
+            # Get complexity from sprint contract step
+            step = next((s for s in contract['steps'] if s['id'] == step_id), {})
+            complexity = step.get('estimated_complexity', 'medium')
+            max_turns = str(COMPLEXITY_TURNS.get(complexity, 20))
+            timeout = str(COMPLEXITY_TIMEOUT.get(complexity, 600))
+
+            env = os.environ.copy()
+            env['EXECUTOR_MAX_TURNS'] = max_turns
+            env['EXECUTOR_TIMEOUT'] = timeout
+
             proc = subprocess.Popen(
                 ["bash", call_agent_path, "executor", input_path, output_path, module],
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+                stderr=subprocess.PIPE,
+                env=env,
             )
             processes[step_id] = proc
+            print(f"  [Parallel Executor] Step {step_id} started (complexity={complexity}, max_turns={max_turns})")
 
         # Wait for all processes to complete, track completed for next level
         print(f"  [Parallel Executor] Level {level}: Waiting for {len(processes)} steps...")
