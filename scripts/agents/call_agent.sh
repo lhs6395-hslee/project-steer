@@ -213,9 +213,12 @@ call_agent_once() {
         # Use MCP_FILE from ide_adapter if available, fallback to .mcp.json (#27 audit fix)
         local MCP_CONFIG="${MCP_FILE:-.mcp.json}"
         local EXEC_MODEL="${EXECUTOR_MODEL:-sonnet}"
-        local EXEC_TURNS="${EXECUTOR_MAX_TURNS:-20}"
+        local EXEC_TURNS="${EXECUTOR_MAX_TURNS:-40}"
         local EXEC_TIMEOUT="${EXECUTOR_TIMEOUT:-900}"
         local EXEC_EFFORT="${EXECUTOR_EFFORT:-high}"
+        # --json-schema + MCP tool use 조합: structured output 생성 전 tool turns 필요
+        # max-turns를 40으로 올려야 MCP 실행 후 structured output 반환 가능
+        # 공식 근거: code.claude.com/docs/en/cli-reference.md#--max-turns
         echo "$INPUT" | run_with_timeout "$EXEC_TIMEOUT" claude --print \
           --bare \
           --model "$EXEC_MODEL" \
