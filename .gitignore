@@ -39,8 +39,4 @@ results/pptx/*_REVIEWED*.pptx
 results/pptx/*_BACKUP*.pptx
 results/pptx/~$*.pptx
 
-# One-off utility scripts (generated per session, not maintained)
-scripts/utils/*.py
-# Exception: maintained core utility modules
-!scripts/utils/pptx_safe_edit.py
-!scripts/utils/merge_presentations.py
+# scripts/utils/*.py — all utility modules are tracked
