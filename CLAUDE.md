@@ -71,6 +71,18 @@
 - Reviewer는 Executor의 reasoning을 볼 수 없다 (information isolation)
 - MCP는 각 executor subagent의 mcpServers에서 자동 연결/해제
 
+### recon step 자동 분기 (Orchestrator 판단)
+
+Sprint_Contract 수신 후 executor spawn 전에 아래 기준으로 Create/Modify를 판별한다:
+
+1. `contract.mode == "create"` → Create
+2. task 키워드: '생성'/'만들'/'create'/'new'/'새로'/'신규' → Create
+3. task 키워드: '수정'/'고쳐'/'변경'/'modify'/'fix'/'update' → Modify
+4. steps에 recon step 존재 여부 → Planner 의도 존중 (있으면 Modify)
+
+**Create 모드:** recon step이 있어도 실행하지 않고 건너뜀 (dependency 자동 해제)
+**Modify 모드:** recon step 정상 실행 → 완료 후 다음 level steps 병렬 시작
+
 ### Subagent 정의 파일 (.claude/agents/)
 
 | 파일 | 역할 | MCP | 모델 |
