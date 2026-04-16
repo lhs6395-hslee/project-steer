@@ -116,7 +116,7 @@ def analyze_dependencies(steps):
 
     return levels, step_deps
 
-def create_step_input(contract, step_id, run_dir, completed_outputs=None):
+def create_step_input(contract, step_id, run_dir, completed_outputs=None, attempt=1):
     """
     Create minimal input for a specific step.
 
@@ -124,6 +124,7 @@ def create_step_input(contract, step_id, run_dir, completed_outputs=None):
     - 전체 Sprint_Contract 전달 금지 (context 낭비)
     - 전체 SKILL.md는 call_agent.sh가 system prompt로 주입 (여기선 제외)
     - 의존 step output은 핵심 요약만 전달 (전체 JSON 금지)
+    - retry 시 해당 step의 이전 verdict feedback만 포함 (다른 step feedback 금지)
     """
     step = next((s for s in contract['steps'] if s['id'] == step_id), None)
     if not step:
@@ -163,26 +164,51 @@ def create_step_input(contract, step_id, run_dir, completed_outputs=None):
                     try:
                         with open(dep_out_path, 'r', encoding='utf-8') as dep_f:
                             dep_data = json.load(dep_f)
-                        # 전체 JSON 대신 outputs 필드의 핵심 결과만 전달
                         outputs = dep_data.get('outputs', [])
                         status = dep_data.get('status', 'unknown')
                         artifacts = dep_data.get('artifacts', [])
-                        issues = []
+                        findings = []
                         for out in outputs:
                             if out.get('status') == 'failed':
-                                issues.append(out.get('action', ''))
-                            # recon step: result 필드에 실측값 요약 있으면 포함
+                                findings.append(out.get('action', ''))
                             result = out.get('result', '')
                             if result and len(str(result)) < 1000:
-                                issues.append(str(result))
+                                findings.append(str(result))
                         f.write(f"  Step {dep_id}: status={status}")
                         if artifacts:
                             f.write(f", artifacts={artifacts}")
-                        if issues:
-                            f.write(f"\n  Key findings: {'; '.join(issues[:3])}")
+                        if findings:
+                            f.write(f"\n  Key findings: {'; '.join(findings[:3])}")
                         f.write("\n")
                     except Exception:
                         f.write(f"  Step {dep_id}: (unreadable)\n")
+
+        # retry 시 이 step에 대한 이전 verdict만 포함 (다른 step feedback 금지)
+        if attempt > 1:
+            prev_verdict_path = os.path.join(run_dir, f"review_{attempt-1}_step_{step_id}_verdict.json")
+            if os.path.exists(prev_verdict_path):
+                try:
+                    with open(prev_verdict_path, 'r', encoding='utf-8') as vf:
+                        prev_verdict = json.load(vf)
+                    issues = prev_verdict.get('issues', [])
+                    suggestions = prev_verdict.get('suggestions', [])
+                    violations = prev_verdict.get('constraint_violations', [])
+                    f.write(f"\nPREVIOUS REVIEW FEEDBACK (attempt {attempt-1} — address ALL):\n")
+                    if violations:
+                        f.write("  CONSTRAINT VIOLATIONS:\n")
+                        for v in violations:
+                            f.write(f"    [{v.get('severity','?').upper()}] {v.get('violation','')}\n")
+                    if issues:
+                        f.write("  ISSUES:\n")
+                        for iss in issues:
+                            f.write(f"    - {iss}\n")
+                    if suggestions:
+                        f.write("  SUGGESTIONS:\n")
+                        for s in suggestions:
+                            f.write(f"    - {s}\n")
+                    f.write("REQUIRED: populate retry_fixes for EACH issue above.\n")
+                except Exception:
+                    pass
 
         f.write("\nExecute this step. Output JSON matching schemas/executor_output.schema.json.\n")
         f.write("MCP tools (mcp__pptx__*) for new content. python-pptx utils only for text replace/delete/reorder.\n")
@@ -389,7 +415,7 @@ def main():
         # Create inputs for all steps at this level (include dependency outputs)
         inputs = {}
         for step_id in run:
-            input_path = create_step_input(contract, step_id, run_dir, completed_outputs)
+            input_path = create_step_input(contract, step_id, run_dir, completed_outputs, attempt)
             if input_path:
                 inputs[step_id] = input_path
 

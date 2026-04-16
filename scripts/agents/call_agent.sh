@@ -165,12 +165,23 @@ ${COMMON_SKILL}"
   fi
 fi
 
-if [ "$ROLE" = "reviewer" ] && [ -f "skills/orchestrator/references/module-checklists.md" ]; then
-  SYSTEM_PROMPT="${SYSTEM_PROMPT}
+if [ "$ROLE" = "reviewer" ] && [ -n "$MODULE" ] && [ -f "skills/orchestrator/references/module-checklists.md" ]; then
+  MODULE_CHECKLIST="$(python3 -c "
+import re, sys
+content = open('skills/orchestrator/references/module-checklists.md').read()
+module = '$MODULE'
+# 해당 모듈 섹션만 추출 (## module ~ 다음 ## 또는 EOF)
+m = re.search(rf'(## {re.escape(module)}.*?)(?=\n## |\Z)', content, re.DOTALL)
+if m:
+    print(m.group(1).strip()[:2000])
+" 2>/dev/null)"
+  if [ -n "$MODULE_CHECKLIST" ]; then
+    SYSTEM_PROMPT="${SYSTEM_PROMPT}
 
 ---
-MODULE CHECKLISTS:
-$(cat "skills/orchestrator/references/module-checklists.md")"
+MODULE CHECKLIST (${MODULE}):
+${MODULE_CHECKLIST}"
+  fi
 fi
 
 INPUT="$(cat "$INPUT_FILE")"

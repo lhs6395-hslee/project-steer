@@ -78,55 +78,77 @@ def write_json(filepath, data):
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
-def build_review_input(contract: dict, step_output: dict, module: str, attempt: int) -> str:
+def build_review_input(contract: dict, step_id, step_output: dict, module: str, attempt: int) -> str:
     """
     Minimal review input per step — information barrier enforced.
-    Reviewer gets ONLY: Sprint_Contract + this step's output.
-    (Never other steps' outputs, never Executor reasoning)
+
+    Reviewer는 자기 step 정보만 받는다:
+    - task + module (최소 컨텍스트)
+    - 해당 step의 action + acceptance_criteria + constraints
+    - 해당 step의 execution output
+    전체 Sprint_Contract 전달 금지 (다른 step 정보 포함되므로 context 낭비 + isolation 위반)
     """
+    step = next((s for s in contract.get('steps', []) if s.get('id') == step_id), {})
+
     lines = [
-        "SPRINT_CONTRACT:",
-        json.dumps(contract, ensure_ascii=False, indent=2),
+        f"TASK: {contract.get('task', '')}",
+        f"MODULE: {module}",
+        f"ATTEMPT: {attempt}",
+        "",
+        f"STEP {step_id}: {step.get('action', '')}",
+    ]
+
+    if step.get('target_slide_index') is not None:
+        lines.append(f"TARGET SLIDE INDEX: {step['target_slide_index']} (0-based)")
+
+    acceptance = step.get('acceptance_criteria', [])
+    if acceptance:
+        lines.append("\nACCEPTANCE CRITERIA:")
+        for ac in acceptance:
+            lines.append(f"  - {ac}")
+
+    constraints = step.get('constraints', [])
+    if constraints:
+        lines.append("\nCONSTRAINTS:")
+        for c in constraints:
+            lines.append(f"  - {c}")
+
+    lines += [
         "",
         "STEP EXECUTION OUTPUT:",
         json.dumps(step_output, ensure_ascii=False, indent=2),
         "",
-        f"MODULE: {module}",
-        f"ATTEMPT: {attempt}",
-        "",
-        "Review this step output adversarially against the Sprint_Contract.",
+        "Review this step output adversarially against the acceptance criteria and constraints above.",
         "Output JSON verdict following schemas/verdict.schema.json.",
         "REQUIRED fields: verdict, score, checklist_results, constraint_violations, issues, suggestions.",
     ]
+
     if attempt > 1:
         lines.append("REQUIRED on retry: retry_fix_assessment for each previous issue.")
 
-    # PPTX 모듈: python-pptx로 결과 파일 직접 검증 지시
     if module == "pptx":
         lines += [
             "",
             "=== PPTX DIRECT VERIFICATION (MANDATORY) ===",
-            "You have Bash tool access. You MUST run python-pptx verification scripts directly.",
+            "You have Bash tool access. You MUST run python-pptx verification directly.",
             "Do NOT trust executor's text report alone — open the actual PPTX file and verify.",
             "",
             "REQUIRED checks (run via Bash tool):",
-            "1. Subtitle text: open results/pptx/*.pptx, check each subtitle shape text with repr() — verify line count <= 2, no mid-word breaks, no truncated characters",
-            "2. Overlap detection: for every pair of shapes on target slides, check if bounding boxes intersect (left, top, left+width, top+height). Flag any non-intentional overlaps.",
-            "3. Icon verification (L04/L05): confirm shape_type == PICTURE (not Oval), count matches card count, position = card_right-0.65\" / card_bottom-0.65\" (±0.05\" tolerance), size = 411480×411480 EMU",
-            "4. Font sizes: verify actual run.font.size values in EMU (10pt = 127000 EMU)",
+            "1. Subtitle text: repr() per paragraph — line count <= 2, no mid-word breaks",
+            "2. Overlap: bounding box intersection check for non-intentional overlaps",
+            "3. Icon (L04/L05): shape_type==PICTURE, size=411480×411480 EMU, position=card_right-0.65\"/card_bottom-0.65\"",
+            "4. Font sizes: actual run.font.size in EMU (13pt=165100, 14pt=177800)",
             "",
-            "Example script:",
+            "Example:",
             "```python",
             "from pptx import Presentation",
-            "from pptx.util import Pt",
-            "prs = Presentation('results/pptx/AWS_MSK_Expert_Intro.pptx')",
-            "slide = prs.slides[N]  # target slide index",
+            "prs = Presentation('results/pptx/*.pptx')",
+            "slide = prs.slides[N]",
             "for shape in slide.shapes:",
             "    print(shape.name, shape.left/914400, shape.top/914400, shape.width/914400, shape.height/914400)",
-            "    try: print(repr(shape.text_frame.text))",
-            "    except: pass",
+            "    if shape.has_text_frame:",
+            "        for i, p in enumerate(shape.text_frame.paragraphs): print(f'  Para{i}:', repr(p.text))",
             "```",
-            "Run this and report actual measured values, not executor's claimed values.",
         ]
 
     return "\n".join(lines)
@@ -337,7 +359,7 @@ def main():
         review_input_path = run_dir / f"review_{attempt}_step_{step_id}_input.txt"
         review_output_path = run_dir / f"review_{attempt}_step_{step_id}_verdict.json"
 
-        review_input = build_review_input(contract, step_out, module, attempt)
+        review_input = build_review_input(contract, step_id, step_out, module, attempt)
         review_input_path.write_text(review_input, encoding="utf-8")
 
         review_tasks.append({

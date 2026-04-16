@@ -195,31 +195,11 @@ while [ "$ATTEMPT" -lt "$MAX_RETRIES" ] && [ "$VERDICT" != "approved" ] && [ "$V
     fi
   }
 
-  # ── Execute (--json-schema: executor_output) ──
-  echo "  [Executor] Running with --json-schema (constraint_compliance enforced)..."
-  EXEC_INPUT="$RUN_DIR/exec_input_${ATTEMPT}.txt"
+  # ── Execute (parallel — per-step, dependency-aware) ──
+  # Sprint_Contract 전체는 parallel_executor.py에 전달하지 않음
+  # create_step_input()이 step별로 필요한 정보만 추출해서 각 Executor에 전달
   EXEC_OUTPUT="$RUN_DIR/exec_output_${ATTEMPT}.json"
-  FEEDBACK_FILE="$RUN_DIR/verdict_$((ATTEMPT-1)).json"
 
-  {
-    echo "SPRINT_CONTRACT:"
-    cat "$PLAN_OUTPUT"
-    echo ""
-    echo "ATTEMPT: $ATTEMPT of $MAX_RETRIES"
-    if [ -f "$FEEDBACK_FILE" ]; then
-      echo ""
-      echo "PREVIOUS REVIEW FEEDBACK (address ALL issues):"
-      cat "$FEEDBACK_FILE"
-    fi
-    echo ""
-    echo "Execute the plan and produce output as JSON matching schemas/executor_output.schema.json."
-    echo "REQUIRED fields: constraint_compliance, outputs, status, artifacts."
-    if [ "$ATTEMPT" -gt 1 ]; then
-      echo "REQUIRED on retry: retry_fixes field with issue + fix_applied + verified for EACH previous issue."
-    fi
-  } > "$EXEC_INPUT"
-
-  # ── Parallel Execution (dependency-aware) ──
   echo "  [Executor] Running in parallel mode (dependency-aware)..."
   # Error handling: check return code (#2 audit fix)
   if ! python3 scripts/agents/parallel_executor.py "$PLAN_OUTPUT" "$MODULE" "$RUN_DIR" "$ATTEMPT"; then
