@@ -29,23 +29,30 @@
 6. 작업 전 필요한 MCP만 켜고, 완료 후 끈다
 7. 모든 파일 쓰기에 Atomic_Write 패턴 적용
 
-## 파이프라인 실행 (v2: Agent Tool Native)
+## 파이프라인 실행 (v2: Agent Tool Native + Background)
 
 아키텍처 전환 (공식 문서 근거):
-- v1: `claude --print` Bash subprocess + `extract_result.py`
-- v2: Claude Code native Agent tool + `.claude/agents/` subagent definitions
+- v1: `claude --print` Bash subprocess + `extract_result.py` (포그라운드 블로킹)
+- v2: Claude Code native Agent tool + `run_in_background=True` (비블로킹)
 - 근거: `code.claude.com/docs/en/agent-sdk/subagents.md`, `structured-outputs.md`
 
+### 실행 방법 (백그라운드 — 대화 즉시 가능)
+
+모듈 작업 요청이 오면 **반드시** Agent tool로 백그라운드 실행한다:
+
+```python
+Agent(
+    description="파이프라인: <task 요약>",
+    prompt="bash scripts/orchestrate.sh '<task>' <module>",
+    run_in_background=True  # ← 세션 즉시 대화 가능 상태 유지
+)
+```
+
+- `run_in_background=True`: Agent가 완료되면 자동으로 세션에 알람이 옴
+- 실행 중에도 사용자와 대화 가능
+- 완료 알람 수신 시 결과를 요약해서 사용자에게 보고
+
 ```bash
-# Step 1: 파이프라인 초기화 (Confidence_Trigger + pipeline_config.json 생성)
-bash scripts/orchestrate.sh "<task>" <module>
-
-# Step 2: Claude Code 세션에서 Agent tool로 Planner→Executor→Reviewer 실행
-# (orchestrate.sh가 생성한 pipeline_config.json을 읽고 Agent tool 호출)
-
-# 멀티 모듈 (Agent_Team 모드)
-bash scripts/orchestrate.sh "<task>" "pptx,dooray,trello"
-
 # MCP 토글
 bash scripts/mcp-toggle.sh status
 bash scripts/mcp-toggle.sh <server> on|off

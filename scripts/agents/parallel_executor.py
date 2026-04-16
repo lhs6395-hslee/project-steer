@@ -359,6 +359,45 @@ def load_approved_steps(run_dir: str, attempt: int) -> set:
     return approved
 
 
+def is_recon_step(step: dict) -> bool:
+    """step action에 'recon'이 포함되면 recon step으로 판별."""
+    action = step.get('action', '').lower()
+    return 'recon' in action
+
+
+def is_create_mode(contract: dict) -> bool:
+    """
+    Sprint_Contract가 Create(신규 생성) 모드인지 판별.
+
+    판별 기준 (우선순위 순):
+    1. contract['mode'] 필드가 'create' 이면 Create
+    2. contract['task'] 또는 steps action에 '생성', 'create', 'new' 포함 시 Create
+    3. 기존 파일 참조(results/pptx/*.pptx 등)가 없으면 Create
+    4. 판별 불가 시 → recon step 존재 여부로 최종 결정
+       (Planner가 recon을 넣었으면 Modify, 안 넣었으면 Create)
+    """
+    # 1. 명시적 mode 필드
+    mode = contract.get('mode', '').lower()
+    if mode == 'create':
+        return True
+    if mode == 'modify':
+        return False
+
+    # 2. task 키워드
+    task = contract.get('task', '').lower()
+    create_keywords = ['생성', '만들', 'create', 'new ', '새로', '신규']
+    modify_keywords = ['수정', '고쳐', '변경', 'modify', 'fix', 'update', '개선']
+    if any(k in task for k in create_keywords):
+        return True
+    if any(k in task for k in modify_keywords):
+        return False
+
+    # 3. steps에 recon이 있으면 Modify로 판단 (Planner 의도 존중)
+    steps = contract.get('steps', [])
+    has_recon = any(is_recon_step(s) for s in steps)
+    return not has_recon
+
+
 def main():
     if len(sys.argv) < 4:
         print("Usage: parallel_executor.py <sprint_contract.json> <module> <run_dir> [attempt]")
@@ -375,6 +414,15 @@ def main():
     # Load contract
     contract = load_sprint_contract(contract_file)
     steps = contract.get('steps', [])
+
+    # Create/Modify 판별 — recon step 자동 처리
+    create_mode = is_create_mode(contract)
+    recon_steps = {s['id'] for s in steps if is_recon_step(s)}
+    if recon_steps:
+        if create_mode:
+            print(f"  [Parallel Executor] Create 모드 감지 — recon step {sorted(recon_steps)} 스킵", flush=True)
+        else:
+            print(f"  [Parallel Executor] Modify 모드 감지 — recon step {sorted(recon_steps)} 실행", flush=True)
 
     # Validate DAG before execution (#17 audit fix: cycle detection)
     if not validate_dag(steps):
@@ -400,11 +448,21 @@ def main():
         if not level_steps:
             continue
 
-        # Skip approved steps — reuse previous output
+        # Skip 분류:
+        # 1. approved: 이전 attempt에서 통과한 step
+        # 2. recon_skipped: Create 모드에서 recon step (측정할 기존 파일 없음)
+        # 3. run: 실제 실행할 step
         skip = [s for s in level_steps if s in approved_steps]
-        run = [s for s in level_steps if s not in approved_steps]
+        recon_skipped = [s for s in level_steps
+                         if s in recon_steps and create_mode and s not in approved_steps]
+        run = [s for s in level_steps
+               if s not in approved_steps and not (s in recon_steps and create_mode)]
+
         for s in skip:
             print(f"  [Parallel Executor] ↩ Step {s} skipped (approved in previous attempt)", flush=True)
+        for s in recon_skipped:
+            completed_outputs.add(s)  # dependency 해제 — 이후 step들이 blocked되지 않도록
+            print(f"  [Parallel Executor] ⏭ Step {s} skipped (recon — Create 모드)", flush=True)
 
         if not run:
             print(f"  [Parallel Executor] Level {level}: all steps already approved, skipping", flush=True)
