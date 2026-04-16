@@ -290,6 +290,28 @@ PYEOF
 
   echo "  [Orchestrator] Verdict: $VERDICT | Score: $SCORE (attempt $ATTEMPT)"
 
+  # ── MCP 위반 즉각 알림 (사용자 의사결정 필요) ──
+  python3 - "$VERDICT_FILE" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        data = json.load(f)
+    violations = data.get('constraint_violations', [])
+    mcp_violations = [v for v in violations
+                      if any(k in str(v.get('violation','')) for k in
+                             ['prs.save()', 'add_shape()', 'add_textbox()', 'add_picture()',
+                              'add_table()', 'build_', 'add_layout_', 'create_', 'MCP'])]
+    if mcp_violations:
+        print("\n  ⚠️  [MCP 원칙 위반 감지 — 사용자 확인 필요]")
+        for v in mcp_violations:
+            sev = v.get('severity','?')
+            print(f"  [{sev.upper()}] {v.get('violation','')[:120]}")
+        print("  → python-pptx로 새 콘텐츠를 직접 생성했습니다. MCP 도구로 교체가 필요합니다.")
+        print("  → 계속 진행(retry)하려면 Enter, 중단하려면 Ctrl+C\n")
+except Exception:
+    pass
+PYEOF
+
   # ── Circular feedback detection ──
   if [ "$ATTEMPT" -ge 2 ]; then
     CIRCULAR=$(python3 -c "

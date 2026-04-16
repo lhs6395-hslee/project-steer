@@ -118,9 +118,12 @@ def analyze_dependencies(steps):
 
 def create_step_input(contract, step_id, run_dir, completed_outputs=None):
     """
-    Create input file for a specific step.
-    Includes outputs of completed dependency steps (minimal context, not full contract).
-    공식 근거: subagents.md — each subagent gets focused context for its task only.
+    Create minimal input for a specific step.
+
+    원칙: 각 Executor는 자기 step에 필요한 정보만 받는다.
+    - 전체 Sprint_Contract 전달 금지 (context 낭비)
+    - 전체 SKILL.md는 call_agent.sh가 system prompt로 주입 (여기선 제외)
+    - 의존 step output은 핵심 요약만 전달 (전체 JSON 금지)
     """
     step = next((s for s in contract['steps'] if s['id'] == step_id), None)
     if not step:
@@ -129,32 +132,61 @@ def create_step_input(contract, step_id, run_dir, completed_outputs=None):
     input_path = os.path.join(run_dir, f"step_{step_id}_input.txt")
 
     with open(input_path, 'w', encoding='utf-8') as f:
+        # 태스크 컨텍스트 (최소)
         f.write(f"TASK: {contract['task']}\n")
         f.write(f"MODULE: {contract['module']}\n\n")
-        f.write(f"STEP ID: {step_id}\n")
-        f.write(f"ACTION: {step['action']}\n\n")
-        f.write(f"ACCEPTANCE CRITERIA:\n")
+
+        # 이 step의 정보만
+        f.write(f"STEP {step_id}: {step['action']}\n\n")
+
+        if step.get('target_slide_index') is not None:
+            f.write(f"TARGET SLIDE INDEX: {step['target_slide_index']} (0-based)\n\n")
+
+        f.write("ACCEPTANCE CRITERIA:\n")
         for criterion in step.get('acceptance_criteria', []):
             f.write(f"  - {criterion}\n")
-        f.write(f"\nCONSTRAINTS:\n")
-        for constraint in contract.get('constraints', []):
-            f.write(f"  - {constraint}\n")
 
-        # Include outputs from dependency steps (context for chained execution)
+        # 이 step에 직접 관련된 constraints만 (step 레벨 > contract 레벨)
+        step_constraints = step.get('constraints', [])
+        if step_constraints:
+            f.write("\nCONSTRAINTS (this step):\n")
+            for c in step_constraints:
+                f.write(f"  - {c}\n")
+
+        # 의존 step output: 핵심 요약만 (전체 JSON 금지)
         deps = step.get('dependencies', [])
         if deps and completed_outputs:
-            f.write(f"\nDEPENDENCY OUTPUTS (steps this step depends on):\n")
+            f.write("\nDEPENDENCY SUMMARY:\n")
             for dep_id in deps:
                 dep_out_path = os.path.join(run_dir, f"step_{dep_id}_output.json")
                 if os.path.exists(dep_out_path):
                     try:
                         with open(dep_out_path, 'r', encoding='utf-8') as dep_f:
                             dep_data = json.load(dep_f)
-                        f.write(f"Step {dep_id} output:\n{json.dumps(dep_data, ensure_ascii=False, indent=2)}\n\n")
+                        # 전체 JSON 대신 outputs 필드의 핵심 결과만 전달
+                        outputs = dep_data.get('outputs', [])
+                        status = dep_data.get('status', 'unknown')
+                        artifacts = dep_data.get('artifacts', [])
+                        issues = []
+                        for out in outputs:
+                            if out.get('status') == 'failed':
+                                issues.append(out.get('action', ''))
+                            # recon step: result 필드에 실측값 요약 있으면 포함
+                            result = out.get('result', '')
+                            if result and len(str(result)) < 1000:
+                                issues.append(str(result))
+                        f.write(f"  Step {dep_id}: status={status}")
+                        if artifacts:
+                            f.write(f", artifacts={artifacts}")
+                        if issues:
+                            f.write(f"\n  Key findings: {'; '.join(issues[:3])}")
+                        f.write("\n")
                     except Exception:
-                        f.write(f"Step {dep_id} output: (unreadable)\n")
+                        f.write(f"  Step {dep_id}: (unreadable)\n")
 
-        f.write(f"\nExecute this step and provide JSON output following schemas/executor_output.schema.json\n")
+        f.write("\nExecute this step. Output JSON matching schemas/executor_output.schema.json.\n")
+        f.write("MCP tools (mcp__pptx__*) for new content. python-pptx utils only for text replace/delete/reorder.\n")
+        f.write("prs.save() FORBIDDEN — use mcp__pptx__save_presentation.\n")
 
     return input_path
 

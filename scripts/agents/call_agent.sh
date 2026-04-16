@@ -73,14 +73,101 @@ if [ ! -f "$SKILL_FILE" ]; then
 fi
 
 # Build system prompt
-SYSTEM_PROMPT="$(cat "$SKILL_FILE")"
+# skills/ROLE/SKILL.md → .claude/agents/ROLE.md로 통합됨
+# call_agent.sh는 .claude/agents/ 정의를 system prompt로 사용
+# skills/ 파일은 더 이상 여기서 주입하지 않음 (이중 구조 제거)
+AGENT_DEF=".claude/agents/${ROLE}.md"
+if [ -f "$AGENT_DEF" ]; then
+  # frontmatter(---...---) 제거 후 본문만 추출
+  SYSTEM_PROMPT="$(python3 -c "
+import sys
+content = open('$AGENT_DEF').read()
+# strip YAML frontmatter
+if content.startswith('---'):
+    end = content.find('---', 3)
+    if end != -1:
+        content = content[end+3:].lstrip()
+print(content, end='')
+")"
+elif [ -f "$SKILL_FILE" ]; then
+  SYSTEM_PROMPT="$(cat "$SKILL_FILE")"
+else
+  echo "ERROR: Neither .claude/agents/${ROLE}.md nor $SKILL_FILE found" >&2
+  exit 1
+fi
 
+# MODULE SKILL: 전체 주입 대신 step에 해당하는 레이아웃 섹션만 추출
+# INPUT_FILE에서 target layout(L0N) 파싱 → 해당 섹션만 주입 (context 절감)
 if [ -n "$MODULE" ] && [ -f "modules/${MODULE}/SKILL.md" ] && [[ "$ROLE" =~ ^(planner|executor)$ ]]; then
-  SYSTEM_PROMPT="${SYSTEM_PROMPT}
+  # step input에서 레이아웃 코드 추출 (L01~L36)
+  LAYOUT_CODE="$(grep -oP 'L\d{2}' "$INPUT_FILE" 2>/dev/null | head -1)"
+  MODULE_SKILL_CONTENT="$(cat "modules/${MODULE}/SKILL.md")"
+
+  if [ -n "$LAYOUT_CODE" ]; then
+    # 해당 레이아웃 섹션만 추출 (### L0N ~ 다음 ### 또는 EOF까지)
+    LAYOUT_SECTION="$(python3 -c "
+import sys, re
+content = open('modules/${MODULE}/SKILL.md').read()
+layout = '$LAYOUT_CODE'
+# 레이아웃별 섹션 추출
+pattern = rf'(?:^|\n)(#{1,4}[^\n]*{re.escape(layout)}[^\n]*\n.*?)(?=\n#{1,4} |\Z)'
+m = re.search(pattern, content, re.DOTALL)
+if m:
+    print(m.group(1)[:3000])  # 최대 3KB
+else:
+    # 섹션 없으면 공통 규칙(생성 방식, 필수 규칙)만 추출 (최대 2KB)
+    lines = content.split('\n')
+    common = []
+    in_common = False
+    for l in lines:
+        if any(k in l for k in ['생성 방식', '필수 규칙', 'MCP 도구', '아이콘 사용']):
+            in_common = True
+        if in_common:
+            common.append(l)
+        if len('\n'.join(common)) > 2000:
+            break
+    print('\n'.join(common))
+" 2>/dev/null)"
+
+    if [ -n "$LAYOUT_SECTION" ]; then
+      SYSTEM_PROMPT="${SYSTEM_PROMPT}
 
 ---
-MODULE SKILL:
-$(cat "modules/${MODULE}/SKILL.md")"
+MODULE SKILL (${MODULE} / ${LAYOUT_CODE}):
+${LAYOUT_SECTION}"
+    else
+      # 레이아웃 섹션 없음 → 공통 규칙만 (생성 방식 + MCP 매핑 테이블, ~2KB)
+      COMMON_SKILL="$(python3 -c "
+content = open('modules/${MODULE}/SKILL.md').read()
+# 생성 방식 섹션까지만
+idx = content.find('### Workflow')
+if idx > 0:
+    print(content[:idx][:3000])
+else:
+    print(content[:3000])
+" 2>/dev/null)"
+      SYSTEM_PROMPT="${SYSTEM_PROMPT}
+
+---
+MODULE SKILL (${MODULE} / common):
+${COMMON_SKILL}"
+    fi
+  else
+    # 레이아웃 코드 없는 경우(planner, merge step 등) → 공통 규칙만
+    COMMON_SKILL="$(python3 -c "
+content = open('modules/${MODULE}/SKILL.md').read()
+idx = content.find('### Workflow')
+if idx > 0:
+    print(content[:idx][:3000])
+else:
+    print(content[:3000])
+" 2>/dev/null)"
+    SYSTEM_PROMPT="${SYSTEM_PROMPT}
+
+---
+MODULE SKILL (${MODULE} / common):
+${COMMON_SKILL}"
+  fi
 fi
 
 if [ "$ROLE" = "reviewer" ] && [ -f "skills/orchestrator/references/module-checklists.md" ]; then
