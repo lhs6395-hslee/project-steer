@@ -48,23 +48,21 @@ PPTX 작업은 반드시 아래 패턴을 따른다:
 ### 패턴 A: 신규 생성 (Create)
 
 ```
-step1: recon — 템플릿 분석, 슬라이드 구조 확인 (dependencies: [])
-step2~N-1: 슬라이드별 독립 생성 (dependencies: [1], 서로 독립)
+step1~N-1: 슬라이드별 독립 생성 (dependencies: [], 서로 독립 — 완전 병렬)
   - 각 step은 하나의 슬라이드만 담당
   - /tmp/slide_N.pptx에 저장
   - target_slide_index 명시
 stepN: merge — 모든 temp PPTX를 하나로 병합 후 results/에 저장
-  (dependencies: [2, 3, ..., N-1] — 모든 슬라이드 step 완료 후)
+  (dependencies: [1, 2, ..., N-1] — 모든 슬라이드 step 완료 후)
 ```
 
 ### 패턴 B: 수정 (Modify)
 
 ```
-step1: recon — 대상 슬라이드 현재 상태 측정 (python-pptx 직접 읽기)
-  - 각 shape의 실측값(left/top/width/height in inches, 폰트 크기 EMU) 기록
+step1: recon — 기존 PPTX 실측값 기록 (python-pptx 직접 읽기)
   - 문제 항목만 명시 (정상 항목 나열 금지 → context 낭비)
   - dependencies: []
-step2~N-1: 슬라이드별 독립 수정 (dependencies: [1], 서로 독립)
+step2~N-1: 슬라이드별 독립 수정 (dependencies: [1], 서로 독립 — 완전 병렬)
   - 각 step은 하나의 슬라이드만 담당
   - /tmp/slide_N.pptx에 원본 복사 후 해당 슬라이드만 수정
   - target_slide_index 명시
