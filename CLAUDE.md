@@ -42,12 +42,24 @@
 
 ```
 1. @planner → Sprint_Contract JSON 생성 (순차 1회)
+   → 완료 시 보고: "✅ [Planner] input: N, output: N tokens"
 2. Sprint_Contract의 dependency level 분석
 3. level 0 steps → executor subagents 동시 spawn
+   → 각 완료 시 보고: "✅ [Executor] STEP N input: N, output: N tokens"
 4. level 0 완료 후 → level 1 steps → executor subagents 동시 spawn
+   → 각 완료 시 보고: "✅ [Executor] STEP N input: N, output: N tokens"
 5. 전체 executor 완료 → reviewer subagents 동시 spawn
+   → 각 완료 시 보고: "✅ [Reviewer] STEP N input: N, output: N tokens"
 6. 실패 step만 재시도 (approved step 스킵, max 5회)
-7. 완료 보고
+7. 완료 보고 — 단계별 토큰 합산 테이블 출력:
+   | 단계 | input tokens | output tokens | 소계 |
+   |------|-------------|---------------|------|
+   | Planner | N | N | N |
+   | Executor (전체) | N | N | N |
+   | Reviewer (전체) | N | N | N |
+   | **합계** | **N** | **N** | **N** |
+
+   토큰 수를 가져올 수 없는 경우(Agent tool result에 usage 필드 없음) → 해당 셀에 "N/A" 표기 후 계속 진행
 ```
 
 ### Subagent 호출 방식
@@ -108,7 +120,7 @@ Sprint_Contract 수신 후 executor spawn 전에 아래 기준으로 Create/Modi
 2. **MCP 우선 원칙** — 새 콘텐츠(도형/텍스트박스/이미지) 추가는 MCP 도구만 사용. Python으로 직접 생성 금지 (예: `add_shape()`, `add_textbox()`, `add_picture()`, `prs.save()`)
 3. **Executor/Reviewer는 step 정보만 수신** — 전체 Sprint_Contract 전달 금지 (context 낭비 + isolation 위반)
 4. **복원 전 버전 확인** — git restore/checkout 전 반드시 커밋 해시와 타임스탬프 확인 후 사용자 승인 받기
-5. **단계별 완료 보고** — Planner 완료, 각 Executor 완료, Reviewer 완료 시점에 사용자에게 명시적으로 보고
+5. **단계별 완료 보고 + 토큰 출력** — Planner/각 Executor/각 Reviewer 완료 시 "✅ [역할] STEP N input: N, output: N tokens" 형식으로 즉시 보고. 파이프라인 최종 완료 시 단계별 합산 테이블 출력
 6. **병렬→순차 전환 금지** — 병렬 실행이 합의된 상태에서 사용자 동의 없이 순차로 변경 금지
 7. **MCP 불가 항목 즉시 보고** — MCP로 구현 불가능한 항목 발견 시 즉시 중단하고 대안 제시 (무단 대체 금지)
 8. **python-pptx 허용 범위** — `modules/pptx/utils/` 내 지정된 유틸만 사용. 새 shape 생성 용도로 쓰면 위반

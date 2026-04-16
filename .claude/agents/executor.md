@@ -6,12 +6,12 @@ description: >
 model: sonnet
 permissionMode: bypassPermissions
 effort: high
-maxTurns: 20
+maxTurns: 40
 mcpServers:
-  - pptx:
-      type: stdio
-      command: /Users/toule/.local/bin/uvx
-      args: ["--from", "office-powerpoint-mcp-server", "ppt_mcp_server"]
+  pptx:
+    type: stdio
+    command: /Users/toule/.local/bin/uvx
+    args: ["--from", "office-powerpoint-mcp-server", "ppt_mcp_server"]
 ---
 
 # Executor Agent
@@ -68,13 +68,30 @@ python-pptx로 무단 대체 금지
 
 ### temp PPTX 패턴 (per-slide 독립 실행)
 
+**신규 슬라이드 생성 시 필수 절차:**
+
 ```python
-# 슬라이드별 step에서
+# 1. 원본 PPTX를 /tmp로 복사 (마스터/레이아웃/폰트/상단바 보존)
 import shutil
 shutil.copy('results/pptx/original.pptx', '/tmp/slide_N.pptx')
-# /tmp/slide_N.pptx의 target_slide_index만 수정
-# mcp__pptx__open_presentation('/tmp/slide_N.pptx') → 수정 → mcp__pptx__save_presentation('/tmp/slide_N.pptx')
 
+# 2. MCP로 열기
+# mcp__pptx__open_presentation('/tmp/slide_N.pptx')
+
+# 3. 템플릿 10페이지(idx 9) 슬라이드를 기반으로 새 슬라이드 추가
+#    방법 A (MCP): add_slide(layout_index=1) — 본문 레이아웃 추가
+#    방법 B (python-pptx utils): 템플릿 idx 9의 spTree를 복사하여 새 슬라이드에 삽입
+#    → 어느 방법이든 반드시 원본 복사본(/tmp/slide_N.pptx)에서 시작해야 마스터/서식 유지
+
+# 4. 새 슬라이드에 콘텐츠 추가 (MCP 도구만 사용)
+
+# 5. 저장
+# mcp__pptx__save_presentation('/tmp/slide_N.pptx')
+```
+
+**금지**: `create_presentation`으로 빈 파일 생성 후 슬라이드 추가 — 마스터/레이아웃/폰트/상단바가 모두 사라짐
+
+```python
 # merge step에서
 # modules/pptx/utils/merge_presentations.py 사용
 ```

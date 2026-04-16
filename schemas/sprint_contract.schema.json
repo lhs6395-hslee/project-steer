@@ -2,10 +2,12 @@
   "title": "Sprint_Contract",
   "description": "Planner가 생성하는 실행 계획",
   "type": "object",
-  "required": ["task", "module", "steps", "acceptance_criteria", "risks"],
+  "required": ["task", "module", "mode", "steps", "acceptance_criteria", "risks"],
   "properties": {
     "task": { "type": "string" },
     "module": { "type": "string", "enum": ["pptx", "docx", "wbs", "trello", "dooray", "gdrive", "datadog"] },
+    "mode": { "type": "string", "enum": ["create", "modify"], "description": "create: 신규 생성, modify: 기존 파일 수정 (recon step 포함)" },
+    "recon_step_id": { "type": "integer", "description": "mode=modify일 때 recon step의 id. Orchestrator가 이 step을 먼저 실행 후 나머지 병렬 시작" },
     "steps": {
       "type": "array",
       "items": {

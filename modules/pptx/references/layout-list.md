@@ -13,8 +13,8 @@
 | — | 4 | 카드/그리드 | Quad Matrix | `quad_matrix` | alias |
 | L04 | 5 | 프로세스/단계 | Process Arrow | `process_arrow` | ✅ |
 | L05 | 6 | 프로세스/단계 | Phased Columns | `phased_columns` | ✅ |
-| L06 | 7 | 프로세스/단계 | Timeline | `timeline_steps` | ✅ |
-| L07 | 8 | 프로세스/단계 | Zigzag Timeline | `zigzag_timeline` | ✅ |
+| L06 | 7 | 프로세스/단계 | Zigzag Timeline | `zigzag_timeline` | ✅ |
+| L07 | 8 | 프로세스/단계 | Roadmap Timeline | `roadmap_timeline` | ✅ |
 | L08 | 9 | 프로세스/단계 | Funnel | `funnel` | ✅ |
 | L09 | 10 | 비교/분석 | Challenge/Solution | `challenge_solution` | ✅ |
 | L10 | 11 | 비교/분석 | Comparison VS | `comparison_vs` | ✅ |

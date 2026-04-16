@@ -8,7 +8,7 @@
 
 ## 아키텍처
 
-- Primary: Claude Code (v2: Agent tool native — `.claude/agents/` subagent definitions)
+- Primary: Claude Code (v3: Subagents Native — `.claude/agents/` subagent definitions, @-mention 직접 호출)
 - Sync: Kiro (`.kiro/steering/`, `.kiro/hooks/`, `invokeSubAgent`), Antigravity (`.gemini/`, `.agent/`)
 - 설정 흐름: Claude Code → Kiro/Antigravity (단방향)
 
@@ -101,19 +101,10 @@
 ### 에이전트 실행 모델
 
 - 각 에이전트(Planner, Executor, Reviewer)는 독립 Agent_Session으로 실행 (컨텍스트 비공유)
-- Claude Code: v2 Agent tool native (`.claude/agents/` subagent definitions) — `claude --print` v1 방식 사용 안 함
+- Claude Code: v3 Subagents Native (`.claude/agents/` subagent definitions) — `claude --print` v1, run_in_background v2 방식 사용 안 함
 - Kiro: `invokeSubAgent`로 별도 서브에이전트 호출
-- 에이전트 간 통신: Agent tool 구조화 출력 (v2) — Handoff_File 파일 교환은 v1 레거시
+- 에이전트 간 통신: Agent tool 구조화 출력 — Handoff_File 파일 교환은 v1 레거시
 - 모든 파일 쓰기에 Atomic_Write 패턴 적용
-
-### Confidence_Trigger 적용
-
-| 종합 점수 | 파이프라인 모드 | Feedback_Loop 최대 | 비고 |
-|-----------|----------------|-------------------|------|
-| 0.85 이상 | 단일 에이전트 | N/A | 간단한 수정, 조회 |
-| 0.70-0.84 | 멀티 에이전트 (축소) | 3회 | 일반 산출물 생성 |
-| 0.50-0.69 | 멀티 에이전트 (전체) | 5회 | 복잡한 산출물, 다중 모듈 |
-| 0.50 미만 | 멀티 에이전트 + UltraPlan | 5회 | 대규모 작업, 아키텍처 변경 |
 
 ### 정보 차단 규칙
 
@@ -129,36 +120,53 @@
 
 ### Sprint_Contract 구조
 
-Planner가 생성하는 실행 계획 JSON:
+Planner가 생성하는 실행 계획 JSON (`schemas/sprint_contract.schema.json`):
 ```json
 {
-  "id": "UUID",
-  "goal": "작업 목표",
-  "module": "대상 모듈",
-  "files": ["수정 대상 파일"],
-  "acceptance_criteria": [{"id": "AC1", "description": "...", "verification_method": "tool_check"}],
-  "constraints": ["제약 조건"],
-  "risks": ["식별된 리스크"]
+  "task": "작업 목표",
+  "module": "pptx|docx|wbs|trello|dooray|gdrive|datadog",
+  "mode": "create|modify",
+  "recon_step_id": 1,
+  "steps": [
+    {
+      "id": 1,
+      "action": "Slide 7 (L02): subtitle 수정 — /tmp/slide_7.pptx",
+      "dependencies": [],
+      "acceptance_criteria": ["측정 가능한 기준"],
+      "estimated_complexity": "low|medium|high",
+      "constraints": ["해당 step 관련 제약만"],
+      "target_slide_index": 6
+    }
+  ],
+  "acceptance_criteria": ["전체 완료 기준"],
+  "risks": [{"id": "R1", "description": "...", "likelihood": "low", "impact": "low", "mitigation": "..."}]
 }
 ```
 
 ### Verdict 구조
 
-Reviewer가 생성하는 검증 결과 JSON:
+Reviewer가 생성하는 검증 결과 JSON (`schemas/verdict.schema.json`):
 ```json
 {
   "verdict": "approved|needs_revision|rejected",
   "score": 0.0,
-  "checklist_results": {"criterion": true},
+  "checklist_results": {
+    "completeness": true,
+    "constraint_compliance": true,
+    "content_accuracy": true,
+    "design_quality": true
+  },
+  "constraint_violations": [{"constraint": "...", "violation": "...", "severity": "critical|major|minor"}],
   "issues": ["구체적 이슈"],
-  "suggestions": ["개선 제안"]
+  "suggestions": ["개선 제안"],
+  "retry_fix_assessment": [{"original_issue": "...", "fixed": true}]
 }
 ```
 
 ### Feedback_Loop
 
 - 리뷰 실패 시 Reviewer의 issues + suggestions를 Executor에 전달
-- 최대 재시도: Confidence_Trigger 구간에 따라 3~5회
+- 최대 재시도: 5회
 - 최소 승인 점수: 0.85/1.0
 - 동일 이슈 2회 연속 발생 시 사용자에게 에스컬레이션
 
@@ -168,20 +176,6 @@ Reviewer가 생성하는 검증 결과 JSON:
 - 파일 변경 시 경량 사전 감시 (lint-level)
 - Evaluator의 전체 검증과 범위 분리
 - PostToolUse Hook에서 자동 호출
-
-### Auto_Dream 메모리 관리
-
-- 스크립트: `scripts/agents/auto_dream.sh`
-- 7일 이상 경과한 완료 Handoff_File을 `archive/`로 이동
-- 중복 엔트리 탐지 및 제거
-- 파이프라인 완료 후에만 실행 (활성 실행 중 불변)
-
-### Harness_Subtraction
-
-- 스크립트: `scripts/agents/harness_subtraction.sh`
-- 각 에이전트 컴포넌트의 기여도 메트릭 수집
-- 30일간 기여도 0인 컴포넌트 비활성화 제안
-- 새 모델 버전 감지 시 메트릭 리셋 및 재평가
 
 ## 참조 문서
 

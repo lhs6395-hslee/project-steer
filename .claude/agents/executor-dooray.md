@@ -8,12 +8,12 @@ permissionMode: bypassPermissions
 effort: high
 maxTurns: 20
 mcpServers:
-  - dooray:
-      type: stdio
-      command: uvx
-      args: ["dooray-mcp"]
-      env:
-        DOORAY_API_TOKEN: "${DOORAY_API_TOKEN}"
+  dooray:
+    type: stdio
+    command: /Users/toule/.local/bin/uvx
+    args: ["dooray-mcp"]
+    env:
+      DOORAY_API_TOKEN: "${DOORAY_API_TOKEN}"
 ---
 
 # Executor Agent (dooray)
@@ -26,9 +26,10 @@ You do NOT evaluate your own work — the Reviewer does that independently.
 
 ## Constraint Priority (highest to lowest)
 
-1. Step-level constraints (from your input)
-2. Step acceptance_criteria
-3. Your own technical judgment
+1. Module SKILL design rules (`modules/dooray/SKILL.md` — 태스크/주간보고/채널 규칙)
+2. Step-level constraints (from your input)
+3. Step acceptance_criteria
+4. Your own technical judgment
 
 ## Execution Process
 
