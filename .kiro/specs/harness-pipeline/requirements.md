@@ -335,8 +335,8 @@
 
 #### Acceptance Criteria
 
-1. THE PPTX_Module SHALL MCP 도구(pptx 서버)로 새 콘텐츠를 추가하고, python-pptx 유틸리티로 기존 shape 텍스트를 교체한다. 유틸리티 스크립트는 `scripts/utils/`에 배치한다.
-2. THE PPTX_Module SHALL `templates/pptx_template.pptx` 템플릿을 기반으로 8개 레이아웃(표지, 본문, 본문_강조, 본문_프로세스, 목차, 섹션구분, 이미지강조, 끝맺음)을 지원한다.
+1. THE PPTX_Module SHALL MCP 도구(pptx 서버)로 새 콘텐츠를 추가하고, python-pptx 유틸리티로 기존 shape 텍스트를 교체한다. 유틸리티 스크립트는 `modules/pptx/utils/`에 배치한다.
+2. THE PPTX_Module SHALL `modules/pptx/templates/pptx_template.pptx` 템플릿을 기반으로 8개 레이아웃(표지, 본문, 본문_강조, 본문_프로세스, 목차, 섹션구분, 이미지강조, 끝맺음)을 지원한다.
 3. THE PPTX_Module SHALL 표지 → 목차 → 본문(N-N. 제목) → Thank You 구조를 따른다.
 4. THE PPTX_Module SHALL 타이틀 영역 4.5인치/28pt 기준 340pt 초과 시 자연스러운 단어 경계에서 줄바꿈(`\n`)을 삽입한다.
 5. THE PPTX_Module SHALL `modules/pptx/references/layout-spec.md`에 정의된 shape 좌표(EMU)를 준수한다.
@@ -348,7 +348,7 @@
 #### Acceptance Criteria
 
 1. THE DOCX_Module SHALL MCP 도구(docx 서버)를 통해 문서를 생성한다.
-2. THE DOCX_Module SHALL `templates/docx_template.docx` 템플릿과 `templates/docx_style_guide.md` 스타일 가이드를 준수한다.
+2. THE DOCX_Module SHALL `modules/docx/templates/docx_template.docx` 템플릿과 `modules/docx/templates/docx_style_guide.md` 스타일 가이드를 준수한다.
 3. THE DOCX_Module SHALL 표지(28pt Bold #1A1A2E) → History → 목차 → 본문 → 푸터(PAGE 9pt) 구조를 따른다.
 4. THE DOCX_Module SHALL 테이블 헤더에 #1B3A5C navy + white, 짝수행에 #F2F2F2 배경을 적용한다.
 5. THE DOCX_Module SHALL 문체를 현재형 `~한다`로 통일한다.

@@ -22,7 +22,7 @@ FONT_TITLE = "프리젠테이션 7 Bold"
 FONT_DESC = "프리젠테이션 5 Medium"
 FONT_BODY = "Freesentation"
 
-TEMPLATE = "templates/pptx_template.pptx"
+TEMPLATE = "modules/pptx/templates/pptx_template.pptx"
 OUTPUT = "results/pptx/AWS_MSK_Expert_Intro.pptx"
 
 
@@ -627,7 +627,7 @@ def main():
     grid_left = (SLIDE_W - grid_total_w) // 2
     grid_top = content_y2 + inches(0.2)
 
-    card_icons = ["icons/cluster.png", "icons/security.png", "icons/monitoring.png", "icons/connect.png"]
+    card_icons = ["modules/pptx/icons/png/cluster.png", "modules/pptx/icons/png/security.png", "modules/pptx/icons/png/monitoring.png", "modules/pptx/icons/png/connect.png"]
     for idx, (title, bullets) in enumerate(card_data):
         row = idx // 2
         col = idx % 2

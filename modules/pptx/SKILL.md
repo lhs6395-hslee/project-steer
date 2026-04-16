@@ -32,7 +32,7 @@ metadata:
 - 템플릿 기반 일관된 디자인 (13.333" × 7.500", 8개 레이아웃)
 - 표지, 목차, 본문, 끝맺음 페이지 자동 구성
 - 레이아웃 스펙: `modules/pptx/references/layout-spec.md`
-- 스타일 가이드: `templates/pptx_style_guide.md` (색상, 폰트, 좌표 상수)
+- 스타일 가이드: `modules/pptx/templates/pptx_style_guide.md` (색상, 폰트, 좌표 상수)
 
 ### 생성 방식
 
@@ -43,8 +43,8 @@ PPTX 생성은 두 가지 방식을 조합한다:
 규칙:
 - 새 콘텐츠 추가 → MCP 도구 사용 (위반 시 Reviewer가 constraint_violation critical 처리)
 - 기존 shape 텍스트 교체 (표지/목차/끝맺음) → python-pptx 유틸리티 허용
-- 유틸리티 스크립트는 `scripts/utils/`에 배치
-- 템플릿(`templates/pptx_template.pptx`)에서 시작하여 슬라이드를 추가/수정한다.
+- 유틸리티 스크립트는 `modules/pptx/utils/`에 배치
+- 템플릿(`modules/pptx/templates/pptx_template.pptx`)에서 시작하여 슬라이드를 추가/수정한다.
 
 ### MCP 도구 → python-pptx 유틸 매핑
 
@@ -56,25 +56,25 @@ PPTX 생성은 두 가지 방식을 조합한다:
 | 이미지/아이콘 추가 | `mcp__pptx__manage_image(operation="add")` | 금지 |
 | 표 추가 | `mcp__pptx__add_table` | 금지 |
 | 저장 | `mcp__pptx__save_presentation` | `prs.save()` 절대 금지 |
-| 기존 텍스트 교체 | — | `scripts/utils/pptx_text_utils.py` |
-| 슬라이드 삭제/정렬 | — | `scripts/utils/delete_extra_slides.py`, `reorder_slides.py` |
-| 좌표 검증/안전 저장 | — | `scripts/utils/pptx_safe_edit.py` |
-| ZIP/XML 수정 | — | `scripts/utils/pptx_zip_cleaner.py` |
-| 프레젠테이션 병합 | — | `scripts/utils/merge_presentations.py` |
+| 기존 텍스트 교체 | — | `modules/pptx/utils/pptx_text_utils.py` |
+| 슬라이드 삭제/정렬 | — | `modules/pptx/utils/delete_extra_slides.py`, `reorder_slides.py` |
+| 좌표 검증/안전 저장 | — | `modules/pptx/utils/pptx_safe_edit.py` |
+| ZIP/XML 수정 | — | `modules/pptx/utils/pptx_zip_cleaner.py` |
+| 프레젠테이션 병합 | — | `modules/pptx/utils/merge_presentations.py` |
 
 > 레이아웃 생성 중 새로운 유틸리티가 추가되면 이 표와 `.claude/agents/executor.md`를 함께 업데이트한다.
 
 ### 참조 파일
 
-- 템플릿: `templates/pptx_template.pptx`
+- 템플릿: `modules/pptx/templates/pptx_template.pptx`
 - 레이아웃 스펙: `modules/pptx/references/layout-spec.md` (shape 좌표 EMU)
-- 스타일 가이드: `templates/pptx_style_guide.md` (색상, 폰트, 레이아웃 상수)
+- 스타일 가이드: `modules/pptx/templates/pptx_style_guide.md` (색상, 폰트, 레이아웃 상수)
 
 ### 필수 규칙
 
 - 새 콘텐츠 추가: MCP 도구(mcp_pptx_*)로 수행
 - 기존 shape 텍스트 교체: python-pptx 유틸리티 허용 (표지/목차/끝맺음 등 템플릿 shape 수정)
-- 유틸리티 스크립트는 `scripts/utils/`에 배치
+- 유틸리티 스크립트는 `modules/pptx/utils/`에 배치
 - 타이틀 잘림 검증: 타이틀 영역 4.5인치/28pt 기준 ~340pt 초과 시 자연스러운 단어 경계에서 \n 삽입 (단어 중간 금지, 생성 후 검증)
 - **중제목(subtitle) 디자인 규칙**:
   - **텍스트 박스 크기(width, height) 절대 변경 금지** — 원래 레이아웃 스펙 그대로 유지
@@ -88,7 +88,7 @@ PPTX 생성은 두 가지 방식을 조합한다:
 
 - **파란색 원형(Oval + 텍스트 심볼) fallback 금지** — 프레젠테이션 품질을 떨어뜨리므로 절대 사용하지 않는다
 - **우선순위**:
-  1. `icons/` 폴더에서 매핑 가능한 PNG 검색 (glob으로 확인)
+  1. `modules/pptx/icons/png/` 폴더에서 매핑 가능한 PNG 검색 (glob으로 확인)
   2. 없으면 외부에서 적절한 아이콘 다운로드 (WebFetch 등)
   3. 다운로드도 불가능하면 → 작업 중단하고 사용자에게 보고 (placeholder 사용 금지)
 - 아이콘 크기: 411,480 × 411,480 EMU (0.45" × 0.45")
@@ -108,7 +108,7 @@ PPTX 생성은 두 가지 방식을 조합한다:
   - 크기: 411,480 × 411,480 EMU (0.45" × 0.45")
   - 위치: `left = 카드_right - 0.65"`, `top = 카드_bottom - 0.65"`
   - 모서리 여백: 아이콘 우하단 끝과 카드 모서리 사이 최소 0.20" 확보 (너무 붙으면 FAIL)
-  - 아이콘은 카드 내용/주제에 맞는 PNG 선택 (icons/ 폴더 우선)
+  - 아이콘은 카드 내용/주제에 맞는 PNG 선택 (modules/pptx/icons/png/ 폴더 우선)
   - 카드 4개면 아이콘 4개, 카드 5개면 아이콘 5개 — 카드 수와 1:1 대응
   - 흐름도 추가 시 전체 아이콘 제거, 흐름도 제거 시 전체 아이콘 복원 (항상 둘 중 하나 존재)
   - **슬라이드 전체 우하단 단일 아이콘 배치 금지** — 반드시 각 카드별로 배치
@@ -223,3 +223,37 @@ Solution: 기본 템플릿으로 폴백, 경고 로그 기록
 
 **Error: Chart data mismatch**
 Solution: 차트 생성 전 데이터 차원 검증
+
+---
+
+## Known Pitfalls / 반복 실수 주의사항
+
+과거 세션에서 반복된 실수 패턴. 작업 전 반드시 확인한다.
+
+### MCP 원칙 위반
+- **#1 MCP 우선 원칙 위반**: `add_shape()`, `add_textbox()`, `add_picture()` 등 python-pptx로 새 콘텐츠 생성 금지. 반드시 `mcp__pptx__*` 도구 사용
+- **#2 MCP 불가 도형 무단 대체**: CHEVRON 등 MCP로 추가 불가능한 도형은 임의로 ROUNDED_RECTANGLE로 대체 금지. 반드시 사용자에게 보고하고 승인 받기
+- **#3 `prs.save()` 금지**: python-pptx `prs.save()` 직접 호출 시 비순차 슬라이드 번호로 인해 슬라이드 덮어쓰기 발생. 반드시 `PptxSafeEditor` (`modules/pptx/utils/pptx_safe_edit.py`) 또는 `mcp__pptx__save_presentation` 사용
+
+### 보더/Fill 규칙
+- **#4 `style.lnRef` 파란색 오적용**: shape에 명시적 `ln` 없으면 `style.lnRef.scheme=accent1`(파란색)이 기본 적용됨. MCP/Python으로 생성한 모든 shape은 `ln noFill` 또는 원하는 색으로 명시 필요
+- **#5 보더 규칙 slide_idx 하드코딩 금지**: fill color 기반으로 동적 판별. vibrant fill → line noFill, light fill (#E6F0FF 등) → border DCDCDC (6350)
+
+### 텍스트/폰트
+- **#6 카드 내용 폰트 크기**: 카드/도형 내 본문 텍스트는 **13pt** 기준. 12pt로 생성하면 Reviewer 즉시 FAIL
+- **#7 중제목 텍스트박스 크기 변경 금지**: `subtitle` textbox의 width/height는 절대 불변. 텍스트가 넘치면 요약하여 맞춤
+
+### 아이콘
+- **#8 파란색 원형 fallback 금지**: 실제 PNG 아이콘 없으면 placeholder 사용 금지. `modules/pptx/icons/png/`에서 검색 → 외부 다운로드 → 불가능하면 사용자 보고
+- **#9 아이콘 크기 규격**: 411,480 × 411,480 EMU (0.45" × 0.45") 고정. 임의 크기 사용 금지
+
+### 위치/겹침
+- **#10 auto_position margin 오설정**: `auto_position_card_content()`의 margin_emu 기본값은 `91440`(0.25cm). `274320`(0.76cm) 사용 시 flow label 포함 전체 이동 오류 발생
+- **#11 x-column 정렬 sub-label 제외**: vibrant RR와 동일 x-column의 TextBox(flow label, sub-label)는 `auto_position_card_content()`에서 이동 제외. `vibrant_xs` ±0.25cm tolerance로 제외 로직 적용
+- **#12 텍스트 겹침 수정 하드코딩 금지**: corner overlap 수정은 `check_text_corner_overlap()` + `min_safe_y_for_textbox()` 동적 계산 사용. 레이아웃별 delta 하드코딩 금지
+
+### 색상/접근성
+- **#13 밝은 배경 위 흰색 텍스트 금지**: `E6F0FF` 등 밝은 배경(WCAG 대비율 < 4.5:1)에 FFFFFF 텍스트 사용 금지. `1B3A5C`(대비율 10.12:1) 등 어두운 색상 사용
+
+### Reviewer 검증
+- **#14 Reviewer python-pptx 검증 필수**: PPTX 모듈 작업이면 Reviewer는 반드시 python-pptx로 결과 파일을 직접 열어 shape 좌표/크기/텍스트 검증. text-only 리뷰 허용 안 됨

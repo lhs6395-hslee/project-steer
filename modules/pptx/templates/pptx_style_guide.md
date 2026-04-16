@@ -47,7 +47,7 @@ ppt-mcp/
 ├── powerpoint_content.py        # 38 layout renderers (35 unique + 3 aliases) + utility functions
 ├── powerpoint_cover.py          # Cover slide renderer
 ├── powerpoint_toc.py            # TOC slide renderer
-├── icons/                       # 40 PNG icons (512x512)
+├── modules/pptx/icons/png/                       # 40 PNG icons (512x512)
 ├── architecture/                # Diagram PNG files
 ├── screenshots/                 # UI screenshot PNG files
 ├── template/
@@ -86,7 +86,7 @@ terraform, timeline, verification
 
 - Format: PNG, 512×512 pixels, transparent background
 - Naming: lowercase, underscores for spaces (e.g., `load_balancer.png`)
-- Location: `icons/` folder
+- Location: `modules/pptx/icons/png/` folder
 - Fallback: 아이콘 파일 없으면 파란색 원형 표시
 
 ---

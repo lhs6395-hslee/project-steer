@@ -1,6 +1,6 @@
 # PPTX 레이아웃 스펙
 
-템플릿: `templates/pptx_template.pptx`
+템플릿: `modules/pptx/templates/pptx_template.pptx`
 슬라이드 크기: 12192000 × 6858000 EMU (13.333" × 7.500")
 총 슬라이드: 41장 (템플릿 기본)
 
@@ -259,7 +259,7 @@
 
 ---
 
-## 아이콘 (icons/ 폴더)
+## 아이콘 (modules/pptx/icons/png/ 폴더)
 
 무료 아이콘 PNG 파일. 96×96px, RGBA, 투명 배경.
 카드/도형 우상단에 0.45" 크기로 배치.

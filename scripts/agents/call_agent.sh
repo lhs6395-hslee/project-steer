@@ -67,15 +67,9 @@ print(f'_RESOLVED_HAIKU={env.get(\"ANTHROPIC_DEFAULT_HAIKU_MODEL\",\"haiku\")!r}
 " "$_SETTINGS" 2>/dev/null)" 2>/dev/null || true
 fi
 
-if [ ! -f "$SKILL_FILE" ]; then
-  echo "ERROR: Skill file not found: $SKILL_FILE" >&2
-  exit 1
-fi
-
 # Build system prompt
-# skills/ROLE/SKILL.md → .claude/agents/ROLE.md로 통합됨
-# call_agent.sh는 .claude/agents/ 정의를 system prompt로 사용
-# skills/ 파일은 더 이상 여기서 주입하지 않음 (이중 구조 제거)
+# .claude/agents/ROLE.md = primary (single source of truth)
+# skills/ROLE/SKILL.md = fallback (legacy, orchestrator 참조용만 유지)
 AGENT_DEF=".claude/agents/${ROLE}.md"
 if [ -f "$AGENT_DEF" ]; then
   # frontmatter(---...---) 제거 후 본문만 추출
@@ -90,6 +84,7 @@ if content.startswith('---'):
 print(content, end='')
 ")"
 elif [ -f "$SKILL_FILE" ]; then
+  echo "WARN: .claude/agents/${ROLE}.md not found, falling back to $SKILL_FILE" >&2
   SYSTEM_PROMPT="$(cat "$SKILL_FILE")"
 else
   echo "ERROR: Neither .claude/agents/${ROLE}.md nor $SKILL_FILE found" >&2

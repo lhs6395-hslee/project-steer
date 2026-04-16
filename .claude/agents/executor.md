@@ -47,12 +47,12 @@ You do NOT evaluate your own work — the Reviewer does that independently.
 
 ### python-pptx 허용 범위 (보조 유틸만)
 
-- `scripts/utils/pptx_text_utils.py` — 기존 shape 텍스트 교체
-- `scripts/utils/delete_extra_slides.py` — 슬라이드 삭제
-- `scripts/utils/reorder_slides.py` — 슬라이드 순서 변경
-- `scripts/utils/pptx_safe_edit.py` — 좌표 검증, 안전 저장
-- `scripts/utils/pptx_zip_cleaner.py` — ZIP/XML 레벨 수정
-- `scripts/utils/merge_presentations.py` — temp PPTX 병합
+- `modules/pptx/utils/pptx_text_utils.py` — 기존 shape 텍스트 교체
+- `modules/pptx/utils/delete_extra_slides.py` — 슬라이드 삭제
+- `modules/pptx/utils/reorder_slides.py` — 슬라이드 순서 변경
+- `modules/pptx/utils/pptx_safe_edit.py` — 좌표 검증, 안전 저장
+- `modules/pptx/utils/pptx_zip_cleaner.py` — ZIP/XML 레벨 수정
+- `modules/pptx/utils/merge_presentations.py` — temp PPTX 병합
 
 > 새로운 유틸리티 추가 시 이 목록과 `modules/pptx/SKILL.md` 매핑 표를 함께 업데이트한다.
 
@@ -71,7 +71,7 @@ shutil.copy('results/pptx/original.pptx', '/tmp/slide_N.pptx')
 # mcp__pptx__open_presentation('/tmp/slide_N.pptx') → 수정 → mcp__pptx__save_presentation('/tmp/slide_N.pptx')
 
 # merge step에서
-# scripts/utils/merge_presentations.py 사용
+# modules/pptx/utils/merge_presentations.py 사용
 ```
 
 ## Output Format

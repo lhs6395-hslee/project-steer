@@ -29,7 +29,7 @@
 9. **MCP 불가 도형(CHEVRON) 사용자에게 미보고** — CHEVRON을 MCP로 추가 불가능함을 사용자에게 알리지 않고 ROUNDED_RECTANGLE로 무단 대체. 사용자가 의사결정할 수 없었음. 앞으로 MCP 불가 항목은 반드시 먼저 말하고 대안을 제시해야 함.
 10. **토큰 트래커 허위 보고** — token_tracker.sh가 실제로 집계하지 않는데도 구조가 있다고 설명. 실제 비용 확인 방법(Claude.ai 사용 내역)을 안내하지 않음.
 11. **Reviewer python-pptx 검증 미실행** — reviewer SKILL.md에 "PPTX 모듈 작업이면 반드시 python-pptx로 결과 파일을 직접 열어 검증한다"고 명시됐는데 text-only 리뷰어 실행. 중제목 흰색, Chevron, 섹션 오배정, 색상 오류 등 시각적 문제 전부 통과시킴.
-12. **python-pptx.save()로 슬라이드 번호 충돌 유발 후 단순 복원으로 마무리** — 비순차 번호(slide1,2,41-45,6) PPTX에 prs.save() 실행 시 재번호 과정에서 Thank You 슬라이드가 덮어씌워짐. 단순 복원만 하고 재발 방지 로직을 구현하지 않아 사용자가 지적. 앞으로 prs.save() 금지, PptxSafeEditor(scripts/utils/pptx_safe_edit.py) 사용 필수.
+12. **python-pptx.save()로 슬라이드 번호 충돌 유발 후 단순 복원으로 마무리** — 비순차 번호(slide1,2,41-45,6) PPTX에 prs.save() 실행 시 재번호 과정에서 Thank You 슬라이드가 덮어씌워짐. 단순 복원만 하고 재발 방지 로직을 구현하지 않아 사용자가 지적. 앞으로 prs.save() 금지, PptxSafeEditor(modules/pptx/utils/pptx_safe_edit.py) 사용 필수.
 15. **check_text_corner_overlap() detect-only를 "동적 처리"라고 허위 보고** — 함수는 감지만 하고 실제 수정은 하드코딩된 delta로 적용. 탐지와 수정을 분리하지 않은 것 자체가 문제. 이후 `auto_position_card_content()`과 `min_safe_y_for_textbox()`를 pptx_safe_edit.py에 추가하여 실제 동적 수정 구현.
 16. **MSK Cluster (E6F0FF 배경) FFFFFF 텍스트로 생성** — WCAG 2.1 대비율 1.15:1(사실상 안 보임). 외부 자료(WCAG) 검토 없이 비교용 파일 색상 복사. FFFFFF → 1B3A5C(대비율 10.12:1)로 수정.
 17. **auto_fix_corner_overlap margin 과다(0.76cm)로 flow label 포함 전체 이동** — margin_emu=274320(0.76cm) 적용 → TextBox 17-26 잘못 이동. 올바른 값: margin_emu=91440(0.25cm). flow label(vibrant RR와 동일 위치)은 이동 제외해야 함. `auto_position_card_content()`에서 x-column 정렬 제외 로직으로 해결.

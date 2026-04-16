@@ -1,6 +1,6 @@
 # PPTX 레이아웃 전체 목록
 
-출처: `templates/pptx_style_guide.md`
+출처: `modules/pptx/templates/pptx_style_guide.md`
 총계: 고유 36종 (alias 2종 제외) | alias 포함 38종
 
 ## 현황

@@ -36,8 +36,8 @@ Executor output에서 다음 패턴 발견 시 → constraint_violation (critica
 - `build_*.py`, `add_layout_*.py`, `create_*.py` 등 새 콘텐츠 생성 Python 스크립트
 
 허용 패턴 (python-pptx 보조 유틸):
-- `scripts/utils/pptx_text_utils.py`, `pptx_safe_edit.py`, `pptx_zip_cleaner.py`
-- `scripts/utils/delete_extra_slides.py`, `reorder_slides.py`, `merge_presentations.py`
+- `modules/pptx/utils/pptx_text_utils.py`, `pptx_safe_edit.py`, `pptx_zip_cleaner.py`
+- `modules/pptx/utils/delete_extra_slides.py`, `reorder_slides.py`, `merge_presentations.py`
 
 ### Step 2: PPTX 직접 검증 (MANDATORY for pptx module)
 

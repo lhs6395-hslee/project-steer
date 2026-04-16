@@ -8,17 +8,17 @@
 
 ## 아키텍처
 
-- Primary: Claude Code (`claude --print` 서브에이전트)
+- Primary: Claude Code (v2: Agent tool native — `.claude/agents/` subagent definitions)
 - Sync: Kiro (`.kiro/steering/`, `.kiro/hooks/`, `invokeSubAgent`), Antigravity (`.gemini/`, `.agent/`)
 - 설정 흐름: Claude Code → Kiro/Antigravity (단방향)
 
 ## 에이전트 역할
 
-| 에이전트 | 스킬 | 역할 |
-|---------|------|------|
-| Planner | `skills/planner/SKILL.md` | 요구사항 분석, 실행 계획 생성 |
-| Executor | `skills/executor/SKILL.md` | 계획 실행, 산출물 생성 |
-| Reviewer | `skills/reviewer/SKILL.md` | 적대적 독립 검증 |
+| 에이전트 | 정의 파일 | 역할 |
+|---------|----------|------|
+| Planner | `.claude/agents/planner.md` | 요구사항 분석, 실행 계획 생성 |
+| Executor | `.claude/agents/executor.md` | 계획 실행, 산출물 생성 |
+| Reviewer | `.claude/agents/reviewer.md` | 적대적 독립 검증 |
 | Orchestrator | `skills/orchestrator/SKILL.md` | 파이프라인 제어, 재시도 루프 |
 
 ## 모듈 요구사항
@@ -26,16 +26,16 @@
 ### M1: PPTX (프레젠테이션)
 
 - MCP 도구로 새 콘텐츠 추가, python-pptx 유틸리티로 기존 shape 텍스트 교체
-- 템플릿 기반: `templates/pptx_template.pptx` (8개 레이아웃)
+- 템플릿 기반: `modules/pptx/templates/pptx_template.pptx` (8개 레이아웃)
 - 레이아웃 스펙: `modules/pptx/references/layout-spec.md`
-- 스타일 가이드: `templates/pptx_style_guide.md`
+- 스타일 가이드: `modules/pptx/templates/pptx_style_guide.md`
 - 타이틀 잘림 검증: 340pt 초과 시 `\n` 삽입
 - 표지 → 목차 → 본문(N-N. 제목) → Thank You 구조
 
 ### M2: DOCX (문서)
 
-- 스타일 가이드: `templates/docx_style_guide.md`
-- 템플릿: `templates/docx_template.docx`
+- 스타일 가이드: `modules/docx/templates/docx_style_guide.md`
+- 템플릿: `modules/docx/templates/docx_template.docx`
 - 표지(28pt Bold #1A1A2E) → History → 목차 → 본문 → 푸터(PAGE 9pt)
 - 테이블: 헤더 #1B3A5C navy + white, 짝수행 #F2F2F2
 - 문체: 현재형 `~한다` 통일
@@ -101,9 +101,9 @@
 ### 에이전트 실행 모델
 
 - 각 에이전트(Planner, Executor, Reviewer)는 독립 Agent_Session으로 실행 (컨텍스트 비공유)
-- Claude Code: `claude --print`로 별도 프로세스 호출
+- Claude Code: v2 Agent tool native (`.claude/agents/` subagent definitions) — `claude --print` v1 방식 사용 안 함
 - Kiro: `invokeSubAgent`로 별도 서브에이전트 호출
-- 에이전트 간 통신: Handoff_File (JSON) 기반, `results/` 하위에 저장
+- 에이전트 간 통신: Agent tool 구조화 출력 (v2) — Handoff_File 파일 교환은 v1 레거시
 - 모든 파일 쓰기에 Atomic_Write 패턴 적용
 
 ### Confidence_Trigger 적용
@@ -159,7 +159,7 @@ Reviewer가 생성하는 검증 결과 JSON:
 
 - 리뷰 실패 시 Reviewer의 issues + suggestions를 Executor에 전달
 - 최대 재시도: Confidence_Trigger 구간에 따라 3~5회
-- 최소 승인 점수: 0.7/1.0
+- 최소 승인 점수: 0.85/1.0
 - 동일 이슈 2회 연속 발생 시 사용자에게 에스컬레이션
 
 ### KAIROS 감시

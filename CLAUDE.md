@@ -60,7 +60,7 @@ bash scripts/agents/sync_pipeline.sh --from claude_code --to all
 |------|------|------|------|
 | `.claude/agents/planner.md` | Sprint_Contract JSON 생성 | 없음 (tools: []) | sonnet |
 | `.claude/agents/executor.md` | MCP 도구로 실행 | MCP + Read/Write/Bash | sonnet |
-| `.claude/agents/reviewer.md` | 적대적 검증 (information isolated) | 없음 (tools: []) | sonnet |
+| `.claude/agents/reviewer.md` | 적대적 검증 (information isolated) | Bash + Read (python-pptx 직접 검증) | sonnet |
 
 ## Confidence_Trigger 구간
 
@@ -99,14 +99,16 @@ bash scripts/agents/sync_pipeline.sh --from claude_code --to all
 | `schemas/verdict.schema.json` | Reviewer 출력 (R12) |
 | `schemas/handoff_file.schema.json` | 에이전트 간 통신 (R6) |
 
-## 에이전트 스킬
+## 에이전트 정의 (Single Source of Truth)
 
-| 에이전트 | 스킬 |
-|---------|------|
-| Planner | `skills/planner/SKILL.md` |
-| Executor | `skills/executor/SKILL.md` |
-| Reviewer | `skills/reviewer/SKILL.md` |
-| Orchestrator | `skills/orchestrator/SKILL.md` |
+`.claude/agents/` 가 에이전트 정의의 단일 출처다. `skills/` 는 orchestrator 참조용으로만 유지한다.
+
+| 에이전트 | 정의 파일 |
+|---------|----------|
+| Planner | `.claude/agents/planner.md` |
+| Executor | `.claude/agents/executor.md` |
+| Reviewer | `.claude/agents/reviewer.md` |
+| Orchestrator 참조 | `skills/orchestrator/SKILL.md` + `skills/orchestrator/references/` |
 
 ## 모듈 + MCP
 
@@ -119,6 +121,19 @@ bash scripts/agents/sync_pipeline.sh --from claude_code --to all
 | dooray | dooray | `uvx dooray-mcp` |
 | datadog | datadog | `npx @winor30/mcp-server-datadog` |
 | gdrive | google-workspace | `uvx workspace-mcp` |
+
+## 에이전트 행동 주의사항 (파이프라인 실수 방지)
+
+과거 세션에서 반복된 실수 패턴 — 이 항목을 위반하면 즉시 사용자에게 보고한다.
+
+1. **세션 시작 시 CLAUDE.md/모듈 SKILL.md 반드시 읽기** — 읽지 않고 작업 시작 금지
+2. **MCP 우선 원칙** — 새 콘텐츠(도형/텍스트박스/이미지) 추가는 MCP 도구만 사용. Python으로 직접 생성 금지 (예: `add_shape()`, `add_textbox()`, `add_picture()`, `prs.save()`)
+3. **orchestrate.sh = bash 초기화 전용** — Step 1(초기화)만 담당. Step 2(Planner→Executor→Reviewer)는 반드시 Agent tool로 실행
+4. **복원 전 버전 확인** — git restore/checkout 전 반드시 커밋 해시와 타임스탬프 확인 후 사용자 승인 받기
+5. **단계별 완료 보고** — Plan 완료, 각 Executor 완료, Reviewer 완료 시점에 사용자에게 명시적으로 보고
+6. **병렬→순차 전환 금지** — 병렬 실행이 합의된 상태에서 사용자 동의 없이 순차로 변경 금지
+7. **MCP 불가 항목 즉시 보고** — MCP로 구현 불가능한 항목 발견 시 즉시 중단하고 대안 제시 (무단 대체 금지)
+8. **python-pptx 허용 범위** — `modules/pptx/utils/` 내 지정된 유틸만 사용. 새 shape 생성 용도로 쓰면 위반
 
 ## Hooks (Claude Code)
 
