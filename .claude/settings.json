@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/sync-to-platforms.sh && echo 'Harness Pipeline active. Run: bash scripts/orchestrate.sh \"<task>\" <module>'"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/sync-to-platforms.sh && echo 'Harness Pipeline active. Use @planner, @executor, @reviewer subagents directly.'"
           }
         ]
       },
@@ -47,7 +47,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Check if the completed work followed the harness pipeline defined in CLAUDE.md and PROJECT.md. For module tasks (pptx/docx/wbs/trello/dooray/gdrive/datadog): Was Confidence_Trigger evaluated? Was Planner→Executor→Reviewer pipeline used? Was Reviewer independent from Executor? If any step was skipped for a module task, respond with {\"ok\": false, \"reason\": \"what was missed\"}. If all steps were followed or the task didn't require the pipeline, respond with {\"ok\": true}."
+            "prompt": "Check if the completed work followed the harness pipeline defined in CLAUDE.md. For module tasks (pptx/docx/wbs/trello/dooray/gdrive/datadog): Was @planner subagent used to generate Sprint_Contract? Were @executor subagents run in parallel per step? Were @reviewer subagents run independently per step? Was Reviewer independent from Executor (information isolation)? If any step was skipped for a module task, respond with {\"ok\": false, \"reason\": \"what was missed\"}. If all steps were followed or the task didn't require the pipeline, respond with {\"ok\": true}."
           }
         ]
       }

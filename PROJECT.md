@@ -82,7 +82,7 @@
 | datadog | datadog | `npx @winor30/mcp-server-datadog` |
 | gdrive | google-workspace | `uvx workspace-mcp` |
 
-토글: `bash scripts/mcp-toggle.sh <server> on|off`
+토글: executor subagent의 `mcpServers` inline 정의로 자동 연결/해제
 
 ## 크로스 플랫폼 요구사항
 
@@ -91,7 +91,7 @@
 - Claude Code에서 설정 변경 시 Hook(`sync-to-platforms.sh`)이 Kiro/Antigravity에 자동 동기화
 - Kiro에서는 메인이 Planner+Executor 직접 수행, `invokeSubAgent`로 Reviewer만 분리 (속도 최적화 + 확증편향 방지)
 - Antigravity에서는 `.gemini/GEMINI.md` Step 1/2/3 + `.agent/workflows/run-pipeline.md`로 3단계 별도 컨텍스트 실행
-- VS Code에서는 `bash scripts/orchestrate.sh` Task로 터미널 실행
+- VS Code에서는 Claude 세션이 Orchestrator — @planner/@executor/@reviewer 직접 호출
 - 역방향 동기화 금지 (Kiro/Antigravity → Claude Code)
 
 ## 하네스 파이프라인 요구사항
