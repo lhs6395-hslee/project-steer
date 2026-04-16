@@ -14,7 +14,7 @@
 - `[추측]` — 공식 문서 없음, 경험적 판단임을 명시
 
 예시:
-> `[공식]` code.claude.com/docs/en/agent-sdk/subagents.md — "Subagents cannot spawn their own subagents"
+> `[공식]` code.claude.com/docs/en/sub-agents.md — "Subagents cannot spawn other subagents"
 > `[추측]` 공식 문서 없음 — DAG 의존성 처리는 직접 구현이 필요할 것으로 판단
 
 - **금지**: 태그 없이 기술적 사실처럼 서술하는 것 ("~이다", "~해야 한다" 등 출처 불명)
@@ -31,113 +31,62 @@
 - `results/` 폴더에는 최종 산출물만 유지한다 (중간 버전 금지)
 - `.gitignore`에 `*_FIXED*.pptx`, `*_REVIEWED*.pptx`, `*_BACKUP*.pptx` 패턴 등록됨
 
-1. `PROJECT.md`를 읽고 Confidence_Trigger 점수를 산출한다
-2. 점수에 따라 파이프라인 모드를 결정한다 (단일/멀티/UltraPlan)
-3. 멀티 에이전트 모드: Planner → Executor → Reviewer 순서로 별도 프로세스 실행
-4. Reviewer는 Executor의 reasoning을 절대 볼 수 없다
-5. 리뷰 실패 시 피드백과 함께 재시도 (Confidence_Trigger 구간에 따라 3~5회)
-6. 작업 전 필요한 MCP만 켜고, 완료 후 끈다
-7. 모든 파일 쓰기에 Atomic_Write 패턴 적용
+## 파이프라인 실행 (v3: Subagents Native)
 
-## 파이프라인 실행 (v2: Agent Tool Native + Background)
+`[공식]` code.claude.com/docs/en/sub-agents.md — "Run parallel research: spawn multiple subagents to work simultaneously"
+`[공식]` code.claude.com/docs/en/sub-agents.md — "mcpServers inline definitions: connected when the subagent starts and disconnected when it finishes"
 
-아키텍처 전환 (공식 문서 근거):
-- v1: `claude --print` Bash subprocess + `extract_result.py` (포그라운드 블로킹)
-- v2: Claude Code native Agent tool + `run_in_background=True` (비블로킹)
-- 근거: `code.claude.com/docs/en/agent-sdk/subagents.md`, `structured-outputs.md`
+### Orchestrator 역할 (이 Claude 세션)
 
-### 실행 방법 (백그라운드 — 대화 즉시 가능)
+모듈 작업 요청이 오면 **반드시** 아래 순서로 subagents를 직접 실행한다:
 
-모듈 작업 요청이 오면 **반드시** Agent tool로 백그라운드 실행한다:
-
-```python
-Agent(
-    description="파이프라인: <task 요약>",
-    prompt="bash scripts/orchestrate.sh '<task>' <module>",
-    run_in_background=True  # ← 세션 즉시 대화 가능 상태 유지
-)
+```
+1. @planner → Sprint_Contract JSON 생성 (순차 1회)
+2. Sprint_Contract의 dependency level 분석
+3. level 0 steps → executor subagents 동시 spawn
+4. level 0 완료 후 → level 1 steps → executor subagents 동시 spawn
+5. 전체 executor 완료 → reviewer subagents 동시 spawn
+6. 실패 step만 재시도 (approved step 스킵, max 5회)
+7. 완료 보고
 ```
 
-- `run_in_background=True`: Agent가 완료되면 자동으로 세션에 알람이 옴
-- 실행 중에도 사용자와 대화 가능
-- 완료 알람 수신 시 결과를 요약해서 사용자에게 보고
+### Subagent 호출 방식
 
-```bash
-# MCP 토글
-bash scripts/mcp-toggle.sh status
-bash scripts/mcp-toggle.sh <server> on|off
+`[공식]` code.claude.com/docs/en/sub-agents.md — "@-mention guarantees the subagent runs"
 
-# Sync (Claude Code → Kiro/Antigravity)
-bash scripts/agents/sync_pipeline.sh --from claude_code --to all
 ```
+# Planner (순차)
+@planner "Task: ..., Module: ..., 스키마: schemas/sprint_contract.schema.json"
+
+# Executor (병렬 — 동시에 여러 개)
+@executor "STEP 2: Slide 3 (L02) 생성 — /tmp/slide_3.pptx, acceptance_criteria: [...], constraints: [...]"
+@executor "STEP 3: Slide 5 (L03) 생성 — /tmp/slide_5.pptx, acceptance_criteria: [...], constraints: [...]"
+
+# Reviewer (병렬 — 동시에 여러 개)
+@reviewer "STEP 2 검증: action=..., acceptance_criteria=..., step_output=<파일 경로>"
+@reviewer "STEP 3 검증: action=..., acceptance_criteria=..., step_output=<파일 경로>"
+```
+
+- Executor/Reviewer는 각자의 step 정보만 받는다 (전체 Sprint_Contract 전달 금지)
+- Reviewer는 Executor의 reasoning을 볼 수 없다 (information isolation)
+- MCP는 각 executor subagent의 mcpServers에서 자동 연결/해제
 
 ### Subagent 정의 파일 (.claude/agents/)
 
-| 파일 | 역할 | 도구 | 모델 |
-|------|------|------|------|
-| `.claude/agents/planner.md` | Sprint_Contract JSON 생성 | 없음 (tools: []) | sonnet |
-| `.claude/agents/executor.md` | MCP 도구로 실행 | MCP + Read/Write/Bash | sonnet |
-| `.claude/agents/reviewer.md` | 적대적 검증 (information isolated) | Bash + Read (python-pptx 직접 검증) | sonnet |
-
-## Confidence_Trigger 구간
-
-| 점수 | 모드 | 재시도 | UltraPlan |
-|------|------|--------|-----------|
-| ≥0.85 | 단일 에이전트 | N/A | 비활성 |
-| 0.70-0.84 | 멀티 (축소) | 3회 | 비활성 |
-| 0.50-0.69 | 멀티 (전체) | 5회 | 비활성 |
-| <0.50 | 멀티 + UltraPlan | 5회 | 활성 |
-
-## 에이전트 스크립트
-
-| 스크립트 | 역할 | 요구사항 |
-|---------|------|---------|
-| `scripts/orchestrate.sh` | 파이프라인 오케스트레이터 | R1 |
-| `scripts/agents/call_agent.sh` | 서브에이전트 호출 (claude/gemini 자동 감지) | R7, R10 |
-| `scripts/agents/confidence_trigger.sh` | 4차원 위험도 평가 | R13 |
-| `scripts/agents/guardian.sh` | Pattern_Matcher 위험 명령 차단 | R5 |
-| `scripts/agents/ide_adapter.sh` | 런타임 IDE 감지 + 경로 매핑 | R15 |
-| `scripts/agents/kairos.sh` | 경량 사전 감시 (lint-level) | R19 |
-| `scripts/agents/auto_dream.sh` | 메모리 파일 자동 정리 | R18 |
-| `scripts/agents/ultraplan.sh` | 계층적 태스크 분해 | R20 |
-| `scripts/agents/token_tracker.sh` | 비용/토큰 관리 | R14 |
-| `scripts/agents/harness_subtraction.sh` | 하네스 최적화 분석 | R23 |
-| `scripts/agents/agent_team.sh` | 멀티 모듈 팀 협업 | R22 |
-| `scripts/agents/git_worktree.sh` | 병렬 실행 worktree 관리 | R17 |
-| `scripts/agents/sdd_integrator.sh` | Spec-Driven Development 통합 | R21 |
-| `scripts/agents/sync_pipeline.sh` | IDE 간 설정 동기화 | R16 |
-| `scripts/mcp-toggle.sh` | MCP 서버 on/off 토글 | — |
+| 파일 | 역할 | MCP | 모델 |
+|------|------|-----|------|
+| `planner.md` | Sprint_Contract JSON 생성 | 없음 | sonnet |
+| `executor.md` | pptx 실행 | pptx (inline) | sonnet |
+| `executor-docx.md` | docx 실행 | docx (inline) | sonnet |
+| `executor-dooray.md` | dooray 실행 | dooray (inline) | sonnet |
+| `reviewer.md` | 적대적 검증 | Bash + Read | sonnet |
 
 ## 스키마
 
 | 파일 | 용도 |
 |------|------|
-| `schemas/sprint_contract.schema.json` | Planner 출력 (R11) |
-| `schemas/verdict.schema.json` | Reviewer 출력 (R12) |
-| `schemas/handoff_file.schema.json` | 에이전트 간 통신 (R6) |
-
-## 에이전트 정의 (Single Source of Truth)
-
-`.claude/agents/` 가 에이전트 정의의 단일 출처다. `skills/` 는 orchestrator 참조용으로만 유지한다.
-
-| 에이전트 | 정의 파일 |
-|---------|----------|
-| Planner | `.claude/agents/planner.md` |
-| Executor | `.claude/agents/executor.md` |
-| Reviewer | `.claude/agents/reviewer.md` |
-| Orchestrator 참조 | `skills/orchestrator/SKILL.md` + `skills/orchestrator/references/` |
-
-## 모듈 + MCP
-
-| 모듈 | MCP 서버 | 패키지 |
-|------|---------|--------|
-| pptx | pptx | `uvx --from office-powerpoint-mcp-server ppt_mcp_server` |
-| docx | docx | `uvx --from office-word-mcp-server word_mcp_server` |
-| trello | trello | `npx mcp-server-trello` |
-| wbs | — | Excel 직접 조작 |
-| dooray | dooray | `uvx dooray-mcp` |
-| datadog | datadog | `npx @winor30/mcp-server-datadog` |
-| gdrive | google-workspace | `uvx workspace-mcp` |
+| `schemas/sprint_contract.schema.json` | Planner 출력 |
+| `schemas/verdict.schema.json` | Reviewer 출력 |
 
 ## 에이전트 행동 주의사항 (파이프라인 실수 방지)
 
@@ -145,9 +94,9 @@ bash scripts/agents/sync_pipeline.sh --from claude_code --to all
 
 1. **세션 시작 시 CLAUDE.md/모듈 SKILL.md 반드시 읽기** — 읽지 않고 작업 시작 금지
 2. **MCP 우선 원칙** — 새 콘텐츠(도형/텍스트박스/이미지) 추가는 MCP 도구만 사용. Python으로 직접 생성 금지 (예: `add_shape()`, `add_textbox()`, `add_picture()`, `prs.save()`)
-3. **orchestrate.sh = bash 초기화 전용** — Step 1(초기화)만 담당. Step 2(Planner→Executor→Reviewer)는 반드시 Agent tool로 실행
+3. **Executor/Reviewer는 step 정보만 수신** — 전체 Sprint_Contract 전달 금지 (context 낭비 + isolation 위반)
 4. **복원 전 버전 확인** — git restore/checkout 전 반드시 커밋 해시와 타임스탬프 확인 후 사용자 승인 받기
-5. **단계별 완료 보고** — Plan 완료, 각 Executor 완료, Reviewer 완료 시점에 사용자에게 명시적으로 보고
+5. **단계별 완료 보고** — Planner 완료, 각 Executor 완료, Reviewer 완료 시점에 사용자에게 명시적으로 보고
 6. **병렬→순차 전환 금지** — 병렬 실행이 합의된 상태에서 사용자 동의 없이 순차로 변경 금지
 7. **MCP 불가 항목 즉시 보고** — MCP로 구현 불가능한 항목 발견 시 즉시 중단하고 대안 제시 (무단 대체 금지)
 8. **python-pptx 허용 범위** — `modules/pptx/utils/` 내 지정된 유틸만 사용. 새 shape 생성 용도로 쓰면 위반
@@ -155,23 +104,19 @@ bash scripts/agents/sync_pipeline.sh --from claude_code --to all
 ## Hooks (Claude Code)
 
 `.claude/settings.json`에 정의:
-- `SessionStart`: 파이프라인 리마인더 + sync-to-platforms.sh 실행
-- `PreToolUse(Bash)`: guardian.sh로 위험 명령 차단
-- `PostToolUse(Edit|Write)`: 설정 변경 시 sync + KAIROS lint
+- `SessionStart`: 파이프라인 리마인더
+- `PreToolUse(Bash)`: `scripts/agents/guardian.sh`로 위험 명령 차단
+- `PostToolUse(Edit|Write)`: `scripts/agents/kairos.sh` lint
 - `Stop`: 파이프라인 준수 여부 prompt 검증
 
 ## 크로스 플랫폼
 
 설정 흐름: Claude Code → Kiro/Antigravity (단방향, 역방향 금지)
-Sync는 코드 동기화가 아니라 **파이프라인 동작 방식의 동기화**이다.
-각 IDE에서 Planner→Executor→Reviewer 역할 분리가 동일하게 동작해야 한다.
 
-| 플랫폼 | 설정 | 진입점 | 역할 분리 |
-|--------|------|--------|----------|
-| Claude Code (Primary) | `CLAUDE.md` + `.mcp.json` + `.claude/agents/*.md` | `bash scripts/orchestrate.sh` → Agent tool | `.claude/agents/` subagent definitions |
-| Kiro (Sync) | `AGENTS.md` + `.kiro/steering/` + `.kiro/settings/mcp.json` | `invokeSubAgent` + Hook | 메인=Planner+Executor, 서브=Reviewer만 분리 |
-| Antigravity (Sync) | `AGENTS.md` + `.gemini/GEMINI.md` + `.agent/` | Workflow: `/run-pipeline` | 3단계 별도 컨텍스트 (Step 1/2/3) |
-| VS Code (Sync) | `AGENTS.md` + `.vscode/tasks.json` + `.mcp.json` | Task: "Harness: Run Pipeline" | `bash scripts/orchestrate.sh` (터미널) |
+수동 동기화: `bash scripts/agents/sync_pipeline.sh --from claude_code --to all`
 
-동기화: SessionStart Hook → `sync-to-platforms.sh` 자동 실행
-수동: `bash scripts/agents/sync_pipeline.sh --from claude_code --to all`
+| 플랫폼 | 설정 | 진입점 |
+|--------|------|--------|
+| Claude Code (Primary) | `CLAUDE.md` + `.claude/agents/*.md` | Orchestrator = 이 세션 |
+| Kiro (Sync) | `AGENTS.md` + `.kiro/steering/` | `invokeSubAgent` |
+| Antigravity (Sync) | `AGENTS.md` + `.gemini/GEMINI.md` | Workflow: `/run-pipeline` |

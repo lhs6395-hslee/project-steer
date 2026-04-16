@@ -2,11 +2,16 @@
 name: executor
 description: >
   Executes Sprint_Contract plans using MCP tools and produces concrete outputs.
-  Has access to all MCP servers and file system tools.
+  Use for pptx module tasks — has pptx MCP server access.
 model: sonnet
 permissionMode: bypassPermissions
 effort: high
 maxTurns: 20
+mcpServers:
+  - pptx:
+      type: stdio
+      command: /Users/toule/.local/bin/uvx
+      args: ["--from", "office-powerpoint-mcp-server", "ppt_mcp_server"]
 ---
 
 # Executor Agent
