@@ -125,3 +125,14 @@ Reviewer는 가장 먼저 제약 조건 준수를 검증한다:
 - 목차 6개 이상 시 자동 페이징 (5개씩, spTree 복제 방식)
 - Reviewer는 text_overflow, format_preservation, constraint_compliance 체크리스트 항목을 반드시 검증
 - **중제목(subtitle) 규칙**: 텍스트 박스 크기 변경 금지, 최대 2줄, 단어 중간 줄바꿈 금지, 초과 시 요약
+
+## v3 업데이트 (2026-04-17)
+
+Claude Code는 v3 Subagents Native로 전환됨 (`@planner`/`@executor`/`@reviewer` @-mention 방식).
+Kiro는 `invokeSubAgent` 한계로 위의 실행 모델 유지.
+
+**공통 불변 규칙 (플랫폼 무관):**
+- Executor/Reviewer는 각자의 step 정보만 수신 — 전체 Sprint_Contract 전달 금지
+- 병렬→순차 전환 금지 (사용자 동의 없이)
+- 본문 슬라이드는 템플릿 pptx_template.pptx 10페이지(idx 9) 복사 후 내용 교체 — 독립 생성 금지
+- Executor 완료 후 반드시 `pptx_integrity_check.py --fix` 실행

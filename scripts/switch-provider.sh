@@ -17,7 +17,10 @@ bedrock_env() {
   cat <<'JSON'
 {
   "CLAUDE_CODE_USE_BEDROCK": "1",
+  "CLAUDE_CODE_USE_VERTEX": "0",
   "AWS_REGION": "us-east-1",
+  "CLOUD_ML_REGION": "global",
+  "ANTHROPIC_VERTEX_PROJECT_ID": "architect-hslee-3572",
   "ANTHROPIC_DEFAULT_OPUS_MODEL": "us.anthropic.claude-opus-4-6-v1",
   "ANTHROPIC_DEFAULT_SONNET_MODEL": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
   "ANTHROPIC_DEFAULT_HAIKU_MODEL": "us.anthropic.claude-haiku-4-5-20251001-v1:0"
@@ -30,7 +33,9 @@ vertex_env() {
   # Vertex는 "claude-*" 형식 사용 (Bedrock의 "us.anthropic.*"와 다름)
   cat <<'JSON'
 {
+  "CLAUDE_CODE_USE_BEDROCK": "0",
   "CLAUDE_CODE_USE_VERTEX": "1",
+  "AWS_REGION": "us-east-1",
   "CLOUD_ML_REGION": "global",
   "ANTHROPIC_VERTEX_PROJECT_ID": "architect-hslee-3572",
   "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-6",
