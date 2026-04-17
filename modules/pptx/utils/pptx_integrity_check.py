@@ -5,10 +5,11 @@ PPTX Integrity Checker & Auto-Fixer
 PowerPoint "found a problem" 오류를 사전에 감지하고 자동 복구.
 
 검사 항목:
-  1. media 누락  — rels에서 참조되지만 zip에 파일 없음 → 템플릿에서 복원 시도
-  2. media orphan — zip에 있지만 어떤 rels에서도 참조 안 됨 → 삭제
+  1. media 누락      — rels에서 참조되지만 zip에 파일 없음 → 템플릿에서 복원 시도
+  2. media orphan    — zip에 있지만 어떤 rels에서도 참조 안 됨 → 삭제
   3. Content_Types ghost — CT에 등록됐지만 zip에 파일 없음 → CT에서 제거
   4. 슬라이드 rels orphan image — slide*.xml.rels에 이미지 rel 있지만 slide XML에서 blip 없음 → 삭제
+  5. spTree 자식 순서 — nvGrpSpPr가 grpSpPr보다 뒤에 오면 PowerPoint Repair 오류 발생 → 순서 교정
 
 사용법:
     python pptx_integrity_check.py <file.pptx> [--template <template.pptx>] [--fix] [--verbose]
@@ -24,6 +25,7 @@ import re
 import sys
 import argparse
 from pathlib import Path
+from lxml import etree
 
 
 def _read_zip(path: str) -> dict[str, bytes]:
@@ -209,6 +211,56 @@ def check_and_fix_pptx(
                     issue["fixed"] = "rels에서 제거"
                     if verbose:
                         print(f"     → ✅ rels에서 제거")
+
+    # ── 5. spTree 자식 순서 검사 (nvGrpSpPr → grpSpPr 순서여야 함) ──────────
+    # OOXML 스펙 CT-4.3.1.36: spTree 시퀀스는 nvGrpSpPr, grpSpPr, (sp|grpSp|...) 순
+    # 역순이면 PowerPoint가 "found a problem" Repair 오류 발생
+    NS_P = "http://schemas.openxmlformats.org/presentationml/2006/main"
+    slide_xml_files = sorted(
+        n for n in data if re.match(r"ppt/slides/slide\d+\.xml$", n)
+    )
+    for sf in slide_xml_files:
+        try:
+            root = etree.fromstring(data[sf])
+        except etree.XMLSyntaxError:
+            continue
+
+        spTree = root.find(f".//{{{NS_P}}}spTree")
+        if spTree is None:
+            continue
+
+        children = list(spTree)
+        tags = [c.tag.split("}")[-1] for c in children]
+
+        if "grpSpPr" not in tags or "nvGrpSpPr" not in tags:
+            continue
+
+        grp_idx = tags.index("grpSpPr")
+        nvgrp_idx = tags.index("nvGrpSpPr")
+
+        if grp_idx < nvgrp_idx:  # 잘못된 순서
+            issue = {
+                "type": "sptree_order",
+                "path": sf,
+                "detail": f"grpSpPr[{grp_idx}] < nvGrpSpPr[{nvgrp_idx}] — OOXML 스펙 위반",
+            }
+            issues.append(issue)
+            if verbose:
+                print(f"  ❌ [spTree 순서] {sf}: grpSpPr({grp_idx}) < nvGrpSpPr({nvgrp_idx})")
+
+            if fix:
+                grpSpPr_el = children[grp_idx]
+                nvGrpSpPr_el = children[nvgrp_idx]
+                spTree.remove(grpSpPr_el)
+                spTree.remove(nvGrpSpPr_el)
+                spTree.insert(0, grpSpPr_el)   # grpSpPr → index 1
+                spTree.insert(0, nvGrpSpPr_el)  # nvGrpSpPr → index 0
+                data[sf] = etree.tostring(
+                    root, xml_declaration=True, encoding="UTF-8", standalone=True
+                )
+                issue["fixed"] = "nvGrpSpPr → grpSpPr 순서로 교정"
+                if verbose:
+                    print(f"     → ✅ spTree 순서 교정 완료")
 
     # ── 결과 저장 ───────────────────────────────────────────────────────────
     if fix and issues:
