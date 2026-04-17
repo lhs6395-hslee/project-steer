@@ -63,43 +63,45 @@ for shape in slide.shapes:
 4. **텍스트 오버플로우** — `(줄수 × 줄높이) ≤ shape.height`
 5. **보더/fill** — vibrant→line noFill, light→DCDCDC
 
-### Step 2.5: 시각적 검증 (PowerPoint 스크린샷)
+### Step 2.5: 시각적 검증 (슬라이드 PNG 렌더링)
 
-python-pptx XML 분석으로 잡을 수 없는 렌더링 문제를 스크린샷으로 확인한다.
+python-pptx XML 분석으로 잡을 수 없는 렌더링 문제를 이미지로 확인한다.
+
+**macOS 전용** — `modules/pptx/utils/pptx_to_pdf.py` + `pdftoppm`(poppler) 사용.
 
 **실행 조건:** target_slide_index가 지정된 pptx 모듈 step에서 반드시 실행.
 
-**절차 (파일은 사용자가 미리 열어둔 상태):**
+**절차:**
 
 ```bash
-# 1. 현재 열려있는 PowerPoint에서 슬라이드 이동
-osascript -e 'tell application "Microsoft PowerPoint" to set slide index of active window to N'
+# 슬라이드 번호는 1-based (target_slide_index + 1)
+SLIDE_NUM=$((target_slide_index + 1))
+OUTPUT_DIR="/tmp/slide_review_${SLIDE_NUM}"
 
-# 2. PowerPoint 창 ID 확인
-WINDOW_ID=$(osascript -e 'tell application "System Events" to get id of window 1 of application process "Microsoft PowerPoint"')
-
-# 3. 창 ID로 스크린샷 캡처
-screencapture -l $WINDOW_ID /tmp/slide_review_N.png
-
-# 창 ID 실패 시 대안: 전체 화면 캡처
-# screencapture /tmp/slide_review_N.png
+python modules/pptx/utils/pptx_to_pdf.py results/pptx/AWS_MSK_Expert_Intro.pptx \
+  --output-dir $OUTPUT_DIR \
+  --slides $SLIDE_NUM \
+  --dpi 150
 ```
 
 **Read 도구로 이미지 시각 확인 (MANDATORY):**
 
-캡처 후 반드시 Read 도구로 이미지를 열어 육안 검증:
-- Read("/tmp/slide_review_N.png")
+```python
+Read(f"/tmp/slide_review_{SLIDE_NUM}/slide-{SLIDE_NUM:02d}.png")
+```
 
 **시각적 확인 항목:**
-1. **Placeholder 힌트 텍스트 없음** — "Click to add title", "Click to add text" 등 회색 안내 텍스트 표시 금지
+1. **Placeholder 힌트 텍스트 없음** — "Click to add title", "Click to add text" 등 안내 텍스트 미표시
 2. **텍스트 오버랩 없음** — 두 텍스트 요소가 겹쳐 보이지 않아야 함
-3. **중제목 위치 정상** — 중제목이 슬라이드 상단 타이틀 영역이 아닌 지정 위치에 표시
+3. **중제목 위치 정상** — 중제목이 지정 위치(t=0.61")에 표시
 4. **레이아웃 일치** — 전체 시각적 레이아웃이 설계 스펙과 일치
+
+**주의:** 배경색/도형 색상은 렌더링 안 됨 (텍스트 위치/오버랩 검증 목적으로만 사용)
 
 **결과를 output JSON에 추가:**
 ```json
 "visual_verification": {
-  "screenshot_path": "/tmp/slide_review_N.png",
+  "screenshot_path": "/tmp/slide_review_N/slide-NN.png",
   "placeholder_hints_visible": false,
   "text_overlap_detected": false,
   "layout_matches_spec": true,

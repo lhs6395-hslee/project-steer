@@ -7,109 +7,74 @@
 
 ## Role
 
-You are part of a multi-agent adversarial review pipeline implementing 23 requirements from ai-agent-engineering-spec-2026.
+You are part of a multi-agent adversarial review pipeline (v3: Subagents Native).
 
 ## Critical Rules
 
 1. **Harness Mandatory**: ALL module tasks (pptx, docx, wbs, trello, dooray, gdrive, datadog) MUST go through the harness pipeline. Single-agent direct execution is FORBIDDEN.
-2. **Read PROJECT.md first**: Evaluate Confidence_Trigger score before choosing pipeline mode.
-3. **Role Isolation**: Each agent (Planner, Executor, Reviewer) operates independently
-4. **Information Barrier**: The Reviewer MUST NOT see Executor's reasoning — only plan + output
-5. **No Self-Review**: The agent that produces output NEVER evaluates its own work
-6. **Retry with Feedback**: On review failure, Executor receives specific issues and must address ALL of them
-7. **Max 3-5 Retries**: Confidence_Trigger 구간에 따라 3~5회. 초과 시 escalate to human review
-8. **Atomic_Write**: All file writes use atomic pattern (tmp + mv)
+2. **Role Isolation**: Each agent (Planner, Executor, Reviewer) operates independently — Executor/Reviewer receives only its own step info, never the full Sprint_Contract
+3. **Information Barrier**: The Reviewer MUST NOT see Executor's reasoning — only plan + output
+4. **No Self-Review**: The agent that produces output NEVER evaluates its own work
+5. **Parallel Execution**: Executors and Reviewers spawn in parallel per dependency level — sequential switch without user approval is FORBIDDEN
+6. **MCP First**: New content (shapes/textboxes/images) must use MCP tools only — no direct python-pptx creation
+7. **Retry with Feedback**: On review failure, Executor receives specific issues. Max 5 retries, approved steps skipped.
 
-## Pipeline Flow
+## Pipeline Flow (v3: Subagents Native)
 
 ```
-1. Confidence_Trigger: Evaluate task risk/complexity → determine mode
-2. Guardian: Pre-execution safety check (Pattern_Matcher, no API call)
-3. Planner: Analyze → Generate Sprint_Contract (schemas/sprint_contract.schema.json)
-4. Executor: Follow plan → Produce outputs
-5. Reviewer: Adversarial check → Verdict (schemas/verdict.schema.json)
-6. If APPROVED (score >= 0.7): Return result
-7. If NEEDS_REVISION: Feed issues back to Executor, retry
-8. Token tracking + MCP off
+1. @planner → Sprint_Contract JSON (sequential, once)
+2. Analyze dependency levels in Sprint_Contract
+3. level 0 steps → spawn executor subagents in parallel
+4. level 1+ steps → spawn after previous level completes
+5. All executors done → spawn reviewer subagents in parallel
+6. Failed steps retry (max 5). Approved steps skip.
+7. Report token usage table per stage.
 ```
 
-## Confidence_Trigger
+## Subagent Definitions (.claude/agents/)
 
-| Score | Mode | Max Retries | UltraPlan |
-|-------|------|-------------|-----------|
-| ≥0.85 | Single agent | N/A | Off |
-| 0.70-0.84 | Multi (reduced) | 3 | Off |
-| 0.50-0.69 | Multi (full) | 5 | Off |
-| <0.50 | Multi + UltraPlan | 5 | On |
+| File | Role | MCP | Model |
+|------|------|-----|-------|
+| `planner.md` | Sprint_Contract JSON | none | sonnet |
+| `executor.md` | pptx execution | pptx (inline) | sonnet |
+| `executor-docx.md` | docx execution | docx (inline) | sonnet |
+| `executor-dooray.md` | dooray execution | dooray (inline) | sonnet |
+| `reviewer.md` | adversarial review | Bash + Read | sonnet |
 
-## Execution
+## recon step 자동 분기
 
-Primary platform: Claude Code (`claude --print` sub-agents)
-
-```bash
-bash scripts/orchestrate.sh "<task>" <module>
-bash scripts/orchestrate.sh "<task>" "mod1,mod2"  # Agent_Team
-bash scripts/mcp-toggle.sh <server> on|off
-bash scripts/agents/sync_pipeline.sh --from claude_code --to all
-```
-
-## Agent Scripts (23 Requirements)
-
-| Script | Role | Req |
-|--------|------|-----|
-| orchestrate.sh | Pipeline orchestrator | R1 |
-| call_agent.sh | Sub-agent caller (claude/gemini) | R7,R10 |
-| confidence_trigger.sh | Risk/complexity scoring | R13 |
-| guardian.sh | Dangerous command blocker | R5 |
-| ide_adapter.sh | Runtime IDE detection | R15 |
-| kairos.sh | Lightweight lint monitor | R19 |
-| auto_dream.sh | Memory cleanup | R18 |
-| ultraplan.sh | Hierarchical task decomposition | R20 |
-| token_tracker.sh | Cost/token management | R14 |
-| harness_subtraction.sh | Optimization analysis | R23 |
-| agent_team.sh | Multi-module coordination | R22 |
-| git_worktree.sh | Parallel execution | R17 |
-| sdd_integrator.sh | Spec-driven development | R21 |
-| sync_pipeline.sh | Cross-IDE sync | R16 |
+| 조건 | 모드 |
+|------|------|
+| `contract.mode == "create"` 또는 생성/new 키워드 | Create — recon 건너뜀 |
+| 수정/fix/update 키워드 또는 steps에 recon 존재 | Modify — recon 정상 실행 |
 
 ## Cross-Platform
 
 Configuration flow is one-way: Claude Code → Kiro/Antigravity (never reverse).
-Sync는 코드 동기화가 아니라 **파이프라인 동작 방식의 동기화**이다.
-각 IDE에서 Planner→Executor→Reviewer 역할 분리가 동일하게 동작해야 한다.
 
-| Platform | Config Files | Pipeline Entry | 역할 분리 방법 |
-|----------|-------------|----------------|--------------|
-| Claude Code (Primary) | `CLAUDE.md`, `.mcp.json`, `.claude/settings.json` | `bash scripts/orchestrate.sh` | `claude --print` 서브프로세스 |
-| Kiro (Sync) | `.kiro/steering/`, `.kiro/hooks/`, `.kiro/settings/mcp.json` | `invokeSubAgent` + Hook | 메인=Planner+Executor, 서브=Reviewer만 분리 |
-| Antigravity (Sync) | `.gemini/GEMINI.md`, `.agent/rules/`, `.agent/workflows/` | Workflow: `/run-pipeline` | 3단계 별도 컨텍스트 (GEMINI.md Step 1/2/3) |
-| VS Code (Sync) | `.vscode/tasks.json`, `.vscode/settings.json`, `.mcp.json` | Task: "Harness: Run Pipeline" | `bash scripts/orchestrate.sh` (터미널) |
+| Platform | Config | Entry |
+|----------|--------|-------|
+| Claude Code (Primary) | `CLAUDE.md` + `.claude/agents/*.md` | Orchestrator = this session |
+| Kiro (Sync) | `AGENTS.md` + `.kiro/steering/` | `invokeSubAgent` |
+| Antigravity (Sync) | `AGENTS.md` + `.gemini/GEMINI.md` | Workflow: `/run-pipeline` |
 
 Sync: `bash scripts/agents/sync_pipeline.sh --from claude_code --to all`
 
-## Executor v2.0: Constraint-Aware Execution
+## Executor: Constraint-Aware Execution
 
-Executor는 실행 전 모든 제약 조건을 확인하고, 출력에 `constraint_compliance` 필드를 포함한다.
-재시도 시 `retry_fixes` 필드로 이전 이슈별 수정 내역을 추적한다.
+실행 전 모든 제약 조건 확인. 출력에 `constraint_compliance` 필드 포함 필수.
+재시도 시 `retry_fixes` 필드로 이전 이슈별 수정 내역 추적.
 **제약 우선순위**: Module SKILL > Sprint Contract constraints > acceptance criteria > 자체 판단
 
-## Reviewer v2.0: Constraint Verification
+## Reviewer: Constraint Verification
 
-Reviewer는 가장 먼저 `constraint_compliance` 필드를 독립 검증한다 (없으면 FAIL).
-재시도 시 `retry_fixes` 필드를 확인하여 이전 피드백 반영 여부를 검증한다 (없으면 FAIL).
-제약 위반 시 score 0.3 상한. 출력에 `constraint_violations`, `retry_fix_assessment` 포함.
+`constraint_compliance` 필드 독립 검증 우선 (없으면 FAIL).
+재시도 시 `retry_fixes` 반영 여부 확인 (없으면 FAIL).
+제약 위반 시 score 0.3 상한.
 
-## PPTX Module: Subtitle Rules
+## PPTX Rules
 
-- 중제목 텍스트 박스 크기(width/height) 변경 금지
-- 최대 2줄 허용 (3줄 이상 금지)
-- 단어 중간 줄바꿈 금지 — 잘리는 단어 바로 앞에서 줄바꿈
-- 3줄 초과 시 텍스트 요약하여 2줄로 축소
-
-## Constraints
-
-- Do NOT merge Executor and Reviewer into a single agent
-- Do NOT pass Executor's internal reasoning to the Reviewer
-- Do NOT skip the review step, even for "simple" tasks
-- Do NOT write files without Atomic_Write pattern
-- Do NOT violate Module SKILL design rules (e.g., textbox size immutable)
+- 중제목 텍스트 박스 크기(width/height) 변경 금지, 최대 2줄, 단어 중간 줄바꿈 금지
+- 본문 슬라이드는 템플릿 pptx_template.pptx 10페이지(idx 9) 복사 후 내용 교체 — 독립 생성 금지
+- Executor 완료 후 반드시 `pptx_integrity_check.py --fix` 실행
+- rels/media/CT 3중 일관성 유지, 템플릿 이미지(image1~9) 삭제 금지
