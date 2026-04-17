@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────
-# switch-provider.sh — Bedrock / Vertex AI 전환
+# switch-provider.sh — Bedrock / Vertex AI / Direct 전환
 #
 # Usage:
 #   bash scripts/switch-provider.sh bedrock   # AWS Bedrock으로 전환
 #   bash scripts/switch-provider.sh vertex    # Vertex AI로 전환
+#   bash scripts/switch-provider.sh direct    # Claude 직접 로그인으로 전환
 #   bash scripts/switch-provider.sh status    # 현재 상태 확인
 # ──────────────────────────────────────────────────────────
 set -euo pipefail
@@ -45,8 +46,27 @@ vertex_env() {
 JSON
 }
 
+direct_env() {
+  # Claude 직접 로그인 — Anthropic API (claude.ai 구독 or ANTHROPIC_API_KEY)
+  # 공식 문서: code.claude.com/docs/en/claude-code/settings#model-configuration
+  # BEDROCK/VERTEX 모두 0, 모델 ID는 Vertex와 동일한 "claude-*" 형식
+  cat <<'JSON'
+{
+  "CLAUDE_CODE_USE_BEDROCK": "0",
+  "CLAUDE_CODE_USE_VERTEX": "0",
+  "AWS_REGION": "us-east-1",
+  "CLOUD_ML_REGION": "global",
+  "ANTHROPIC_VERTEX_PROJECT_ID": "architect-hslee-3572",
+  "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-6",
+  "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-6",
+  "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5-20251001"
+}
+JSON
+}
+
 bedrock_model="us.anthropic.claude-sonnet-4-5-20250929-v1:0"
 vertex_model="claude-sonnet-4-6"
+direct_model="claude-sonnet-4-6"
 
 # ── Helpers ───────────────────────────────────────────────
 require_jq() {
@@ -113,9 +133,18 @@ switch_to() {
         echo "Switching config anyway (will need ADC before using Claude Code)."
       fi
       ;;
+    direct)
+      new_env=$(direct_env)
+      new_model="$direct_model"
+      # claude.ai 로그인 세션 또는 ANTHROPIC_API_KEY 필요
+      # 로그인 확인: claude auth status
+      if ! command -v claude >/dev/null 2>&1; then
+        echo "WARNING: claude CLI not found in PATH."
+      fi
+      ;;
     *)
       echo "Unknown provider: $target"
-      echo "Usage: $0 {bedrock|vertex|status}"
+      echo "Usage: $0 {bedrock|vertex|direct|status}"
       exit 1
       ;;
   esac
@@ -147,9 +176,10 @@ require_jq
 case "${1:-status}" in
   bedrock) switch_to bedrock ;;
   vertex)  switch_to vertex ;;
+  direct)  switch_to direct ;;
   status)  show_status ;;
   *)
-    echo "Usage: $0 {bedrock|vertex|status}"
+    echo "Usage: $0 {bedrock|vertex|direct|status}"
     exit 1
     ;;
 esac
