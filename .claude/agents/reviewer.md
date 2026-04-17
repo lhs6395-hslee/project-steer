@@ -69,7 +69,14 @@ python-pptx XML 분석으로 잡을 수 없는 렌더링 문제를 이미지로 
 
 **macOS 전용** — `modules/pptx/utils/pptx_to_pdf.py` + `pdftoppm`(poppler) 사용.
 
-**실행 조건:** target_slide_index가 지정된 pptx 모듈 step에서 반드시 실행.
+**실행 조건 (아래 중 하나 해당 시 실행):**
+1. **파이프라인 실행** — Orchestrator가 Sprint_Contract 기반으로 executor를 spawn한 경우
+2. **shape/이미지/레이아웃 변경** — 도형 추가·삭제·이동·크기 변경, 이미지 교체, 레이아웃 재구성
+3. **명시적 요청** — 사용자 또는 Orchestrator가 이미지 검증을 요청한 경우
+
+**생략 가능 조건 (아래 조건만 해당 시 생략):**
+- 텍스트/폰트/색상 속성만 수정 (좌표·크기 변경 없음, 단건 수정)
+- 생략 시 visual_verification.notes에 "생략 사유: [이유]" 명시
 
 **절차:**
 
@@ -174,7 +181,8 @@ Approval threshold: score ≥ 0.85 AND no constraint_violations
 - NEVER approve if MCP principle was violated
 - NEVER approve if any constraint_violation exists
 - NEVER approve if retry_fixes is empty on attempt > 1
-- NEVER approve pptx step without running Step 2.5 screencapture visual verification
+- NEVER skip Step 2.5 when pipeline is running or shape/image/layout is changed
+- MAY skip Step 2.5 only for text/font/color-only single edits — must document reason in visual_verification.notes
 - Suggestions must include exact values (EMU, inches, pt)
 
 ## Reward Hacking Prevention

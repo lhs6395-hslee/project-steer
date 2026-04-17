@@ -1,154 +1,175 @@
 #!/usr/bin/env python3
 """
-PPTX → PDF → PNG 변환 유틸리티
+PPTX → PDF → PNG 슬라이드 이미지 변환 유틸리티
 
-PPTX를 슬라이드별 PNG로 변환한다. 내부적으로:
-  1. python-pptx로 각 슬라이드를 SVG-like 구조로 파싱
-  2. reportlab으로 PDF 생성
-  3. poppler(pdftoppm)로 PNG 추출
+OS별 동작:
+  - macOS  : AppleScript로 PowerPoint에 PDF export 요청 → pdftoppm(poppler)으로 PNG 변환
+  - Windows: pptx2pdf 패키지 (pip install docx2pdf) → pdftoppm 또는 pdf2image로 PNG 변환
+  - Linux  : 미지원 — None 반환 (시각 검증 스킵)
 
 사용법:
-    python pptx_to_pdf.py <file.pptx> --output-dir /tmp/slides [--slides 8,9,10]
+    python pptx_to_pdf.py <file.pptx> --output-dir /tmp/slides [--slides 8,9,10] [--dpi 150]
 
 요구사항:
-    pip install python-pptx reportlab
-    brew install poppler  (pdftoppm)
-
-macOS / Linux / Windows 모두 동작.
+  macOS  : Microsoft PowerPoint 설치, brew install poppler
+  Windows: pip install docx2pdf, poppler for Windows 또는 pip install pdf2image
 """
 
 import argparse
+import os
+import platform
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 
-def _register_korean_font() -> str:
-    """시스템에서 한글 폰트를 찾아 reportlab에 등록. 등록된 폰트명 반환."""
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-    import os
+# ── OS 감지 ──────────────────────────────────────────────────────────────────
 
-    candidates = [
-        ("/System/Library/Fonts/Supplemental/AppleGothic.ttf", "AppleGothic"),
-        ("/System/Library/Fonts/AppleGothic.ttf", "AppleGothic"),
-        ("/Library/Fonts/NanumGothic.ttf", "NanumGothic"),
-        ("~/Library/Fonts/NanumGothic.ttf", "NanumGothic"),
-    ]
-    for path, name in candidates:
-        full = os.path.expanduser(path)
-        if os.path.exists(full):
-            pdfmetrics.registerFont(TTFont(name, full))
-            return name
-    return "Helvetica"  # 폴백
+def get_os() -> str:
+    s = platform.system()
+    if s == "Darwin":
+        return "mac"
+    elif s == "Windows":
+        return "windows"
+    return "linux"
 
 
-def pptx_to_pdf_via_script(pptx_path: str, pdf_path: str) -> None:
-    """
-    python-pptx + reportlab으로 PPTX → PDF 변환.
-    텍스트/도형 위치를 실좌표 기반으로 PDF에 배치.
-    """
-    from pptx import Presentation
-    from reportlab.lib.units import inch
-    from reportlab.pdfgen import canvas
-    from reportlab.lib.colors import white, black
+# ── macOS: AppleScript로 PowerPoint PDF export ────────────────────────────────
 
-    korean_font = _register_korean_font()
+def _mac_export_pdf(pptx_path: str, pdf_path: str) -> None:
+    """PowerPoint for Mac — AppleScript 'save as PDF' (화면 점유 없음, 백그라운드 동작)."""
+    abs_pptx = str(Path(pptx_path).resolve())
+    abs_pdf = str(Path(pdf_path).resolve())
 
-    prs = Presentation(pptx_path)
+    # 출력 디렉토리 생성 (AppleScript는 존재하지 않는 경로에 저장 불가)
+    Path(abs_pdf).parent.mkdir(parents=True, exist_ok=True)
 
-    # 슬라이드 크기 (EMU → inch)
-    slide_w = prs.slide_width / 914400
-    slide_h = prs.slide_height / 914400
+    script = f'''
+tell application "Microsoft PowerPoint"
+    -- 열린 프레젠테이션 중 path 매칭 찾기
+    set prsCount to count of presentations
+    set matchIdx to 0
+    repeat with i from 1 to prsCount
+        if path of presentation i is "{abs_pptx}" then
+            set matchIdx to i
+            exit repeat
+        end if
+    end repeat
 
-    page_size = (slide_w * inch, slide_h * inch)
-    c = canvas.Canvas(pdf_path, pagesize=page_size)
+    -- 없으면 열기
+    if matchIdx is 0 then
+        open POSIX file "{abs_pptx}"
+        delay 2
+        set matchIdx to 1
+    end if
 
-    for slide_idx, slide in enumerate(prs.slides):
-        # 배경색 (테마에서 가져오기 어려우므로 흰색 기본)
-        c.setFillColor(white)
-        c.rect(0, 0, slide_w * inch, slide_h * inch, fill=1, stroke=0)
+    -- GUI 없이 백그라운드에서 PDF 저장 (EPPSaveAsFileType 0x00cc000e = save as PDF)
+    save presentation matchIdx in POSIX file "{abs_pdf}" as save as PDF
+end tell
+'''
+    result = subprocess.run(
+        ["osascript", "-e", script],
+        capture_output=True, text=True
+    )
+    time.sleep(1)
 
-        for shape in slide.shapes:
-            if not shape.has_text_frame:
-                continue
-
-            # 좌표 변환 (pptx: 좌상단 원점, reportlab: 좌하단 원점)
-            x = shape.left / 914400 * inch
-            y_top = shape.top / 914400
-            w = shape.width / 914400 * inch
-            h = shape.height / 914400 * inch
-            # reportlab y: 슬라이드 높이 - top - height
-            y = (slide_h - y_top - shape.height / 914400) * inch
-
-            c.setFillColor(black)
-            for para in shape.text_frame.paragraphs:
-                text = para.text
-                if not text.strip():
-                    continue
-                # 폰트 크기
-                try:
-                    font_size = para.runs[0].font.size / 12700 if para.runs and para.runs[0].font.size else 12
-                except:
-                    font_size = 12
-                c.setFont(korean_font, min(font_size, 36))
-                c.drawString(x, y + h - font_size * 1.2, text[:80])
-                y -= font_size * 1.4
-
-        c.showPage()
-
-    c.save()
+    if not Path(abs_pdf).exists():
+        raise RuntimeError(
+            f"AppleScript PDF export 실패.\n"
+            f"stderr: {result.stderr}\n"
+            f"stdout: {result.stdout}"
+        )
 
 
-def pdf_to_png(pdf_path: str, output_dir: str, slides: list[int] | None = None, dpi: int = 150) -> list[str]:
-    """pdftoppm으로 PDF → PNG 변환."""
-    output_dir_path = Path(output_dir)
-    output_dir_path.mkdir(parents=True, exist_ok=True)
+# ── Windows: docx2pdf (PowerPoint COM 사용) ───────────────────────────────────
 
-    prefix = str(output_dir_path / "slide")
+def _windows_export_pdf(pptx_path: str, pdf_path: str) -> None:
+    """docx2pdf로 PPTX → PDF (Windows PowerPoint COM 방식)."""
+    try:
+        # docx2pdf는 내부적으로 PowerPoint COM을 사용해 pptx도 처리 가능
+        # (assert .docx 체크를 우회하기 위해 직접 convert_win 호출)
+        from docx2pdf import convert_win
+        convert_win(pptx_path, pdf_path)
+    except ImportError:
+        raise RuntimeError("pip install docx2pdf 필요")
+    except Exception as e:
+        raise RuntimeError(f"docx2pdf 변환 실패: {e}")
+
+
+# ── PDF → PNG (poppler pdftoppm) ──────────────────────────────────────────────
+
+def _pdf_to_png(pdf_path: str, output_dir: str, slides: list[int] | None, dpi: int) -> list[str]:
+    """pdftoppm으로 PDF → PNG. slides는 1-based 번호 목록."""
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    prefix = str(out / "slide")
 
     if slides:
-        # 특정 슬라이드만
         results = []
         for s in slides:
-            cmd = ["pdftoppm", "-png", f"-r", str(dpi), "-f", str(s), "-l", str(s), pdf_path, prefix]
+            cmd = ["pdftoppm", "-png", "-r", str(dpi), "-f", str(s), "-l", str(s), pdf_path, prefix]
             subprocess.run(cmd, check=True, capture_output=True)
-            results.extend(sorted(output_dir_path.glob(f"slide-{s:03d}*.png")))
-        return [str(p) for p in results]
+        # 생성된 파일 수집
+        results = sorted(out.glob("slide-*.png"))
     else:
         cmd = ["pdftoppm", "-png", "-r", str(dpi), pdf_path, prefix]
         subprocess.run(cmd, check=True, capture_output=True)
-        return sorted(str(p) for p in output_dir_path.glob("slide-*.png"))
+        results = sorted(out.glob("slide-*.png"))
 
+    return [str(p) for p in results]
+
+
+# ── 공개 API ──────────────────────────────────────────────────────────────────
 
 def convert_pptx_to_slides(
     pptx_path: str,
     output_dir: str,
     slides: list[int] | None = None,
     dpi: int = 150,
-) -> list[str]:
+) -> list[str] | None:
     """
     PPTX → PDF → PNG 전체 파이프라인.
 
     Args:
-        pptx_path: 입력 .pptx 파일
+        pptx_path : 입력 .pptx 파일 경로
         output_dir: PNG 저장 디렉토리
-        slides: 변환할 슬라이드 번호 목록 (1-based). None이면 전체.
-        dpi: PNG 해상도
+        slides    : 변환할 슬라이드 번호 목록 (1-based). None이면 전체.
+        dpi       : PNG 해상도 (기본 150)
 
     Returns:
-        생성된 PNG 파일 경로 목록
+        생성된 PNG 파일 경로 목록, Linux이면 None (시각 검증 스킵)
     """
-    pdf_path = str(Path(output_dir) / "slides.pdf")
+    os_type = get_os()
+
+    if os_type == "linux":
+        print("  [skip] Linux 환경 — 시각 검증 미지원")
+        return None
+
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-    print(f"  PPTX → PDF: {pptx_path}")
-    pptx_to_pdf_via_script(pptx_path, pdf_path)
+    # macOS Sandbox 제약: PowerPoint는 pptx와 동일 디렉토리에만 쓰기 가능
+    # → PDF를 pptx 옆에 임시 저장 후 PNG 추출, 즉시 삭제
+    pptx_dir = Path(pptx_path).resolve().parent
+    pdf_path = str(pptx_dir / "_slides_tmp.pdf")
+
+    print(f"  PPTX → PDF [{os_type}]: {pptx_path}")
+    if os_type == "mac":
+        _mac_export_pdf(pptx_path, pdf_path)
+    elif os_type == "windows":
+        _windows_export_pdf(pptx_path, pdf_path)
+
     print(f"  PDF → PNG (dpi={dpi})")
-    png_files = pdf_to_png(pdf_path, output_dir, slides=slides, dpi=dpi)
+    png_files = _pdf_to_png(pdf_path, output_dir, slides=slides, dpi=dpi)
     print(f"  생성된 PNG: {len(png_files)}장")
+
+    # 임시 PDF 즉시 삭제
+    Path(pdf_path).unlink(missing_ok=True)
+
     return png_files
 
+
+# ── CLI ───────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(description="PPTX → 슬라이드별 PNG 변환")
@@ -159,15 +180,16 @@ def main():
     args = parser.parse_args()
 
     slides = [int(s) for s in args.slides.split(",")] if args.slides else None
-
-    png_files = convert_pptx_to_slides(
+    result = convert_pptx_to_slides(
         pptx_path=args.pptx,
         output_dir=args.output_dir,
         slides=slides,
         dpi=args.dpi,
     )
-
-    for f in png_files:
+    if result is None:
+        print("시각 검증 스킵 (Linux)")
+        sys.exit(0)
+    for f in result:
         print(f"  → {f}")
 
 
