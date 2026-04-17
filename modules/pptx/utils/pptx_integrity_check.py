@@ -297,7 +297,9 @@ def main():
         verbose=not args.quiet,
     )
 
-    if issues:
+    # fix 후 해결된 항목 제외하고 미해결 항목만 exit 1
+    unfixed = [i for i in issues if "fixed" not in i]
+    if unfixed:
         sys.exit(1)  # CI에서 오류 감지 가능
 
 
