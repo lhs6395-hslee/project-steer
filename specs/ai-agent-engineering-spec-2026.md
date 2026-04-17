@@ -8,6 +8,7 @@
 - [Anthropic: Harness Design for Long-Running Application Development](https://www.anthropic.com/engineering/harness-design-long-running-apps)
 - [Blake Crosley: Building AI-Powered Development Harnesses](https://blakecrosley.com/guides/agent-architecture)
 - [Claude Code Agent Teams Guide](https://www.aifreeapi.com/en/posts/claude-code-agent-teams)
+- [김영동 (NKIA AI팀): 클로드코드 잘 사용하기, 2026-04-07 전사 세미나]
 
 ## 용어 정의
 
@@ -37,6 +38,11 @@
 - **SDD (Spec-Driven Development)**: 실행 가능한 스펙을 먼저 작성하고, 에이전트가 스펙에 따라 코드를 생성하며, CI/CD에서 스펙 준수를 자동 검증하는 개발 방법론
 - **Agent_Team**: 여러 독립 에이전트가 각자 컨텍스트 윈도우를 갖고 병렬 작업하며, 사람은 의사결정 레벨에서만 개입하는 협업 패턴
 - **Harness_Subtraction**: 모델 성능 향상에 따라 하네스에서 불필요한 스캐폴딩을 주기적으로 제거하는 최적화 전략
+- **Context_Rot**: 장기 실행 세션에서 컨텍스트 누적으로 인해 에이전트 성능이 저하되는 현상. 50k 토큰 이상에서 주로 발생하며, 관련 없는 방해 문장 1개만으로도 성능이 유의미하게 하락한다
+- **Right_Altitude**: 에이전트 지시에서 세부 구현(how) 대신 원칙(what)과 이유(why)를 제시하는 추상화 수준 원칙. "원칙 1줄 + 이유 1줄 + 예시 1-2개" 형식으로 작성한다
+- **Plan_Critic_Build**: 계획(Plan) → 비평(Critic) → 구현(Build) 순서로 진행하는 에이전트 워크플로우 패턴. 실행 전 계획을 독립 에이전트가 비평하여 오류를 조기 발견한다
+- **Ralph_Loop**: 에이전트가 PROMPT.md 또는 지시 파일을 순환 참조하여 무한 루프에 빠지는 안티패턴. 루프 종료 조건(exit condition)을 명시하지 않을 때 발생한다
+- **Context_Failure_Mode**: 에이전트 컨텍스트에서 발생하는 실패 유형. Poisoning(오염), Distraction(분산), Confusion(혼동), Clash(충돌) 4가지로 분류된다
 
 ## Confidence_Trigger 동작 구간 정의
 
@@ -53,6 +59,8 @@
 
 **사용자 스토리:** 개발자로서, 에이전트 간 통신을 조율하는 중앙 Orchestrator가 필요하다. 이를 통해 각 에이전트가 독립적으로 실행되면서도 일관된 워크플로우를 유지할 수 있다.
 
+*참조: [Anthropic: Harness Design for Long-Running Application Development] / [Blake Crosley: Building AI-Powered Development Harnesses]*
+
 #### 인수 조건
 
 1. WHEN 사용자가 작업 요청을 제출하면, THE Orchestrator SHALL 요청을 파싱하여 IDE_Adapter가 반환하는 에이전트 디렉토리의 `requests/` 하위에 요청 Handoff_File을 생성한다.
@@ -67,6 +75,8 @@
 
 **사용자 스토리:** 개발자로서, 사용자의 자연어 요청을 구조화된 실행 스펙으로 변환하는 Planner가 필요하다. 이를 통해 Generator가 명확한 지시에 따라 코드를 작성할 수 있다.
 
+*참조: [Anthropic: Harness Design for Long-Running Application Development] / [Blake Crosley: Building AI-Powered Development Harnesses]*
+
 #### 인수 조건
 
 1. WHEN 사용자 요청 Handoff_File을 수신하면, THE Planner SHALL 요청을 분석하여 Sprint_Contract JSON 파일을 에이전트 디렉토리의 `contracts/` 하위에 생성한다.
@@ -79,6 +89,8 @@
 ### 요구사항 3: Generator 에이전트 구현
 
 **사용자 스토리:** 개발자로서, Sprint_Contract에 따라 실제 코드를 작성하는 독립 Generator가 필요하다. 이를 통해 코드 생성과 검증이 분리된다.
+
+*참조: [Anthropic: Harness Design for Long-Running Application Development] / [Blake Crosley: Building AI-Powered Development Harnesses]*
 
 #### 인수 조건
 
@@ -93,6 +105,8 @@
 ### 요구사항 4: Evaluator 에이전트 구현
 
 **사용자 스토리:** 개발자로서, Generator가 작성한 코드를 독립적으로 검증하는 Evaluator가 필요하다. 이를 통해 자기 검증 편향 없이 객관적인 품질 평가가 가능하다.
+
+*참조: [Anthropic: Harness Design for Long-Running Application Development] / [Blake Crosley: Building AI-Powered Development Harnesses]*
 
 #### 인수 조건
 
@@ -110,6 +124,8 @@
 
 **사용자 스토리:** 개발자로서, 위험한 명령이 실행되기 전에 사전 차단하는 Guardian이 필요하다. 이를 통해 개발 환경의 안전성을 보장할 수 있다.
 
+*참조: [Blake Crosley: Building AI-Powered Development Harnesses] / [Anthropic: Harness Design for Long-Running Application Development]*
+
 #### 인수 조건
 
 1. WHEN 쉘 명령 실행 요청이 발생하면, THE Guardian SHALL Pattern_Matcher 스크립트를 실행하여 위험 명령을 탐지한다.
@@ -124,6 +140,8 @@
 
 **사용자 스토리:** 개발자로서, 에이전트 간 통신이 파일 기반으로 이루어져야 한다. 이를 통해 에이전트 간 컨텍스트 격리를 보장하고 통신 내역을 추적할 수 있다.
 
+*참조: [Anthropic: Harness Design for Long-Running Application Development]*
+
 #### 인수 조건
 
 1. THE Harness SHALL IDE_Adapter가 반환하는 에이전트 디렉토리 하위에 다음 서브 디렉토리를 사용한다: `requests/`, `contracts/`, `outputs/`, `verdicts/`, `results/`.
@@ -136,6 +154,8 @@
 ### 요구사항 7: 독립 Agent_Session 관리
 
 **사용자 스토리:** 개발자로서, 각 에이전트가 Claude API를 통해 독립된 세션으로 실행되어야 한다.
+
+*참조: [Anthropic: Harness Design for Long-Running Application Development] / [Claude Code Agent Teams Guide]*
 
 #### 인수 조건
 
@@ -150,6 +170,8 @@
 
 **사용자 스토리:** 개발자로서, Evaluator의 검증 실패 시 Generator에게 자동으로 수정을 요청하는 피드백 루프가 필요하다.
 
+*참조: [Anthropic: Harness Design for Long-Running Application Development] / [Blake Crosley: Building AI-Powered Development Harnesses]*
+
 #### 인수 조건
 
 1. WHEN Evaluator가 fail Verdict를 생성하면, THE Orchestrator SHALL Verdict Handoff_File을 Generator에게 전달하여 수정을 요청한다.
@@ -163,6 +185,8 @@
 
 **사용자 스토리:** 개발자로서, 기존 `askAgent` 기반 hooks를 `runCommand` 기반 외부 스크립트 호출로 전환해야 한다.
 
+*참조: [Claude Code Agent Teams Guide]*
+
 #### 인수 조건
 
 1. THE Harness SHALL 기존 코드 리뷰 훅의 `askAgent` 방식을 `runCommand` 기반 외부 검증 스크립트 호출로 대체한다.
@@ -175,6 +199,8 @@
 ### 요구사항 10: 에이전트 실행 스크립트 구현
 
 **사용자 스토리:** 개발자로서, 각 에이전트를 독립 프로세스로 실행하는 스크립트가 필요하다.
+
+*참조: [Anthropic: Harness Design for Long-Running Application Development] / [Blake Crosley: Building AI-Powered Development Harnesses]*
 
 #### 인수 조건
 
@@ -190,6 +216,8 @@
 
 **사용자 스토리:** 개발자로서, 에이전트 간 합의 문서인 Sprint_Contract의 구조가 명확히 정의되어야 한다.
 
+*참조: [Blake Crosley: Building AI-Powered Development Harnesses] / [Anthropic: Harness Design for Long-Running Application Development]*
+
 #### 인수 조건
 
 1. THE Sprint_Contract SHALL 다음 필수 필드를 포함하는 JSON 스키마를 따른다: `id`(UUID), `created_at`(ISO 8601), `goal`(문자열), `files`(파일 경로 배열), `acceptance_criteria`(조건 배열), `constraints`(제약 조건 배열), `impact_scope`(영향 범위 객체).
@@ -203,6 +231,8 @@
 
 **사용자 스토리:** 개발자로서, Evaluator의 검증 결과인 Verdict의 구조가 명확히 정의되어야 한다.
 
+*참조: [Blake Crosley: Building AI-Powered Development Harnesses] / [Anthropic: Harness Design for Long-Running Application Development]*
+
 #### 인수 조건
 
 1. THE Verdict SHALL 다음 필수 필드를 포함한다: `id`(UUID), `contract_id`, `created_at`(ISO 8601), `overall_status`(pass, fail, warn), `criteria_results`(배열), `tool_outputs`(배열), `iteration`(정수).
@@ -215,6 +245,8 @@
 
 **사용자 스토리:** 개발자로서, 작업의 위험도와 복잡도에 따라 파이프라인 실행 여부를 자동으로 결정하는 메커니즘이 필요하다.
 
+*참조: [Anthropic: Harness Design for Long-Running Application Development] / [Blake Crosley: Building AI-Powered Development Harnesses]*
+
 #### 인수 조건
 
 1. WHEN 사용자 요청을 수신하면, THE Orchestrator SHALL Confidence_Trigger 모듈을 실행하여 작업의 위험도를 평가한다.
@@ -225,6 +257,8 @@
 ### 요구사항 14: 비용 및 토큰 관리
 
 **사용자 스토리:** 개발자로서, 멀티 에이전트 파이프라인의 API 비용을 모니터링하고 제어할 수 있어야 한다.
+
+*참조: [Anthropic: Harness Design for Long-Running Application Development]*
 
 #### 인수 조건
 
@@ -237,6 +271,8 @@
 ### 요구사항 15: IDE 어댑터 패턴 (IDE Adapter Pattern)
 
 **사용자 스토리:** 개발자로서, 하네스가 런타임에 현재 IDE 환경을 감지하고 IDE별로 다른 설정 파일 경로, 훅 포맷, 스티어링 구조를 자동으로 적용해야 한다.
+
+*참조: [Claude Code Agent Teams Guide]*
 
 #### 인수 조건
 
@@ -251,6 +287,8 @@
 ### 요구사항 16: IDE 간 Sync 파이프라인
 
 **사용자 스토리:** 개발자로서, 한 IDE에서 구현한 하네스 설정을 다른 IDE 형태로 자동 변환하는 sync 파이프라인이 필요하다.
+
+*참조: [Claude Code Agent Teams Guide]*
 
 #### 인수 조건
 
@@ -267,6 +305,8 @@
 
 **사용자 스토리:** 개발자로서, 여러 Generator 에이전트가 동시에 다른 기능을 병렬로 개발할 수 있어야 한다.
 
+*참조: [Anthropic: Harness Design for Long-Running Application Development] / [Blake Crosley: Building AI-Powered Development Harnesses]*
+
 #### 인수 조건
 
 1. WHEN 복수의 Sprint_Contract가 독립적이면(수정 대상 파일이 겹치지 않으면), THE Orchestrator SHALL 각 Generator에게 별도의 Git_Worktree를 할당하여 병렬 실행한다.
@@ -279,6 +319,8 @@
 ### 요구사항 18: Auto-Dream 메모리 자동 정리
 
 **사용자 스토리:** 개발자로서, 장기 프로젝트에서 에이전트 메모리 파일이 자동으로 정리되어야 한다.
+
+*참조: [Blake Crosley: Building AI-Powered Development Harnesses]*
 
 #### 인수 조건
 
@@ -293,6 +335,8 @@
 
 **사용자 스토리:** 개발자로서, 백그라운드에서 상시 실행되며 코드 변경을 감시하고 자동으로 품질 제안을 생성하는 감시 에이전트가 필요하다.
 
+*참조: [Anthropic: Harness Design for Long-Running Application Development] / [Blake Crosley: Building AI-Powered Development Harnesses]*
+
 #### 인수 조건
 
 1. THE KAIROS_Monitor SHALL 파일 시스템 감시(fs.watch)를 통해 소스 디렉토리의 코드 변경을 실시간으로 감지한다.
@@ -306,6 +350,8 @@
 
 **사용자 스토리:** 개발자로서, 복잡한 작업을 자동으로 계층적 태스크 트리로 분해하는 고급 플래닝이 필요하다.
 
+*참조: [Claude Code Agent Teams Guide] / [Anthropic: Harness Design for Long-Running Application Development]*
+
 #### 인수 조건
 
 1. WHEN Confidence_Trigger 점수가 0.50 미만이면 (Confidence_Trigger 동작 구간 정의 표 참조), THE Planner SHALL UltraPlan 전략을 활성화하여 계층적 태스크 트리를 생성한다. 0.50-0.69 구간에서는 전체 파이프라인이 실행되지만 UltraPlan은 비활성이며 단일 Sprint_Contract로 처리된다.
@@ -318,6 +364,8 @@
 
 **사용자 스토리:** 개발자로서, 하네스가 IDE의 spec 시스템과 통합되어 스펙 기반 개발을 자동화해야 한다.
 
+*참조: [Blake Crosley: Building AI-Powered Development Harnesses] / [Anthropic: Harness Design for Long-Running Application Development]*
+
 #### 인수 조건
 
 1. WHEN 프로젝트에 requirements.md와 design.md가 존재하면, THE Planner SHALL 해당 스펙 문서를 입력으로 사용하여 Sprint_Contract를 생성한다.
@@ -329,6 +377,8 @@
 ### 요구사항 22: Agent Team 협업 패턴
 
 **사용자 스토리:** 개발자로서, 여러 전문화된 에이전트가 팀으로 협업하여 복잡한 작업을 처리할 수 있어야 한다.
+
+*참조: [Claude Code Agent Teams Guide]*
 
 #### 인수 조건
 
@@ -343,6 +393,8 @@
 
 **사용자 스토리:** 개발자로서, 모델 성능 향상에 따라 하네스에서 불필요한 스캐폴딩을 주기적으로 제거할 수 있어야 한다.
 
+*참조: [Anthropic: Harness Design for Long-Running Application Development] / [Blake Crosley: Building AI-Powered Development Harnesses]*
+
 #### 인수 조건
 
 1. THE Harness SHALL 각 에이전트 컴포넌트의 기여도를 측정하는 메트릭을 수집한다: Evaluator의 fail 발견 횟수, Guardian의 차단 횟수, Planner의 Sprint_Contract 수정 횟수.
@@ -351,6 +403,189 @@
 4. THE Harness SHALL 새 모델 버전이 감지되면, 모든 컴포넌트의 기여도 메트릭을 리셋하고 재평가 기간(14일)을 시작한다.
 5. THE Harness SHALL 비활성화된 컴포넌트를 즉시 재활성화할 수 있는 설정을 지원한다.
 6. WHEN Harness_Subtraction 분석이 완료되면, THE Harness SHALL 최적화 제안 보고서를 에이전트 디렉토리의 `reports/` 하위에 생성한다.
+
+### 요구사항 24: 에이전트 루프 4단계 구현
+
+**사용자 스토리:** 개발자로서, 에이전트의 실행 주기가 Gather Context → Take Action → Verify Work → Repeat의 4단계로 명확하게 구분되어야 한다. 이를 통해 각 단계의 책임이 분리되고 검증이 자동화된다.
+
+*참조: [김영동 (NKIA AI팀): 클로드코드 잘 사용하기, 2026-04-07 전사 세미나, Slide 41]*
+
+#### 인수 조건
+
+1. THE Harness SHALL 에이전트 루프를 4단계로 구현한다: (1) Gather Context — 작업 컨텍스트 수집, (2) Take Action — 계획에 따른 실행, (3) Verify Work — 결과 검증, (4) Repeat — 미완료 항목 반복.
+2. THE Gather_Context 단계 SHALL Sprint_Contract, 파일 구조, 이전 Verdict를 수집하며, 현재 step과 무관한 정보는 포함하지 않는다.
+3. THE Take_Action 단계 SHALL Sprint_Contract의 단일 step만 실행하고, 다음 step으로 진행하기 전에 Verify_Work를 수행한다.
+4. THE Verify_Work 단계 SHALL 실행된 action의 인수 조건 각 항목을 검증하고, fail이 없을 때만 Repeat 단계로 진행한다.
+5. WHEN Repeat 단계에서 미완료 항목이 없으면, THE Harness SHALL 루프를 종료하고 최종 Verdict를 생성한다.
+6. THE Harness SHALL 각 루프 반복 시 Context_Reset 전략을 적용하여 Context_Rot를 방지한다.
+
+### 요구사항 25: 하네스 6대 구성요소 구현
+
+**사용자 스토리:** 개발자로서, 하네스가 6대 핵심 구성요소를 모두 포함하여 완전한 에이전트 실행 환경을 제공해야 한다.
+
+*참조: [김영동 (NKIA AI팀): 클로드코드 잘 사용하기, 2026-04-07 전사 세미나, Slide 40]*
+
+#### 인수 조건
+
+1. THE Harness SHALL 컨텍스트 엔지니어링(Context Engineering) 구성요소를 포함한다: CLAUDE.md/스티어링 파일로 에이전트 행동 방향을 설정하고, 컨텍스트 윈도우 품질을 관리한다.
+2. THE Harness SHALL 도구 오케스트레이션(Tool Orchestration) 구성요소를 포함한다: MCP, Bash, 파일 I/O 도구의 실행 순서와 권한을 관리한다.
+3. THE Harness SHALL 상태 및 메모리(State & Memory) 구성요소를 포함한다: 세션 간 영속 상태(Sprint_Contract, Verdict 파일)와 Auto_Dream 기반 메모리 정리를 관리한다.
+4. THE Harness SHALL 검증 루프(Verification Loop) 구성요소를 포함한다: Evaluator가 Generator 출력을 독립 검증하는 Feedback_Loop를 구현한다.
+5. THE Harness SHALL 오류 복구(Error Recovery) 구성요소를 포함한다: 실패한 step만 재시도하고, 최대 5회 재시도 후 실패를 상위에 보고한다.
+6. THE Harness SHALL 인간 개입 제어(Human-in-the-Loop Control) 구성요소를 포함한다: Confidence_Trigger 기반으로 자동화 수준을 조절하고, 임계값 미만 시 사용자 승인을 요청한다.
+
+### 요구사항 26: Context Engineering — 실패 모드 방지
+
+**사용자 스토리:** 개발자로서, 에이전트 컨텍스트의 4가지 실패 모드(Poisoning, Distraction, Confusion, Clash)를 사전에 방지하는 메커니즘이 필요하다.
+
+*참조: [김영동 (NKIA AI팀): 클로드코드 잘 사용하기, 2026-04-07 전사 세미나, Slide 58] / [Drew Breunig: Context Failure Modes]*
+
+#### 인수 조건
+
+1. THE Harness SHALL Poisoning(오염) 방지를 위해, 악의적이거나 잘못된 정보가 컨텍스트에 주입되지 않도록 Guardian이 입력 소스를 검증한다.
+2. THE Harness SHALL Distraction(분산) 방지를 위해, 에이전트에게 전달되는 컨텍스트에서 현재 step과 무관한 정보를 제거한다. Executor/Reviewer는 전체 Sprint_Contract가 아닌 해당 step 정보만 수신한다.
+3. THE Harness SHALL Confusion(혼동) 방지를 위해, 상충되는 지시사항이 동일 컨텍스트에 공존하지 않도록 CLAUDE.md와 step별 constraints를 계층적으로 관리한다.
+4. THE Harness SHALL Clash(충돌) 방지를 위해, 두 에이전트가 동일 파일을 동시에 수정하지 않도록 Orchestrator가 파일 잠금(file lock)을 관리한다.
+5. THE Harness SHALL Context_Failure_Mode 탐지 시 해당 실패 유형을 Verdict에 기록하고, 다음 iteration에서 회피 전략을 적용한다.
+
+### 요구사항 27: Context Rot 방지
+
+**사용자 스토리:** 개발자로서, 장기 실행 세션에서 컨텍스트 누적으로 인한 성능 저하(Context Rot)를 방지해야 한다.
+
+*참조: [김영동 (NKIA AI팀): 클로드코드 잘 사용하기, 2026-04-07 전사 세미나, Slide 59]*
+
+#### 인수 조건
+
+1. THE Harness SHALL 에이전트 컨텍스트 토큰이 50,000을 초과하면 Context_Reset을 트리거한다.
+2. WHEN Context_Reset이 트리거되면, THE Harness SHALL 현재 세션을 종료하고 파일시스템 상태에서 클린 컨텍스트로 새 세션을 시작한다.
+3. THE Harness SHALL 각 Agent_Session에 현재 step에 필요한 컨텍스트만 포함하며, 완료된 step의 대화 이력은 포함하지 않는다.
+4. THE Evaluator SHALL 에이전트 응답에서 현재 task와 무관한 정보가 추가되거나, 이전에 완료한 작업을 반복하는 징후를 탐지하면 Context_Rot 경고를 Verdict에 기록한다.
+5. THE Harness SHALL step별 독립 Agent_Session 실행을 기본 정책으로 한다 (세션 간 컨텍스트 공유 금지).
+
+### 요구사항 28: 에이전트 실패 패턴 방지
+
+**사용자 스토리:** 개발자로서, 에이전트 운영에서 반복되는 5가지 실패 패턴을 사전에 방지하는 가드레일이 필요하다.
+
+*참조: [김영동 (NKIA AI팀): 클로드코드 잘 사용하기, 2026-04-07 전사 세미나, Slide 60]*
+
+#### 인수 조건
+
+1. THE Harness SHALL 컨텍스트 과부하 방지를 위해, step별 컨텍스트를 최소화하고 Context_Reset 임계값(50k 토큰)을 적용한다.
+2. THE Harness SHALL 불명확한 요구사항 방지를 위해, Sprint_Contract 생성 시 Planner가 인수 조건을 측정 가능한 형태로 구체화하도록 강제한다. 모호한 acceptance_criteria는 Orchestrator가 재생성을 요청한다.
+3. THE Harness SHALL 검증 없는 자동수락 방지를 위해, Generator의 모든 출력은 반드시 Evaluator 검증을 거쳐야 한다. Evaluator 없이 결과를 승인하는 경로는 존재하지 않는다.
+4. THE Harness SHALL 긴 세션 드리프트(drift) 방지를 위해, 각 step은 새로운 Agent_Session으로 실행되며, step 간 누적 컨텍스트를 상속하지 않는다.
+5. THE Harness SHALL 권한 과다 방지를 위해, Guardian이 에이전트 도구 사용 권한을 step 단위로 제한하고, 필요한 도구만 컨텍스트에 포함한다.
+
+### 요구사항 29: Right Altitude 원칙 적용
+
+**사용자 스토리:** 개발자로서, 에이전트에 대한 지시가 세부 구현 대신 원칙과 이유 중심으로 작성되어 에이전트의 자율적 판단을 유도해야 한다.
+
+*참조: [김영동 (NKIA AI팀): 클로드코드 잘 사용하기, 2026-04-07 전사 세미나, Slide 42]*
+
+#### 인수 조건
+
+1. THE Harness SHALL Sprint_Contract의 acceptance_criteria를 Right_Altitude 원칙에 따라 작성한다: "원칙 1줄 + 이유 1줄 + 예시 1-2개" 형식을 따른다.
+2. THE Sprint_Contract SHALL 구체적인 코드 구현 방법을 명시하지 않고, 달성해야 할 결과(what)와 이유(why)를 명시한다.
+3. THE Planner SHALL 과도하게 세부적인 구현 지시(how)를 포함한 Sprint_Contract를 생성하지 않는다. Evaluator가 이를 감지하면 Planner에게 재작성을 요청한다.
+4. THE Harness SHALL CLAUDE.md와 스티어링 파일에 Right_Altitude 원칙을 적용하여, 에이전트 행동 규칙을 "원칙 + 이유" 형식으로 작성한다.
+
+### 요구사항 30: Plan-Critic-Build 패턴 구현
+
+**사용자 스토리:** 개발자로서, 계획(Plan) → 비평(Critic) → 구현(Build) 순서로 진행하는 워크플로우를 통해 구현 전 오류를 조기 발견해야 한다.
+
+*참조: [김영동 (NKIA AI팀): 클로드코드 잘 사용하기, 2026-04-07 전사 세미나, Slide 52]*
+
+#### 인수 조건
+
+1. THE Harness SHALL Plan_Critic_Build 패턴을 지원한다: (1) Planner가 Sprint_Contract 생성, (2) 독립 Critic 에이전트가 Sprint_Contract를 비평하고 개선 제안 생성, (3) Planner가 비평을 반영하여 Sprint_Contract 수정, (4) Generator가 최종 Sprint_Contract로 구현.
+2. THE Critic 에이전트 SHALL Sprint_Contract의 다음 항목을 검토한다: 인수 조건의 측정 가능성, 제약 조건의 완전성, step 간 의존성 정확성, 누락된 edge case.
+3. WHEN Critic이 생성한 개선 제안이 3개 이상이면, THE Orchestrator SHALL Planner에게 Sprint_Contract 수정을 요청한다.
+4. THE Critic 에이전트 SHALL Planner와 Generator의 컨텍스트를 공유하지 않는 독립 Agent_Session으로 실행된다.
+5. THE Plan_Critic_Build 패턴 SHALL Confidence_Trigger 점수 0.70 미만일 때 자동으로 활성화된다.
+
+### 요구사항 31: Ralph Loop 방지
+
+**사용자 스토리:** 개발자로서, 에이전트가 PROMPT.md 또는 지시 파일을 순환 참조하여 무한 루프에 빠지는 Ralph_Loop 안티패턴을 방지해야 한다.
+
+*참조: [김영동 (NKIA AI팀): 클로드코드 잘 사용하기, 2026-04-07 전사 세미나, Slide 53]*
+
+#### 인수 조건
+
+1. THE Harness SHALL 모든 에이전트 지시 파일(CLAUDE.md, 스티어링 파일, Sprint_Contract)에 명시적인 종료 조건(exit condition)을 포함한다.
+2. THE Guardian SHALL 에이전트가 동일 파일을 3회 이상 연속으로 읽는 패턴을 감지하면 Ralph_Loop 경고를 발생시키고 실행을 중단한다.
+3. THE Harness SHALL 에이전트 루프 내에서 반복 횟수를 카운트하고, 최대 횟수(기본 5회) 초과 시 강제 종료한다.
+4. WHEN Ralph_Loop가 감지되면, THE Harness SHALL 마지막 성공한 Verdict 이전 상태로 롤백하고 Orchestrator에 보고한다.
+5. THE Sprint_Contract SHALL 재귀적 self-reference를 허용하지 않는다: 하나의 step이 자신을 의존성으로 포함할 수 없다.
+
+### 요구사항 32: CLAUDE.md 운영 원칙 준수
+
+**사용자 스토리:** 개발자로서, CLAUDE.md(및 동등한 스티어링 파일)가 효과적으로 유지 관리되어 에이전트 행동을 일관되게 제어할 수 있어야 한다.
+
+*참조: [김영동 (NKIA AI팀): 클로드코드 잘 사용하기, 2026-04-07 전사 세미나, Slides 44-46]*
+
+#### 인수 조건
+
+1. THE CLAUDE.md SHALL 60줄 이하로 유지하며, 초과 시 Harness가 경고를 발생시킨다.
+2. THE Harness SHALL CLAUDE.md를 모듈화하여 관리한다: 핵심 규칙은 CLAUDE.md에, 상세 내용은 `@파일명`으로 참조하는 별도 파일로 분리한다.
+3. THE Harness SHALL 새로운 규칙을 CLAUDE.md에 추가하기 전에 "이 규칙이 없으면 에이전트가 잘못된 행동을 하는가?"를 검증한다. 불필요한 규칙 추가를 방지한다.
+4. THE Harness SHALL 정기적으로 CLAUDE.md의 각 규칙에 대해 "한 줄 삭제 테스트(one-line deletion test)"를 수행한다: 규칙을 삭제해도 에이전트 행동이 변하지 않으면 제거한다.
+5. THE CLAUDE.md SHALL 에이전트가 해서는 안 되는 행동(금지 규칙)과 반드시 해야 하는 행동(강제 규칙)을 명확히 구분한다.
+6. THE Harness SHALL CLAUDE.md의 버전을 git 이력으로 관리하며, 규칙 변경 시 변경 이유를 커밋 메시지에 기록한다.
+
+### 요구사항 33: 멀티 에이전트 패턴 선택 기준
+
+**사용자 스토리:** 개발자로서, 작업 특성에 맞는 멀티 에이전트 패턴(Sub-Agent, Orchestrator, Parallel, GAN-Style, Agent Teams)을 명확한 기준으로 선택할 수 있어야 한다.
+
+*참조: [김영동 (NKIA AI팀): 클로드코드 잘 사용하기, 2026-04-07 전사 세미나, Slide 64]*
+
+#### 인수 조건
+
+1. THE Harness SHALL 다음 5가지 멀티 에이전트 패턴을 지원한다: **Sub-Agent** — 오케스트레이터가 전문화된 서브 에이전트에게 작업을 위임; **Orchestrator** — 중앙 조율자가 전체 워크플로우를 관리; **Parallel** — 독립적인 작업을 동시에 병렬 실행(Git_Worktree 기반); **GAN-Style** — Generator-Evaluator 적대적 검증 패턴; **Agent Teams** — 전문화된 에이전트들이 팀으로 협업.
+2. THE Orchestrator SHALL 작업 특성에 따라 패턴을 선택한다: 단일 독립 작업 → Sub-Agent, 의존성 있는 복수 작업 → Orchestrator, 독립 복수 작업 → Parallel, 품질 검증 필수 → GAN-Style, 대규모 복잡 작업 → Agent Teams.
+3. THE Harness SHALL 동일 파이프라인에서 복수 패턴을 혼합할 수 있다 (예: Orchestrator + Parallel + GAN-Style 조합).
+4. WHEN 패턴 선택 시, THE Orchestrator SHALL 선택 이유를 `.pipeline/` 로그에 기록한다.
+
+### 요구사항 34: 하네스 신뢰성 수학 기반 설계
+
+**사용자 스토리:** 개발자로서, 멀티 에이전트 파이프라인에서 각 step의 성공률이 전체 파이프라인 신뢰성에 미치는 영향을 정량적으로 관리해야 한다.
+
+*참조: [김영동 (NKIA AI팀): 클로드코드 잘 사용하기, 2026-04-07 전사 세미나, Slide 57]*
+
+#### 인수 조건
+
+1. THE Harness SHALL 각 에이전트 step의 성공률을 측정하고 기록한다.
+2. THE Harness SHALL 복합 파이프라인의 전체 성공률을 계산한다: 전체 성공률 = 각 step 성공률의 곱. 예: step 성공률 0.95, 20 steps → 0.95^20 ≈ 0.358.
+3. WHEN 전체 파이프라인 성공률이 0.80 미만으로 예측되면, THE Orchestrator SHALL 파이프라인 단계 수를 줄이거나 step 신뢰성을 높이는 방안을 제안한다.
+4. THE Harness SHALL step 신뢰성 향상 전략을 우선 적용한다: 검증 루프 추가, step 세분화, Context_Reset 적용.
+5. THE Harness SHALL 30일 rolling window로 각 에이전트 step의 성공률 추이를 `metrics/` 디렉토리에 기록한다.
+
+### 요구사항 35: SDD + TDD 조합 방법론
+
+**사용자 스토리:** 개발자로서, Spec-Driven Development(SDD)와 Test-Driven Development(TDD)를 조합하여 요구사항 정의부터 구현, 검증까지의 전 과정을 자동화해야 한다.
+
+*참조: [김영동 (NKIA AI팀): 클로드코드 잘 사용하기, 2026-04-07 전사 세미나, Slides 27-33]*
+
+#### 인수 조건
+
+1. THE Harness SHALL SDD + TDD 조합 워크플로우를 지원한다: (1) 요구사항 스펙 작성 → (2) 스펙 기반 테스트 케이스 생성 → (3) 테스트 실패 확인 → (4) 스펙 기반 코드 생성 → (5) 테스트 통과 확인 → (6) 리팩토링.
+2. THE Planner SHALL requirements.md에서 인수 조건을 추출하여 테스트 케이스 목록을 Sprint_Contract에 포함한다.
+3. THE Generator SHALL Sprint_Contract의 테스트 케이스를 먼저 작성(TDD)하고, 테스트를 통과하는 코드를 구현한다.
+4. THE Evaluator SHALL 테스트 실행 결과를 Verdict의 `tool_outputs`에 포함하며, 모든 테스트 통과 여부를 acceptance_criteria에서 검증한다.
+5. THE Harness SHALL 스펙 문서(requirements.md, design.md)와 구현 코드 간 드리프트를 주기적으로 감지하고 보고한다 (요구사항 21 확장).
+6. IF 테스트 커버리지가 Sprint_Contract에 명시된 최소 커버리지 이하이면, THEN THE Evaluator SHALL fail Verdict를 생성한다.
+
+### 요구사항 36: 에이전트 엔지니어링 진화 단계 적용
+
+**사용자 스토리:** 개발자로서, 프로젝트의 에이전트 성숙도에 따라 Prompt Engineering → Context Engineering → Harness Engineering으로 단계적으로 진화하는 로드맵을 갖춰야 한다.
+
+*참조: [김영동 (NKIA AI팀): 클로드코드 잘 사용하기, 2026-04-07 전사 세미나, Slides 36-37]*
+
+#### 인수 조건
+
+1. THE Harness SHALL 프로젝트의 현재 에이전트 엔지니어링 성숙도를 3단계로 평가한다: 1단계(Prompt Engineering) — 단일 에이전트, 수동 프롬프트 작성; 2단계(Context Engineering) — 컨텍스트 설계, CLAUDE.md 운영; 3단계(Harness Engineering) — 멀티 에이전트 파이프라인, 자동 검증.
+2. THE Harness SHALL 1단계에서 2단계로 진화하기 위한 기준을 제공한다: CLAUDE.md 운영, 메모리 파일 관리, Context_Reset 전략 적용.
+3. THE Harness SHALL 2단계에서 3단계로 진화하기 위한 기준을 제공한다: 멀티 에이전트 파이프라인 구축, GAN-Style 검증 루프, Confidence_Trigger 기반 자동 에스컬레이션.
+4. THE Harness SHALL 현재 성숙도 단계를 `metrics/maturity.json`에 기록하고, 다음 단계로의 전환 조건을 모니터링한다.
 
 ---
 
@@ -371,4 +606,4 @@
 
 ---
 
-*문서 버전: v1.0 | 작성일: 2026-04-13 | 23개 요구사항, 8개 충돌 해결*
+*문서 버전: v1.1 | 최초 작성: 2026-04-13 | 갱신: 2026-04-18 | 36개 요구사항(+13 from NKIA 세미나), 8개 충돌 해결*

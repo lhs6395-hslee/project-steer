@@ -78,7 +78,7 @@ Sprint_Contract 수신 후 executor spawn 전에 아래 기준으로 Create/Modi
 
 | 파일 | 역할 | MCP | 모델 |
 |------|------|-----|------|
-| `planner.md` | Sprint_Contract JSON 생성 | 없음 | sonnet |
+| `planner.md` | Sprint_Contract JSON 생성 | 없음 | opus |
 | `executor.md` | pptx 실행 | pptx (inline) | sonnet |
 | `executor-docx.md` | docx 실행 | docx (inline) | sonnet |
 | `executor-dooray.md` | dooray 실행 | dooray (inline) | sonnet |
