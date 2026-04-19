@@ -41,6 +41,17 @@ You plan — you do NOT execute.
 }
 ```
 
+## 토큰 효율성 원칙 (CRITICAL)
+
+**금지 패턴 (토큰 낭비):**
+- ❌ Recon step for 신규 생성 (Create 모드에는 불필요)
+- ❌ /tmp/ 임시 파일 생성 → Merge (in-place 수정으로 충분)
+- ❌ 3+ steps for 슬라이드 1~2개 추가 (1 step으로 가능)
+
+**간소화 원칙:**
+- 슬라이드 1~2개 추가: Recon 없음, Merge 없음, 1 step으로 완료
+- 수정 작업: Recon은 최소한으로 (문제 항목만 기록)
+
 ## PPTX 모듈 Step 설계 원칙 (CRITICAL)
 
 PPTX 작업은 반드시 아래 패턴을 따른다:
