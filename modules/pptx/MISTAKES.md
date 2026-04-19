@@ -2,6 +2,66 @@
 
 ## 이전 세션들 (2026-04-16 이후)
 
+28. **spTree.insert() 위치 오류 → XML 구조 파괴 → repair dialog** — z-order 변경을 위해 `spTree.insert(1, shape_el)` 사용 시 `<nvGrpSpPr>(0)`과 `<grpSpPr>(1)` 사이에 shape이 삽입됨. `spTree` 필수 구조는 `[nvGrpSpPr, grpSpPr, ...shapes...]`이므로 shape을 index=1에 넣으면 `grpSpPr` 앞에 위치해 XML 무효화.
+   - **증상:** PPTX 열 때 repair dialog
+   - **원인:** `list(spTree)` 에서 index=0은 `<nvGrpSpPr>`, index=1은 `<grpSpPr>`. `insert(1, el)`은 이 둘 사이에 삽입.
+   - **재발방지:** spTree에 shape 삽입 시 반드시 `<grpSpPr>` 이후 위치 사용:
+     ```python
+     grpSpPr_idx = next(i for i,el in enumerate(list(spTree)) if el.tag.split('}')[-1]=='grpSpPr')
+     spTree.insert(grpSpPr_idx + 1, shape_el)  # grpSpPr 바로 뒤 = 첫 번째 shape (z=0)
+     ```
+
+27. **슬라이드 삭제 후 추가 → zip 중복 파일 → repair dialog** — 기존 슬라이드를 `del xml_slides[idx]` + `prs.part.drop_rel(rId)`로 메모리에서만 삭제한 뒤, 새 슬라이드를 `add_slide()`로 추가하면 python-pptx가 기존 파일명(예: `slide16.xml`)을 재사용하여 zip 내 중복 발생. PowerPoint repair dialog 유발.
+   - **증상:** `UserWarning: Duplicate name: 'ppt/slides/slide16.xml'` 경고 후 파일 열 때 repair dialog
+   - **원인:** `prs.part.drop_rel()`은 presentation.xml의 관계만 제거. zip 내 실제 `slide16.xml` 파일은 남아 있음. `prs.save()` 시 새 슬라이드도 `slide16.xml`로 저장하려다 충돌.
+   - **재발방지:**
+     1. **슬라이드 교체 = 삭제 + 추가 금지.** 잘못된 슬라이드를 제거해야 하면 backup에서 복원 후 추가만 수행.
+     2. 새 슬라이드 추가만 할 때는 `prs.slides.add_slide()` → `move_slide()` → `prs.save()` 순서. 삭제 없음.
+     3. 저장 전 zip 중복 검증 필수: `Counter([i.filename for i in zipfile.ZipFile(path).infolist()])`
+
+---
+
+### 파이프라인 토큰 낭비 사례 아카이브 (L01~L12)
+
+L01~L12 파이프라인 실행 중 80% 이상 토큰이 낭비된 주요 패턴 기록.
+
+#### 패턴 A: Recon → /tmp/ → Merge 3-step 분리 (항목 #26)
+
+- **사례**: L13 슬라이드 1개 추가에 449K 토큰 소비
+- **낭비**: Recon(101K) + Merge(114K) = 215K (48%) 완전 낭비. 실제 필요: 생성 1-step 20K
+- **근본 원인**: MCP는 "전체 파일만 다룸" → `/tmp/` 임시 파일 패턴이 항상 16슬라이드가 됨
+- **규칙**: Create 모드에서 Recon step 금지. /tmp/ → Merge 패턴 금지.
+
+#### 패턴 B: Sprint_Contract 전체를 Executor에게 전달 (isolation 위반)
+
+- **사례**: Executor에게 전체 Sprint_Contract JSON(10K+)을 context로 전달
+- **낭비**: 각 Executor의 입력 토큰에 전체 계약서가 포함 → N개 Executor × 10K = N×10K 낭비
+- **근본 원인**: Orchestrator가 "정보 공유가 도움이 된다"고 착각
+- **규칙**: Executor/Reviewer는 해당 step 정보만 수신. 전체 Sprint_Contract 전달 금지 (isolation 위반)
+
+#### 패턴 C: 불필요한 Recon으로 전체 파일 읽기
+
+- **사례**: 슬라이드 추가 전 `get_presentation_info()` + `get_slide_info()` 전체 호출
+- **낭비**: 41개 슬라이드 정보 읽기 = 수만 tokens. 실제 필요: 마지막 슬라이드 인덱스 1개
+- **근본 원인**: Planner가 "안전을 위해 먼저 현황 파악"이라고 설계
+- **규칙**: Create 모드의 Recon은 건너뜀. 필요한 정보만 Executor가 직접 최소로 읽음.
+
+#### 패턴 D: 검증 실패 후 반복 수정 루프
+
+- **사례**: Reviewer FAIL → Executor 재시도 → 또 FAIL → 재시도 (최대 5회)
+- **낭비**: 재시도 1회 = Executor 전체 토큰 재소비. 5회 재시도 = 원래 비용의 5배
+- **근본 원인**: Executor가 스펙을 제대로 읽지 않고 구현 → Reviewer 지적 → 재시도
+- **규칙**: Executor는 layout-spec.md 해당 섹션 + design-spec.md WCAG 테이블을 먼저 완전히 읽은 후 구현. "일단 만들고 고치기" 금지.
+
+#### 패턴 E: 모델 선택 오류 (Haiku로 복잡한 작업)
+
+- **사례**: L13 직접 실행을 Haiku 4.5로 수행 → margin=0 오용, placeholder 전체 삭제, repair dialog
+- **낭비**: 실패로 인한 재작업 = 2배 비용 + 사용자 시간 소비
+- **근본 원인**: 비용 절감을 위해 Haiku 사용 → 46+ MCP 호출 + 정밀 좌표 계산에 능력 부족
+- **규칙**: 직접 실행 허용 조건이라도 복잡한 레이아웃(Pros/Cons/Verdict 구조)은 Sonnet 이상 사용.
+
+---
+
 26. **과잉 설계로 토큰 83% 낭비 (449K → 80K 가능)** — L13 슬라이드 1개 추가에 449K 토큰 소비 ($1.11 USD). Planner가 "Recon → /tmp/ 생성 → Merge" 3-step 분리 설계했으나, MCP는 전체 파일만 다루므로 /tmp/slide_15.pptx가 16 슬라이드가 되어 Merge step 실패. 단순 추가 작업은 in-place 수정 1-step으로 80K면 충분.
    - **원인:**
      1. MCP는 "빈 파일에 1개 슬라이드만 생성" 불가 → 항상 전체 파일 복사

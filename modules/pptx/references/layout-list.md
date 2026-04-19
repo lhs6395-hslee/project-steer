@@ -13,7 +13,7 @@
 | — | 4 | 카드/그리드 | Quad Matrix | `quad_matrix` | alias |
 | L04 | 5 | 프로세스/단계 | Process Arrow | `process_arrow` | ✅ |
 | L05 | 6 | 프로세스/단계 | Phased Columns | `phased_columns` | ✅ |
-| L06 | 7 | 프로세스/단계 | Zigzag Timeline | `zigzag_timeline` | ⬜ |
+| L06 | 7 | 프로세스/단계 | Zigzag Timeline | `zigzag_timeline` | ✅ |
 | L07 | 8 | 프로세스/단계 | Roadmap Timeline | `roadmap_timeline` | ✅ |
 | L08 | 9 | 프로세스/단계 | Funnel | `funnel` | ✅ |
 | L09 | 10 | 비교/분석 | Challenge/Solution | `challenge_solution` | ✅ |
@@ -64,4 +64,5 @@
 - **완료**: 12 / 36 (33.3%)
 - **스펙 완료**: 24 / 36 (66.7%)
 - **미착수**: 0 / 36 (0%)
+- **완료 목록**: L01~L12 (12개)
 - **Alias 제외**: 36 고유 레이아웃 (alias 2종 제외)

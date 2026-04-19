@@ -4,7 +4,7 @@ description: >
   Adversarially evaluates Executor output against Sprint_Contract step.
   Information isolation enforced — receives only step input + step output.
   Uses Bash/python-pptx for direct PPTX verification.
-model: haiku
+model: sonnet
 permissionMode: bypassPermissions
 effort: high
 maxTurns: 6
@@ -39,7 +39,27 @@ Executor output에서 다음 패턴 발견 시 → constraint_violation (critica
 - `modules/pptx/utils/pptx_text_utils.py`, `pptx_safe_edit.py`, `pptx_zip_cleaner.py`
 - `modules/pptx/utils/delete_extra_slides.py`, `reorder_slides.py`, `merge_presentations.py`
 
-### Step 2: PPTX 직접 검증 (MANDATORY for pptx module)
+### Step 2: 콘텐츠 여백 검증 (MANDATORY — 모든 본문 슬라이드)
+
+본문 슬라이드 구현 완료 시 **반드시** `verify_margins.py`로 좌/우/상/하 여백을 검증한다.
+
+```bash
+python modules/pptx/utils/verify_margins.py results/pptx/<파일명>.pptx --slide <N>
+```
+
+**판정 기준:**
+- 좌/우 여백: 0.500" ± 0.060" 이내
+- 좌/우 대칭: |left - right| ≤ 0.060"
+- 상/하 대칭: |top - bottom| ≤ 0.060"
+- 하단 최소: 0.100" 이상
+
+**결과 해석:**
+- EXIT CODE 0: PASS → 다음 단계 진행
+- EXIT CODE 1: FAIL → 즉시 issues에 추가, score cap 0.6
+
+**여백 FAIL은 major issue** — 수정 없이 approved 불가.
+
+### Step 2.1: PPTX 직접 검증 (MANDATORY for pptx module)
 
 Executor 보고값을 신뢰하지 말고 Bash로 직접 확인한다:
 
