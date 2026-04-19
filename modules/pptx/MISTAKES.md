@@ -2,6 +2,21 @@
 
 ## 이전 세션들 (2026-04-16 이후)
 
+26. **과잉 설계로 토큰 83% 낭비 (449K → 80K 가능)** — L13 슬라이드 1개 추가에 449K 토큰 소비 ($1.11 USD). Planner가 "Recon → /tmp/ 생성 → Merge" 3-step 분리 설계했으나, MCP는 전체 파일만 다루므로 /tmp/slide_15.pptx가 16 슬라이드가 되어 Merge step 실패. 단순 추가 작업은 in-place 수정 1-step으로 80K면 충분.
+   - **원인:**
+     1. MCP는 "빈 파일에 1개 슬라이드만 생성" 불가 → 항상 전체 파일 복사
+     2. Planner가 "3-step이 안전"하다고 착각 → 불필요한 Recon, /tmp/ 생성, Merge
+     3. Executor Step 3가 /tmp/slide_15.pptx 구조 미확인하고 병합 실패
+   - **토큰 낭비:**
+     - Recon (Step 1): 101K → 불필요 (Executor가 직접 읽으면 됨)
+     - L13 생성 (Step 2): 107K → 20K면 충분 (in-place 수정)
+     - Merge (Step 3): 114K → 불필요 (in-place 수정이면 병합 없음)
+     - 합계: 449K 중 371K(83%) 낭비
+   - **재발방지:**
+     1. CLAUDE.md: 단순 작업(슬라이드 1~2개 추가, 텍스트 수정, 파일 조작)은 파이프라인 예외 허용
+     2. planner.md: Recon step for Create 모드 금지, /tmp/ 임시 파일 → Merge 패턴 금지
+     3. 간단한 작업은 python-pptx 직접 사용 (in-place 수정, 20K 토큰)
+
 25. **중제목 영역 누락 (Executor) + 검증 누락 (Reviewer) + MISTAKES.md 교훈 무시** — L11/L12 생성 시 중제목 레이블·설명글을 추가하지 않았는데 Reviewer가 통과시킴. 이후 수정 과정에서 MISTAKES.md #24 교훈("python-pptx reference XML 비교 필수")을 **3번이나 무시**하고 lxml 수동 생성 반복.
    - **원인:** 
      1. Executor: `create_l11_comparison_table()`, `create_l12_before_after()` 함수에 중제목 영역 생성 코드 없음
