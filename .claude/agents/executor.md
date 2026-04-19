@@ -3,10 +3,10 @@ name: executor
 description: >
   Executes Sprint_Contract plans using MCP tools and produces concrete outputs.
   Use for pptx module tasks — has pptx MCP server access.
-model: sonnet
+model: haiku
 permissionMode: bypassPermissions
 effort: high
-maxTurns: 40
+maxTurns: 15
 mcpServers:
   pptx:
     type: stdio

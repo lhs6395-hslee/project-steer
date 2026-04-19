@@ -2,6 +2,40 @@
 
 ## 이전 세션들 (2026-04-16 이후)
 
+25. **중제목 영역 누락 (Executor) + 검증 누락 (Reviewer) + MISTAKES.md 교훈 무시** — L11/L12 생성 시 중제목 레이블·설명글을 추가하지 않았는데 Reviewer가 통과시킴. 이후 수정 과정에서 MISTAKES.md #24 교훈("python-pptx reference XML 비교 필수")을 **3번이나 무시**하고 lxml 수동 생성 반복.
+   - **원인:** 
+     1. Executor: `create_l11_comparison_table()`, `create_l12_before_after()` 함수에 중제목 영역 생성 코드 없음
+     2. Reviewer: reviewer.md Step 2 검증 항목에 "중제목 영역" 항목 없음
+     3. **MISTAKES.md #24 교훈 무시**: "python-pptx reference XML 비교 필수"를 읽고도 lxml로 TextBox XML 수동 생성 시도 3회
+   - **증상:** 
+     1. L01~L10은 모두 중제목 레이블+설명글 있음, L11/L12만 없음 → 시각적 일관성 깨짐
+     2. lxml 수동 생성 → PowerPoint repair dialog 3회 반복
+   - **발견:** 사용자가 슬라이드 열었을 때 중제목 없는 것 확인 + repair dialog 반복 발생
+   - **해결 시도 과정 (실패 3회):**
+     1. 시도 1: lxml로 TextBox XML 생성 (sz=2540 오류) → repair dialog
+     2. 시도 2: sz=2000 수정 + bodyPr wrap="none" → repair dialog (lxml 직렬화 문제)
+     3. 시도 3: 백업 복원 후 lxml 재시도 → repair dialog 반복
+     4. **최종 해결**: python-pptx API (`.add_textbox()`) 직접 사용 → repair dialog 해결
+   - **추가 문제 발견**: python-pptx가 TextBox 생성 시 자동으로 margin 설정 (L/R: 91440 EMU, T/B: 45720 EMU). 이를 명시적으로 0으로 설정하지 않으면 텍스트가 TextBox 내부에서 밀려나 레이아웃 불일치. 전체 24개 중제목 TextBox margin → 0 수정.
+   - **재발방지:** 
+     1. **CRITICAL**: MISTAKES.md 교훈이 있으면 반드시 먼저 확인하고 적용. "python-pptx reference XML 비교 필수" = lxml 수동 생성 금지, python-pptx API 사용
+     2. Reviewer는 본문 슬라이드 중제목 영역 2개(레이블+설명글) 존재 + margin=0 검증. 없으면 major issue로 reject
+     3. layout-spec.md에 중제목 TextBox margin=0 필수 명시 추가
+     4. 새 TextBox 생성 시: `text_frame.margin_left/right/top/bottom = 0` 필수
+
+24. **graphicFrame 요소명 오타 (nvGrFrPr → nvGraphicFramePr)** — L11 Comparison Table을 `create_l11_comparison_table()`로 생성 시 `<p:nvGrFrPr>`, `<p:cNvGrFrPr>` 사용. 이는 OOXML 스펙에 없는 잘못된 축약형으로 PowerPoint에서 "repair" 다이얼로그 반복 발생. 정식 명칭은 `<p:nvGraphicFramePr>`, `<p:cNvGraphicFramePr>`. 
+   - **증상:** slide14.xml(L11 테이블) 추가 후 PPTX 열 때마다 repair 다이얼로그 
+   - **원인:** lxml Element 생성 시 축약된 요소명 사용 (`nvGrFrPr` vs `nvGraphicFramePr`)
+   - **발견 방법:** python-pptx로 동일한 테이블 생성 후 graphicFrame XML 비교 (`table._graphicFrame`)
+   - **해결:** 
+     1. `pptx_safe_edit.py:748` — `nvGrFrPr` → `nvGraphicFramePr` 수정
+     2. `pptx_safe_edit.py:752` — `cNvGrFrPr` → `cNvGraphicFramePr` 수정
+     3. `<a:graphicFrameLocks noGrp="1"/>` 속성 추가 (python-pptx 표준)
+     4. 이미 생성된 slide14.xml을 zipfile in-place string replacement로 패치
+   - **재발방지:** 새 OOXML 요소 추가 시 반드시 python-pptx 생성 결과와 XML 비교 검증. 축약형 추측 금지. graphicFrame, chart, diagram 등 복잡한 요소는 python-pptx reference XML을 먼저 생성하여 정확한 구조 확인 후 작성.
+
+23. **테이블 XML ns0: 네임스페이스 오류** — python-pptx로 테이블을 zipfile 방식으로 생성할 때 `<a:tbl>` 대신 `<ns0:tbl xmlns:ns0="http://schemas.openxmlformats.org/drawingml/2006/table">` 로 직렬화됨. PowerPoint에서 "repair" 다이얼로그 유발. 테이블 생성 후 반드시 zipfile로 slide XML을 열어 `ns0:tbl` 존재 여부 확인 → `a:tbl`로 교체 필요. 또는 `create_l11_comparison_table()` 함수 내부에서 `lxml`로 직접 네임스페이스 등록 후 직렬화.
+
 21. **중제목 레이블 삭제 (TextBox 2/3 오분류)** — L07 본문 제목/설명글(TextBox 5/6) 삭제 요청 시 삭제 대상 이름을 확인하지 않고 TextBox 2/3(중제목 레이블)까지 같이 삭제. 삭제 전 반드시 각 TextBox의 y좌표와 텍스트 내용을 확인하여 중제목 영역(y<1.637")과 본문 영역(y>1.637")을 구분해야 함.
 
 22. **구버전 슬라이드 미삭제** — Executor가 L07을 새로 생성하면서 구버전 slide10.xml이 presentation.xml에 남아 중복 슬라이드 발생. Executor 완료 후 반드시 presentation.xml 슬라이드 목록 확인 및 중복/구버전 슬라이드 제거 필요.

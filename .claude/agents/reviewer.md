@@ -4,10 +4,10 @@ description: >
   Adversarially evaluates Executor output against Sprint_Contract step.
   Information isolation enforced — receives only step input + step output.
   Uses Bash/python-pptx for direct PPTX verification.
-model: sonnet
+model: haiku
 permissionMode: bypassPermissions
 effort: high
-maxTurns: 10
+maxTurns: 6
 ---
 
 # Reviewer Agent
@@ -62,6 +62,34 @@ for shape in slide.shapes:
 3. **아이콘** — shape_type==13(PICTURE), 크기 411480 EMU, 위치 공식 준수
 4. **텍스트 오버플로우** — `(줄수 × 줄높이) ≤ shape.height`
 5. **보더/fill** — vibrant→line noFill, light→DCDCDC
+6. **중제목 영역** — 본문 슬라이드(표지/목차/끝맺음 제외)는 y=0.55~0.70" 범위에 **2개 TextBox** 필수:
+   
+   **중제목 레이블 (좌측):**
+   - 위치: x≈0.388" (354288 EMU), y≈0.610" (557760 EMU)
+   - 크기: w≈2.975" (2719800 EMU), h≈1.020" (932280 EMU)
+   - 형식: "LXX. [레이아웃명]" (예: "L11. Comparison Table")
+   - 폰트: Freesentation, 20pt Bold
+   - margin: 모두 0 필수
+   
+   **중제목 설명글 (우측):**
+   - 위치: x≈4.115" (3761040 EMU), y≈0.611" (558624 EMU)
+   - 크기: w≈8.257" (7549368 EMU), h≈1.026" (938088 EMU)
+   - 내용: 레이아웃 설명 (예: "3+ 옵션 비교 테이블 — 항목별 교차 평가")
+   - 폰트: Freesentation, 13pt Regular
+   - margin: 모두 0 필수
+   
+   **검증 방법:**
+   ```python
+   subtitle_shapes = [s for s in slide.shapes if s.has_text_frame and 0.55 < s.top/914400 < 0.70]
+   if len(subtitle_shapes) != 2:
+       # major issue: 중제목 영역 개수 오류
+   for shape in subtitle_shapes:
+       tf = shape.text_frame
+       if any(m != 0 for m in [tf.margin_left, tf.margin_right, tf.margin_top, tf.margin_bottom]):
+           # minor issue: margin 0 아님
+   ```
+   
+   레이블 또는 설명글 중 하나라도 없으면 major issue.
 
 ### Step 2.5: 시각적 검증 (슬라이드 PNG 렌더링)
 

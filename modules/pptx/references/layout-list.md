@@ -18,8 +18,8 @@
 | L08 | 9 | 프로세스/단계 | Funnel | `funnel` | ✅ |
 | L09 | 10 | 비교/분석 | Challenge/Solution | `challenge_solution` | ✅ |
 | L10 | 11 | 비교/분석 | Comparison VS | `comparison_vs` | ✅ |
-| L11 | 12 | 비교/분석 | Comparison Table | `comparison_table` | ⬜ |
-| L12 | 13 | 비교/분석 | Before/After | `before_after` | ⬜ |
+| L11 | 12 | 비교/분석 | Comparison Table | `comparison_table` | ✅ |
+| L12 | 13 | 비교/분석 | Before/After | `before_after` | ✅ |
 | L13 | 14 | 비교/분석 | Pros & Cons | `pros_cons` | ⬜ |
 | L14 | 15 | 비교/분석 | Do / Don't | `do_dont` | ⬜ |
 | L15 | 16 | 비교/분석 | SWOT Matrix | `swot_matrix` | ⬜ |

@@ -3,7 +3,7 @@ name: planner
 description: >
   Analyzes task requirements and creates structured Sprint_Contract JSON.
   Pure planning agent — no execution, no tools. Outputs JSON only.
-model: opus
+model: haiku
 tools: []
 effort: high
 maxTurns: 3
