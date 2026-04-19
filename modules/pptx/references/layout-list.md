@@ -23,28 +23,28 @@
 | L13 | 14 | 비교/분석 | Pros & Cons | `pros_cons` | 📋 |
 | L14 | 15 | 비교/분석 | Do / Don't | `do_dont` | 📋 |
 | L15 | 16 | 비교/분석 | SWOT Matrix | `swot_matrix` | 📋 |
-| L16 | 17 | 이미지 | Detail Image | `detail_image` | ⬜ |
-| L17 | 18 | 이미지 | Image Left | `image_left` | ⬜ |
-| L18 | 19 | 이미지 | Full Image | `full_image` | ⬜ |
-| L19 | 20 | 리스트/텍스트 | Icon Grid | `icon_grid` | ⬜ |
-| L20 | 21 | 리스트/텍스트 | Numbered List | `numbered_list` | ⬜ |
-| L21 | 22 | 리스트/텍스트 | Quote Highlight | `quote_highlight` | ⬜ |
-| L22 | 23 | 리스트/텍스트 | Split Text+Code | `split_text_code` | ⬜ |
-| L23 | 24 | 데이터/KPI | Stats Dashboard | `stats_dashboard` | ⬜ |
-| L24 | 25 | 데이터/KPI | Table Callout | `table_callout` | ⬜ |
+| L16 | 17 | 이미지 | Detail Image | `detail_image` | 📋 |
+| L17 | 18 | 이미지 | Image Left | `image_left` | 📋 |
+| L18 | 19 | 이미지 | Full Image | `full_image` | 📋 |
+| L19 | 20 | 리스트/텍스트 | Icon Grid | `icon_grid` | 📋 |
+| L20 | 21 | 리스트/텍스트 | Numbered List | `numbered_list` | 📋 |
+| L21 | 22 | 리스트/텍스트 | Quote Highlight | `quote_highlight` | 📋 |
+| L22 | 23 | 리스트/텍스트 | Split Text+Code | `split_text_code` | 📋 |
+| L23 | 24 | 데이터/KPI | Stats Dashboard | `stats_dashboard` | 📋 |
+| L24 | 25 | 데이터/KPI | Table Callout | `table_callout` | 📋 |
 | — | 26 | 데이터/KPI | Key Metric | `key_metric` | alias |
-| L25 | 27 | 구조/계층 | Architecture Wide | `architecture_wide` | ⬜ |
-| L26 | 28 | 구조/계층 | Detail Sections | `detail_sections` | ⬜ |
-| L27 | 29 | 구조/계층 | Pyramid Hierarchy | `pyramid_hierarchy` | ⬜ |
-| L28 | 30 | 구조/계층 | Org Chart | `org_chart` | ⬜ |
-| L29 | 31 | 구조/계층 | Temple Pillars | `temple_pillars` | ⬜ |
-| L30 | 32 | 다이어그램 | Cycle Loop | `cycle_loop` | ⬜ |
-| L31 | 33 | 다이어그램 | Venn Diagram | `venn_diagram` | ⬜ |
-| L32 | 34 | 다이어그램 | Center Radial | `center_radial` | ⬜ |
-| L33 | 35 | 다이어그램 | Fishbone | `fishbone_cause_effect` | ⬜ |
-| L34 | 36 | 다이어그램 | Infinity Loop | `infinity_loop` | ⬜ |
-| L35 | 37 | 다이어그램 | Speedometer Gauge | `speedometer_gauge` | ⬜ |
-| L36 | 38 | 다이어그램 | Mind Map | `mind_map` | ⬜ |
+| L25 | 27 | 구조/계층 | Architecture Wide | `architecture_wide` | 📋 |
+| L26 | 28 | 구조/계층 | Detail Sections | `detail_sections` | 📋 |
+| L27 | 29 | 구조/계층 | Pyramid Hierarchy | `pyramid_hierarchy` | 📋 |
+| L28 | 30 | 구조/계층 | Org Chart | `org_chart` | 📋 |
+| L29 | 31 | 구조/계층 | Temple Pillars | `temple_pillars` | 📋 |
+| L30 | 32 | 다이어그램 | Cycle Loop | `cycle_loop` | 📋 |
+| L31 | 33 | 다이어그램 | Venn Diagram | `venn_diagram` | 📋 |
+| L32 | 34 | 다이어그램 | Center Radial | `center_radial` | 📋 |
+| L33 | 35 | 다이어그램 | Fishbone | `fishbone_cause_effect` | 📋 |
+| L34 | 36 | 다이어그램 | Infinity Loop | `infinity_loop` | 📋 |
+| L35 | 37 | 다이어그램 | Speedometer Gauge | `speedometer_gauge` | 📋 |
+| L36 | 38 | 다이어그램 | Mind Map | `mind_map` | 📋 |
 
 ---
 
@@ -62,6 +62,6 @@
 ## 진행률
 
 - **완료**: 12 / 36 (33.3%)
-- **스펙 완료**: 3 / 36 (8.3%)
-- **미착수**: 21 / 36 (58.3%)
+- **스펙 완료**: 24 / 36 (66.7%)
+- **미착수**: 0 / 36 (0%)
 - **Alias 제외**: 36 고유 레이아웃 (alias 2종 제외)
