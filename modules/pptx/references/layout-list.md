@@ -20,9 +20,9 @@
 | L10 | 11 | 비교/분석 | Comparison VS | `comparison_vs` | ✅ |
 | L11 | 12 | 비교/분석 | Comparison Table | `comparison_table` | ✅ |
 | L12 | 13 | 비교/분석 | Before/After | `before_after` | ✅ |
-| L13 | 14 | 비교/분석 | Pros & Cons | `pros_cons` | ⬜ |
-| L14 | 15 | 비교/분석 | Do / Don't | `do_dont` | ⬜ |
-| L15 | 16 | 비교/분석 | SWOT Matrix | `swot_matrix` | ⬜ |
+| L13 | 14 | 비교/분석 | Pros & Cons | `pros_cons` | 📋 |
+| L14 | 15 | 비교/분석 | Do / Don't | `do_dont` | 📋 |
+| L15 | 16 | 비교/분석 | SWOT Matrix | `swot_matrix` | 📋 |
 | L16 | 17 | 이미지 | Detail Image | `detail_image` | ⬜ |
 | L17 | 18 | 이미지 | Image Left | `image_left` | ⬜ |
 | L18 | 19 | 이미지 | Full Image | `full_image` | ⬜ |
@@ -45,3 +45,23 @@
 | L34 | 36 | 다이어그램 | Infinity Loop | `infinity_loop` | ⬜ |
 | L35 | 37 | 다이어그램 | Speedometer Gauge | `speedometer_gauge` | ⬜ |
 | L36 | 38 | 다이어그램 | Mind Map | `mind_map` | ⬜ |
+
+---
+
+## 상태 범례
+
+| 아이콘 | 의미 |
+|-------|------|
+| ✅ | 구현 완료 (MCP 함수 + 검증 완료) |
+| 📋 | 스펙 작성 완료 (layout-spec.md 업데이트, 구현 대기) |
+| ⬜ | 미착수 (스펙 없음) |
+| alias | 다른 레이아웃의 별칭 (독립 구현 불필요) |
+
+---
+
+## 진행률
+
+- **완료**: 12 / 36 (33.3%)
+- **스펙 완료**: 3 / 36 (8.3%)
+- **미착수**: 21 / 36 (58.3%)
+- **Alias 제외**: 36 고유 레이아웃 (alias 2종 제외)
