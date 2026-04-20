@@ -37,6 +37,16 @@ TARGET_SIDE_MARGIN  = 0.500   # 좌/우 목표 여백
 TOLERANCE_SIDE      = 0.060   # 좌/우 허용 편차 (±0.06")
 TOLERANCE_SYMMETRIC = 0.060   # 상/하 대칭 허용 편차 (|top-bottom| ≤ 0.06")
 
+# 레이아웃별 예외 — layout-spec.md 에 명시된 설계 의도
+# 좌/우 대칭이지만 0.500" 초과 허용 (격자 구조상 고정값)
+WIDE_SIDE_MARGIN_OK_KEYWORDS = {"Grid 2x2"}
+# 상/하 비대칭이 설계상 불가피한 레이아웃 — 각각 허용 편차(inch)
+TOPBOTTOM_CUSTOM_TOLERANCE = {
+    "SWOT Matrix":      0.150,  # L15: 전략 바 하단 고정 → 0.100" 비대칭 불가피
+    "Icon Grid":        0.500,  # L19: 2행 그리드 미충족 → 0.400" 비대칭 설계 의도
+    "Stats Dashboard":  0.250,  # L23: KPI+요약바 → 0.200" 비대칭 설계 의도
+}
+
 # 헤더 shape 최대 bottom (2.500" = 2286000 EMU)
 # 이를 초과하는 shape은 실제 콘텐츠로 간주 (연도탭, 컬럼헤더 등 오탐 방지)
 HEADER_MAX_BOTTOM = 2286000  # 2.500"
@@ -46,21 +56,31 @@ def to_inch(emu: int) -> float:
     return emu / EMU_PER_INCH
 
 def is_non_body_slide(slide) -> bool:
-    """비본문 슬라이드 판별 — 키워드 또는 LXX. 레이블 부재로 판단"""
-    # 1. 키워드 기반 (CONTENTS, Thank You 등)
+    """비본문 슬라이드 판별 — 레이아웃 이름 우선, 키워드·위치 보조 판단"""
+    # 1. 레이아웃 이름 기반 — "본문" 레이아웃이면 무조건 본문 슬라이드
+    try:
+        if slide.slide_layout.name == "본문":
+            return False
+    except Exception:
+        pass
+
+    # 2. 키워드 기반 (CONTENTS, Thank You 등)
     for shape in slide.shapes:
         if shape.has_text_frame:
             t = shape.text_frame.text.strip()
             for kw in NON_BODY_KEYWORDS:
                 if kw in t:
                     return True
-    # 2. 본문 슬라이드는 반드시 "LXX." 형식의 중제목 레이블이 y=0.55~0.72"에 존재
+
+    # 3. 중제목 위치(0.55~0.72")에 텍스트 shape이 있으면 본문 슬라이드
+    #    LXX. 패턴 불필요 — 실제 콘텐츠 프리젠테이션 호환
     for shape in slide.shapes:
         if shape.has_text_frame and 0.55 < shape.top / EMU_PER_INCH < 0.72:
             t = shape.text_frame.text.strip()
-            if re.match(r'^L\d+\.', t):
-                return False   # 레이블 발견 → 본문 슬라이드
-    return True  # 레이블 없음 → 비본문(표지/구분 슬라이드 등)
+            if t:
+                return False
+
+    return True  # 비본문 (표지/구분 슬라이드 등)
 
 def get_body_header_bottom(slide) -> int:
     """
@@ -180,25 +200,35 @@ def check_slide(slide_idx: int, slide, tolerance_sym: float = TOLERANCE_SYMMETRI
 
     # ── 검증 ──────────────────────────────────────
     issues = []
+    label = result.get("label", "")
+
+    # 레이아웃별 예외 적용
+    wide_side_ok = any(kw in label for kw in WIDE_SIDE_MARGIN_OK_KEYWORDS)
+    tb_tolerance = next(
+        (v for kw, v in TOPBOTTOM_CUSTOM_TOLERANCE.items() if kw in label),
+        tolerance_sym
+    )
 
     # 1. 좌/우 여백 기준 범위 (0.500" ± tolerance_side)
-    if not (TARGET_SIDE_MARGIN - tolerance_side <= left_m <= TARGET_SIDE_MARGIN + tolerance_side):
-        issues.append(
-            f"좌 여백 {left_m:.3f}\" — 기준 {TARGET_SIDE_MARGIN:.3f}\" ± {tolerance_side:.3f}\""
-        )
-    if not (TARGET_SIDE_MARGIN - tolerance_side <= right_m <= TARGET_SIDE_MARGIN + tolerance_side):
-        issues.append(
-            f"우 여백 {right_m:.3f}\" — 기준 {TARGET_SIDE_MARGIN:.3f}\" ± {tolerance_side:.3f}\""
-        )
+    #    WIDE_SIDE_MARGIN_OK 레이아웃: 대칭이면 범위 초과 허용 (격자 구조 고정값)
+    if not wide_side_ok:
+        if not (TARGET_SIDE_MARGIN - tolerance_side <= left_m <= TARGET_SIDE_MARGIN + tolerance_side):
+            issues.append(
+                f"좌 여백 {left_m:.3f}\" — 기준 {TARGET_SIDE_MARGIN:.3f}\" ± {tolerance_side:.3f}\""
+            )
+        if not (TARGET_SIDE_MARGIN - tolerance_side <= right_m <= TARGET_SIDE_MARGIN + tolerance_side):
+            issues.append(
+                f"우 여백 {right_m:.3f}\" — 기준 {TARGET_SIDE_MARGIN:.3f}\" ± {tolerance_side:.3f}\""
+            )
 
-    # 2. 좌/우 대칭
+    # 2. 좌/우 대칭 (예외 레이아웃도 대칭 체크는 항상 수행)
     if abs(left_m - right_m) > tolerance_side:
         issues.append(
             f"좌우 비대칭 |{left_m:.3f}\" - {right_m:.3f}\"| = {abs(left_m-right_m):.3f}\""
         )
 
-    # 3. 상/하 대칭
-    if abs(top_m - bottom_m) > tolerance_sym:
+    # 3. 상/하 대칭 (레이아웃별 커스텀 허용 편차 적용)
+    if abs(top_m - bottom_m) > tb_tolerance:
         issues.append(
             f"상하 비대칭 |top {top_m:.3f}\" - bottom {bottom_m:.3f}\"| = {abs(top_m-bottom_m):.3f}\""
         )

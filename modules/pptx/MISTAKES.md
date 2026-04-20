@@ -161,3 +161,33 @@ L01~L12 파이프라인 실행 중 80% 이상 토큰이 낭비된 주요 패턴 
 18. **auto_position_card_content 초기 버전에서 x-column 정렬 sub-label 미제외** — TextBox 24/25/26(App/SDK, Topic/Part., Consumer Grp)이 vibrant shape과 x 정렬된 sub-label임에도 일반 카드 텍스트로 처리되어 위치 변경됨. vibrant_xs 집합으로 ±0.25cm tolerance x-column 제외 로직 추가.
 19. **L02 카드 내용 12pt로 생성(13pt 기준 위반)** — 다른 슬라이드 내용은 모두 13pt인데 L02만 12pt. MCP 생성 시 잘못된 sz 값 지정. 전체 rPr sz=1200 → sz=1300으로 수정.
 20. **보더 규칙 slide_idx 기반 하드코딩** — L01 flow area 0043DA, L02 E6F0FF 0043DA를 slide index로 적용. 올바른 규칙: fill color 기반(vibrant→noFill, light→DCDCDC 6350). 도형이 달라져도 fill color만으로 동적 판별.
+
+29. **git checkout으로 미커밋 PPTX 39슬라이드 영구 삭제** — L17-1 슬라이드 추가 시도 중 `prs.part._rels._rels.pop(rId)` 호출로 presentation.xml.rels의 모든 슬라이드 관계가 손상됨. 복원 목적으로 `git checkout b843c79 -- results/pptx/AWS_MSK_Expert_Intro.pptx` 실행 시 **커밋되지 않은 상태의 원본 파일(39슬라이드)**이 b843c79 커밋 버전(26슬라이드)으로 영구 덮어씌워짐. git stash에는 이미 덮어씌워진 버전이 저장됨. 로컬 스냅샷 없음 → 복구 불가.
+   - **증상:** L01~L36(39슬라이드) 전체 소실, 이 세션에서 수행한 L10/L11/L12/L25/L26 수정 모두 손실
+   - **원인:** 
+     1. `_rels._rels.pop(rId)` 내부 dict 조작으로 rels 전체 손상 (슬라이드 삭제에 잘못된 API 사용)
+     2. git checkout 실행 전 `git status`로 미커밋 파일 존재 여부 미확인
+     3. 파일이 이미 수정됐을 가능성 있는데 바로 git checkout 실행
+   - **재발방지:**
+     1. **CRITICAL**: `git checkout -- <file>` 실행 전 반드시 `git diff HEAD -- <file>` 또는 `git status` 확인. 미커밋 변경사항 있으면 git checkout 대신 백업 후 수동 복원
+     2. python-pptx로 슬라이드 삭제 시 `_rels._rels` 내부 dict 직접 조작 금지 — 슬라이드 추가/삭제는 MCP 도구(`add_slide`, 해당 MCP 기능)만 사용
+     3. 슬라이드 삽입/삭제 작업은 반드시 파이프라인(executor)으로 처리 — 직접실행 허용 대상 아님
+     4. 직접실행 허용 작업: 텍스트/색상/폰트 수정만. 슬라이드 추가/삭제는 직접실행 금지
+
+31. **슬라이드 인덱스 오류로 엉뚱한 슬라이드 수정** — 스크립트에서 "# Slide 4 (L03)" 주석을 달고 `prs.slides[3]`을 사용 (1 off). L03을 수정한다고 했으나 실제로는 L02 Three Cards 슬라이드 shapes를 수정. 동일 실수가 L21→L20, L22→L21, L23→L22에서 반복됨.
+   - **증상:** 스펙 수정이 완료됐다고 했으나 실제로는 전혀 다른 슬라이드가 수정됨 (save 전 오류로 파일 손상은 없었음)
+   - **원인:** "Slide 4" = `prs.slides[4]` 임을 착각. 주석과 실제 인덱스 불일치.
+   - **재발방지:** 슬라이드 인덱스 사용 전 반드시 `prs.slides[idx].shapes[X].text_frame.text` 로 식별 텍스트 확인 또는 `enumerate(prs.slides)`로 레이아웃명 먼저 매핑. 주석 "Slide N"과 `prs.slides[N]`이 일치하는지 더블체크.
+
+32. **검증 스크립트가 수정 항목만 체크 — shape fill/geometry/단락 XML 속성 누락** — "스펙 1:1 대조 검증"을 수행했다고 했으나 실제 검증 스크립트는 `run.font.size`와 `run.font.bold`만 체크. shape fill(solidFill vs noFill), geometry(rect vs roundRect), 단락 XML 속성(`pPr lvl`, `algn`)은 전혀 검증하지 않음. 결과적으로 L12 배지 배경 noFill(스펙: PRIMARY fill RRect), L13/L14 `lvl=1` 사용(스펙: lvl 금지), `algn="l"` 누락(스펙: 필수) 등이 "PASS"로 통과됨.
+   - **원인:** 검증 코드를 "내가 수정한 항목"만 커버하도록 작성. 스펙 전체 항목을 코드로 커버하지 않은 채 "검증 완료"로 보고.
+   - **재발방지:** 검증 스크립트 작성 시 폰트 외 다음 항목을 반드시 포함:
+     1. `shape.fill` → solidFill 색상값 확인
+     2. `shape._element.spPr` → prstGeom prst 값 확인
+     3. 모든 단락 `para._pPr` → `lvl` 없음 + `algn="l"` 있음 확인
+     4. `bodyPr` anchor 값 확인 (수직 정렬)
+     5. 세부 항목 텍스트 앞 `"  "` (공백 2개) prefix 존재 여부 확인 — lvl 제거만 하고 prefix 미추가 시 시각적 들여쓰기 완전 소실
+
+30. **불완전한 검증을 "전체 PASS"로 허위 보고** — L01~L23 스펙 검증 요청에 공통 헤더(설명글 12pt, 본문제목 16pt, 본문설명 13pt, lvl=1)만 체크하고 "✅ 전체 PASS"로 보고. 각 레이아웃 고유 요소(배지 폰트, 카드 제목/내용, 패널 텍스트, 불릿, KPI 수치 등)는 전혀 검증하지 않았음. 사용자가 L09 배지 폰트를 직접 지적할 때까지 발견 못함.
+   - **원인:** 검증 범위를 공통 항목으로 제한하고 "전체 검증"처럼 보고
+   - **재발방지:** 스펙 검증 시 layout-spec.md의 각 레이아웃 섹션을 실제로 읽고 레이아웃별 고유 요소를 모두 포함한 검증 스크립트 작성. "전체 PASS" 표현은 실제로 모든 스펙 항목을 체크했을 때만 사용.
