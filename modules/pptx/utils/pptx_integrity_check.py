@@ -10,6 +10,10 @@ PowerPoint "found a problem" 오류를 사전에 감지하고 자동 복구.
   3. Content_Types ghost — CT에 등록됐지만 zip에 파일 없음 → CT에서 제거
   4. 슬라이드 rels orphan image — slide*.xml.rels에 이미지 rel 있지만 slide XML에서 blip 없음 → 삭제
   5. spTree 자식 순서 — nvGrpSpPr가 grpSpPr보다 뒤에 오면 PowerPoint Repair 오류 발생 → 순서 교정
+  6. p:txBody 잘못된 자식 — bodyPr/lstStyle/p 외 요소(예: a:a) 존재 → 제거
+  7. a:rPr 자식 순서 — OOXML 스펙: fill → font 순서 위반 시 → 재정렬
+  8. creationId 중복 — 여러 슬라이드가 동일 p14:creationId 공유 → 고유값 할당
+  9. sldId-rels 일관성 — presentation.xml sldId 개수 ≠ rels slide 개수 → 경고
 
 사용법:
     python pptx_integrity_check.py <file.pptx> [--template <template.pptx>] [--fix] [--verbose]
@@ -261,6 +265,166 @@ def check_and_fix_pptx(
                 issue["fixed"] = "nvGrpSpPr → grpSpPr 순서로 교정"
                 if verbose:
                     print(f"     → ✅ spTree 순서 교정 완료")
+
+    # ── 6. p:txBody 잘못된 자식 요소 (a:a 등) ────────────────────────────────
+    NS_A = "http://schemas.openxmlformats.org/drawingml/2006/main"
+    VALID_TXBODY_CHILDREN = {
+        f"{{{NS_A}}}bodyPr", f"{{{NS_A}}}lstStyle", f"{{{NS_A}}}p",
+    }
+    for sf in slide_xml_files:
+        try:
+            root = etree.fromstring(data[sf])
+        except etree.XMLSyntaxError:
+            continue
+        dirty = False
+        for txBody in root.iter(f"{{{NS_P}}}txBody"):
+            for child in list(txBody):
+                if child.tag not in VALID_TXBODY_CHILDREN:
+                    tag_short = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+                    issue = {
+                        "type": "txbody_invalid_child",
+                        "path": sf,
+                        "detail": f"p:txBody 잘못된 자식: {tag_short}",
+                    }
+                    issues.append(issue)
+                    if verbose:
+                        print(f"  ❌ [txBody] {sf}: 잘못된 자식 <{tag_short}>")
+                    if fix:
+                        txBody.remove(child)
+                        dirty = True
+                        issue["fixed"] = "제거"
+                        if verbose:
+                            print(f"     → ✅ 제거 완료")
+        if fix and dirty:
+            data[sf] = etree.tostring(
+                root, xml_declaration=True, encoding="UTF-8", standalone=True
+            )
+
+    # ── 7. a:rPr 자식 순서 (OOXML: fill → font) ──────────────────────────────
+    RPR_ORDER = [
+        f"{{{NS_A}}}ln",
+        f"{{{NS_A}}}noFill", f"{{{NS_A}}}solidFill", f"{{{NS_A}}}gradFill",
+        f"{{{NS_A}}}blipFill", f"{{{NS_A}}}pattFill", f"{{{NS_A}}}grpFill",
+        f"{{{NS_A}}}effectLst", f"{{{NS_A}}}effectDag",
+        f"{{{NS_A}}}highlight",
+        f"{{{NS_A}}}uLnTx", f"{{{NS_A}}}uLn",
+        f"{{{NS_A}}}uFillTx", f"{{{NS_A}}}uFill",
+        f"{{{NS_A}}}latin", f"{{{NS_A}}}ea", f"{{{NS_A}}}cs", f"{{{NS_A}}}sym",
+        f"{{{NS_A}}}hlinkClick", f"{{{NS_A}}}hlinkMouseOver",
+        f"{{{NS_A}}}rtl", f"{{{NS_A}}}extLst",
+    ]
+
+    def _rpr_sort_key(el):
+        try:
+            return RPR_ORDER.index(el.tag)
+        except ValueError:
+            return 999
+
+    for sf in slide_xml_files:
+        try:
+            root = etree.fromstring(data[sf])
+        except etree.XMLSyntaxError:
+            continue
+        dirty = False
+        for rPr in root.iter(f"{{{NS_A}}}rPr"):
+            children = list(rPr)
+            if not children:
+                continue
+            tags = [c.tag for c in children]
+            sorted_children = sorted(children, key=_rpr_sort_key)
+            if [c.tag for c in sorted_children] != tags:
+                issue = {
+                    "type": "rpr_order",
+                    "path": sf,
+                    "detail": "a:rPr 자식 순서 오류 (fill → font 순서 위반)",
+                }
+                issues.append(issue)
+                if verbose:
+                    short = [t.split("}")[-1] for t in tags]
+                    print(f"  ❌ [rPr 순서] {sf}: {short}")
+                if fix:
+                    for c in children:
+                        rPr.remove(c)
+                    for c in sorted_children:
+                        rPr.append(c)
+                    dirty = True
+                    issue["fixed"] = "순서 교정"
+                    if verbose:
+                        print(f"     → ✅ 순서 교정 완료")
+        if fix and dirty:
+            data[sf] = etree.tostring(
+                root, xml_declaration=True, encoding="UTF-8", standalone=True
+            )
+
+    # ── 8. creationId 중복 ────────────────────────────────────────────────────
+    NS_P14 = "http://schemas.microsoft.com/office/powerpoint/2010/main"
+    cid_map = {}  # val → [slide_path, ...]
+    for sf in slide_xml_files:
+        try:
+            root = etree.fromstring(data[sf])
+        except etree.XMLSyntaxError:
+            continue
+        for cid in root.iter(f"{{{NS_P14}}}creationId"):
+            val = cid.get("val", "")
+            cid_map.setdefault(val, []).append(sf)
+
+    import random
+    used_cids = set(cid_map.keys())
+    for val, paths in cid_map.items():
+        if len(paths) <= 1:
+            continue
+        # 첫 번째는 유지, 나머지 교체
+        for dup_path in paths[1:]:
+            issue = {
+                "type": "duplicate_creationid",
+                "path": dup_path,
+                "detail": f"creationId={val} 중복 ({len(paths)}개 슬라이드)",
+            }
+            issues.append(issue)
+            if verbose:
+                print(f"  ❌ [creationId] {dup_path}: val={val} 중복")
+            if fix:
+                root = etree.fromstring(data[dup_path])
+                for cid in root.iter(f"{{{NS_P14}}}creationId"):
+                    if cid.get("val") == val:
+                        new_val = str(random.randint(1000000000, 4294967295))
+                        while new_val in used_cids:
+                            new_val = str(random.randint(1000000000, 4294967295))
+                        used_cids.add(new_val)
+                        cid.set("val", new_val)
+                        break
+                data[dup_path] = etree.tostring(
+                    root, xml_declaration=True, encoding="UTF-8", standalone=True
+                )
+                issue["fixed"] = f"새 creationId={new_val}"
+                if verbose:
+                    print(f"     → ✅ 새 creationId 할당")
+
+    # ── 9. sldId-rels 일관성 ──────────────────────────────────────────────────
+    prs_xml = data.get("ppt/presentation.xml")
+    prs_rels_xml = data.get("ppt/_rels/presentation.xml.rels")
+    if prs_xml and prs_rels_xml:
+        prs_root = etree.fromstring(prs_xml)
+        prs_rels_root = etree.fromstring(prs_rels_xml)
+        ns_r = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+        sld_ids = prs_root.findall(
+            f".//{{{NS_P}}}sldIdLst/{{{NS_P}}}sldId"
+        )
+        slide_rels = [
+            r for r in prs_rels_root
+            if "relationships/slide" in (r.get("Type") or "")
+            and "slideLayout" not in (r.get("Target") or "")
+            and "slideMaster" not in (r.get("Target") or "")
+        ]
+        if len(sld_ids) != len(slide_rels):
+            issue = {
+                "type": "sldid_rels_mismatch",
+                "path": "ppt/presentation.xml",
+                "detail": f"sldIdLst({len(sld_ids)}) ≠ rels slides({len(slide_rels)})",
+            }
+            issues.append(issue)
+            if verbose:
+                print(f"  ❌ [sldId-rels] sldIdLst={len(sld_ids)}, rels={len(slide_rels)}")
 
     # ── 결과 저장 ───────────────────────────────────────────────────────────
     if fix and issues:

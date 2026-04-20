@@ -45,7 +45,17 @@ TOPBOTTOM_CUSTOM_TOLERANCE = {
     "SWOT Matrix":      0.150,  # L15: 전략 바 하단 고정 → 0.100" 비대칭 불가피
     "Icon Grid":        0.500,  # L19: 2행 그리드 미충족 → 0.400" 비대칭 설계 의도
     "Stats Dashboard":  0.250,  # L23: KPI+요약바 → 0.200" 비대칭 설계 의도
+    "Table Callout":    0.700,  # L24: 콜아웃+테이블+Verdict 바 → 상하 비대칭 설계 의도
+    "Detail Sections":  0.600,  # L26: 좌 섹션+우 다이어그램 → 하단 여유 설계 의도
+    "Org Chart":        0.600,  # L28: 트리 구조 → 상하 비대칭 설계 의도
+    "Temple Pillars":   0.300,  # L29: 지붕-기둥-기초 구조 → 상하 비대칭 허용
 }
+# 좌우 비대칭이 설계상 의도된 레이아웃 — 마진 체크 전면 비적용
+SKIP_SIDE_MARGIN_CHECK = {"Image Left-1"}  # L17-1: 설계상 좌 0.387", 우 0.301"
+# 상하 비대칭도 설계 의도인 레이아웃 — 상하 체크 전면 비적용
+SKIP_TB_MARGIN_CHECK = {"Image Left-1"}  # L17-1: 설계상 상 -0.023", 하 0.357"
+# Org Chart 등 넓은 좌우 마진 허용 (트리 구조상 0.5"보다 넓음)
+WIDE_SIDE_MARGIN_OK_KEYWORDS_EXTRA = {"Org Chart"}  # L28: 좌우 1.1" — 트리 구조 설계 의도
 
 # 헤더 shape 최대 bottom (2.500" = 2286000 EMU)
 # 이를 초과하는 shape은 실제 콘텐츠로 간주 (연도탭, 컬럼헤더 등 오탐 방지)
@@ -91,6 +101,9 @@ def get_body_header_bottom(slide) -> int:
     """
     header_bottom = 0
     for shape in slide.shapes:
+        # 얇은 선/연결선 제외 (height < 100000 EMU = 0.109") — 패널 구분선이 헤더로 오탐되는 것 방지
+        if shape.height < 100000:
+            continue
         # 본문제목/설명글 영역: top > 1.4" (1280160) AND top < 2.6" (2377640)
         # 단, bottom > 2.500" (2286000)이면 실제 콘텐츠로 간주하여 제외
         if 1280160 < shape.top < 2377640:
@@ -138,6 +151,12 @@ def get_content_bounds(slide, header_bottom: int):
         "top":    min(tops),
         "bottom": max(bottoms),
     }
+
+def _is_l03_grid2x2(slide) -> bool:
+    """L03 Grid 2×2 레이아웃 구조 감지: 4개 이상의 Rounded Rectangle이 2×2 배치."""
+    rounded_rects = [s for s in slide.shapes if 'Rounded Rectangle' in s.name]
+    return len(rounded_rects) >= 4
+
 
 def check_slide(slide_idx: int, slide, tolerance_sym: float = TOLERANCE_SYMMETRIC,
                 tolerance_side: float = TOLERANCE_SIDE):
@@ -203,15 +222,22 @@ def check_slide(slide_idx: int, slide, tolerance_sym: float = TOLERANCE_SYMMETRI
     label = result.get("label", "")
 
     # 레이아웃별 예외 적용
-    wide_side_ok = any(kw in label for kw in WIDE_SIDE_MARGIN_OK_KEYWORDS)
+    skip_side = any(kw in label for kw in SKIP_SIDE_MARGIN_CHECK)
+    skip_tb = any(kw in label for kw in SKIP_TB_MARGIN_CHECK)
+    wide_side_ok = (any(kw in label for kw in WIDE_SIDE_MARGIN_OK_KEYWORDS)
+                    or _is_l03_grid2x2(slide))
+    wide_side_extra = any(kw in label for kw in WIDE_SIDE_MARGIN_OK_KEYWORDS_EXTRA)
     tb_tolerance = next(
         (v for kw, v in TOPBOTTOM_CUSTOM_TOLERANCE.items() if kw in label),
         tolerance_sym
     )
 
     # 1. 좌/우 여백 기준 범위 (0.500" ± tolerance_side)
-    #    WIDE_SIDE_MARGIN_OK 레이아웃: 대칭이면 범위 초과 허용 (격자 구조 고정값)
-    if not wide_side_ok:
+    #    SKIP_SIDE_MARGIN_CHECK: 설계상 비표준 좌우 여백 (L17-1 등)
+    #    WIDE_SIDE_MARGIN_OK: 대칭이면 범위 초과 허용 (격자 구조 고정값)
+    if skip_side or wide_side_extra:
+        pass  # 좌/우 마진 체크 전면 비적용 (설계상 비표준 좌우 여백)
+    elif not wide_side_ok:
         if not (TARGET_SIDE_MARGIN - tolerance_side <= left_m <= TARGET_SIDE_MARGIN + tolerance_side):
             issues.append(
                 f"좌 여백 {left_m:.3f}\" — 기준 {TARGET_SIDE_MARGIN:.3f}\" ± {tolerance_side:.3f}\""
@@ -221,14 +247,14 @@ def check_slide(slide_idx: int, slide, tolerance_sym: float = TOLERANCE_SYMMETRI
                 f"우 여백 {right_m:.3f}\" — 기준 {TARGET_SIDE_MARGIN:.3f}\" ± {tolerance_side:.3f}\""
             )
 
-    # 2. 좌/우 대칭 (예외 레이아웃도 대칭 체크는 항상 수행)
-    if abs(left_m - right_m) > tolerance_side:
+    # 2. 좌/우 대칭 (SKIP_SIDE/EXTRA는 비대칭 허용)
+    if not skip_side and not wide_side_extra and abs(left_m - right_m) > tolerance_side:
         issues.append(
             f"좌우 비대칭 |{left_m:.3f}\" - {right_m:.3f}\"| = {abs(left_m-right_m):.3f}\""
         )
 
-    # 3. 상/하 대칭 (레이아웃별 커스텀 허용 편차 적용)
-    if abs(top_m - bottom_m) > tb_tolerance:
+    # 3. 상/하 대칭 (SKIP_TB는 전면 비적용, 나머지는 커스텀 허용 편차)
+    if not skip_tb and abs(top_m - bottom_m) > tb_tolerance:
         issues.append(
             f"상하 비대칭 |top {top_m:.3f}\" - bottom {bottom_m:.3f}\"| = {abs(top_m-bottom_m):.3f}\""
         )

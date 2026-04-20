@@ -2,6 +2,25 @@
 
 ## 이전 세션들 (2026-04-16 이후)
 
+30. **다중 슬라이드 삽입 시 rId/sldIdLst 패키징 오류 → repair dialog** — zipfile로 5개 슬라이드를 한꺼번에 삽입할 때, 기존 presentation.xml/rels를 패치하는 방식으로 rId와 sldIdLst를 조작하면 rId 충돌·순서 꼬임이 발생하여 PowerPoint repair dialog 유발. 개별 슬라이드 XML은 정상이지만 패키징 구조가 원인.
+   - **증상:** 슬라이드 하나씩 추가하면 정상, 5개 동시 추가 시 repair dialog
+   - **원인:** 기존 presentation.xml.rels를 파싱 후 SubElement로 rel 추가 → rId 번호 충돌, sldIdLst 순서 불일치
+   - **재발방지:**
+     1. 원본 파일을 base로 깨끗하게 재조립 (기존 파일 패치 금지)
+     2. 원본의 max_rId/max_sldId를 구한 후 순차 증가
+     3. Thank You 슬라이드를 제거 → 새 슬라이드 추가 → Thank You 맨 뒤에 재삽입
+     4. [Content_Types].xml에 새 슬라이드 Override 등록 확인
+
+29. **make_textbox 함수 OOXML 스펙 위반 3종** — 새 도형을 프로그래밍으로 생성하는 함수가 3가지 OOXML 위반을 포함. 개별적으로는 repair dialog 유발 가능성 있으나, 이번 세션에서는 패키징(#30)이 주 원인.
+   - **위반 1:** `p:txBody` 안에 `a:a` 요소 삽입 (유효한 자식은 bodyPr, lstStyle, p만 허용)
+   - **위반 2:** `a:rPr` 자식 순서 오류 — `a:latin`이 `a:solidFill` 앞에 위치. OOXML 스펙 순서: `[ln, solidFill/gradFill/..., effectLst, highlight, uLn, latin, ea, cs, ...]`
+   - **위반 3:** 템플릿에서 복사한 `p14:creationId`가 모든 새 슬라이드에서 동일값 → 중복
+   - **재발방지:**
+     1. 새 도형 생성 시 `a:rPr` 자식은 반드시 fill → font 순서
+     2. `p:txBody` 자식은 `[a:bodyPr, a:lstStyle, a:p...]`만 허용
+     3. 템플릿 복사 후 `creationId`를 슬라이드마다 고유 랜덤값으로 교체
+     4. 생성 후 `pptx_integrity_check.py --fix` 실행 필수
+
 28. **spTree.insert() 위치 오류 → XML 구조 파괴 → repair dialog** — z-order 변경을 위해 `spTree.insert(1, shape_el)` 사용 시 `<nvGrpSpPr>(0)`과 `<grpSpPr>(1)` 사이에 shape이 삽입됨. `spTree` 필수 구조는 `[nvGrpSpPr, grpSpPr, ...shapes...]`이므로 shape을 index=1에 넣으면 `grpSpPr` 앞에 위치해 XML 무효화.
    - **증상:** PPTX 열 때 repair dialog
    - **원인:** `list(spTree)` 에서 index=0은 `<nvGrpSpPr>`, index=1은 `<grpSpPr>`. `insert(1, el)`은 이 둘 사이에 삽입.
@@ -171,8 +190,9 @@ L01~L12 파이프라인 실행 중 80% 이상 토큰이 낭비된 주요 패턴 
    - **재발방지:**
      1. **CRITICAL**: `git checkout -- <file>` 실행 전 반드시 `git diff HEAD -- <file>` 또는 `git status` 확인. 미커밋 변경사항 있으면 git checkout 대신 백업 후 수동 복원
      2. python-pptx로 슬라이드 삭제 시 `_rels._rels` 내부 dict 직접 조작 금지 — 슬라이드 추가/삭제는 MCP 도구(`add_slide`, 해당 MCP 기능)만 사용
-     3. 슬라이드 삽입/삭제 작업은 반드시 파이프라인(executor)으로 처리 — 직접실행 허용 대상 아님
-     4. 직접실행 허용 작업: 텍스트/색상/폰트 수정만. 슬라이드 추가/삭제는 직접실행 금지
+     3. 슬라이드 삽입/삭제 작업은 반드시 파이프라인(executor)으로 처리 — 단, **사용자가 "직접실행"을 명시한 경우 예외 허용** (CLAUDE.md 직접실행 우선 원칙)
+     4. 직접실행 허용 작업: 텍스트/색상/폰트 수정 + **슬라이드 추가 (zipfile 방식, 사용자 명시 시)**. `_rels._rels` 내부 dict 직접 조작은 여전히 금지
+     5. 슬라이드 추가 시 반드시 **템플릿 10페이지(idx 9)를 베이스로 복사** — 본문 슬라이드 독립 생성 금지
 
 31. **슬라이드 인덱스 오류로 엉뚱한 슬라이드 수정** — 스크립트에서 "# Slide 4 (L03)" 주석을 달고 `prs.slides[3]`을 사용 (1 off). L03을 수정한다고 했으나 실제로는 L02 Three Cards 슬라이드 shapes를 수정. 동일 실수가 L21→L20, L22→L21, L23→L22에서 반복됨.
    - **증상:** 스펙 수정이 완료됐다고 했으나 실제로는 전혀 다른 슬라이드가 수정됨 (save 전 오류로 파일 손상은 없었음)
