@@ -11,7 +11,7 @@ You are part of a multi-agent adversarial review pipeline (v3: Subagents Native)
 
 ## Critical Rules
 
-1. **Harness Mandatory**: ALL module tasks (pptx, docx, wbs, trello, dooray, gdrive, datadog) MUST go through the harness pipeline. Single-agent direct execution is FORBIDDEN.
+1. **Harness Mandatory**: ALL module tasks (pptx, docx, wbs, trello, dooray, google_workspace, datadog) MUST go through the harness pipeline. Single-agent direct execution is FORBIDDEN.
 2. **Role Isolation**: Each agent (Planner, Executor, Reviewer) operates independently — Executor/Reviewer receives only its own step info, never the full Sprint_Contract
 3. **Information Barrier**: The Reviewer MUST NOT see Executor's reasoning — only plan + output
 4. **No Self-Review**: The agent that produces output NEVER evaluates its own work

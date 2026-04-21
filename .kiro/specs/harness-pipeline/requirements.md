@@ -2,7 +2,7 @@
 
 ## Introduction
 
-하네스 엔지니어링 기반 멀티 에이전트 파이프라인(project-steer)의 설계 요구사항 문서이다. 본 시스템은 7개 업무 모듈(pptx, docx, wbs, trello, dooray, gdrive, datadog)의 산출물을 자동 생성·검증하며, Claude Code 기반 Primary 플랫폼에서 Kiro/Antigravity/VS Code 크로스 플랫폼을 지원한다. `specs/ai-agent-engineering-spec-2026.md`의 23개 기술 요구사항과 `requirements.md`의 프로젝트 적용 사항을 통합하여 EARS 패턴 및 INCOSE 품질 규칙에 따라 정의한다.
+하네스 엔지니어링 기반 멀티 에이전트 파이프라인(project-steer)의 설계 요구사항 문서이다. 본 시스템은 7개 업무 모듈(pptx, docx, wbs, trello, dooray, google_workspace, datadog)의 산출물을 자동 생성·검증하며, Claude Code 기반 Primary 플랫폼에서 Kiro/Antigravity/VS Code 크로스 플랫폼을 지원한다. `specs/ai-agent-engineering-spec-2026.md`의 23개 기술 요구사항과 `requirements.md`의 프로젝트 적용 사항을 통합하여 EARS 패턴 및 INCOSE 품질 규칙에 따라 정의한다.
 
 ## Glossary
 
@@ -30,7 +30,7 @@
 - **SDD (Spec-Driven Development)**: 실행 가능한 스펙을 먼저 작성하고, 에이전트가 스펙에 따라 코드를 생성하며, 스펙 준수를 자동 검증하는 개발 방법론.
 - **Pattern_Matcher**: Guardian이 위험 명령을 탐지하는 데 사용하는 정규식 기반 스크립트. exit code 2로 차단, exit code 0으로 허용한다.
 - **MCP_Server**: 모듈별 외부 도구 연동을 위한 Model Context Protocol 서버. `scripts/mcp-toggle.sh`로 on/off 토글한다.
-- **Pipeline_Module**: 7개 업무 도메인(pptx, docx, wbs, trello, dooray, gdrive, datadog) 각각을 의미하며, `modules/{name}/SKILL.md`에 정의된다.
+- **Pipeline_Module**: 7개 업무 도메인(pptx, docx, wbs, trello, dooray, google_workspace, datadog) 각각을 의미하며, `modules/{name}/SKILL.md`에 정의된다.
 
 ## Requirements
 
@@ -189,7 +189,7 @@
 #### Acceptance Criteria
 
 1. THE Harness SHALL `scripts/mcp-toggle.sh`를 통해 MCP 서버를 on/off 토글한다.
-2. WHEN 파이프라인이 시작되면, THE Orchestrator SHALL 대상 모듈에 매핑된 MCP 서버를 활성화한다. 매핑: pptx→pptx, docx→docx, trello→trello, dooray→dooray, datadog→datadog, gdrive→google-workspace.
+2. WHEN 파이프라인이 시작되면, THE Orchestrator SHALL 대상 모듈에 매핑된 MCP 서버를 활성화한다. 매핑: pptx→pptx, docx→docx, trello→trello, dooray→dooray, datadog→datadog, google_workspace→google-workspace.
 3. WHEN 파이프라인이 완료되면, THE Orchestrator SHALL 활성화했던 MCP 서버를 비활성화한다.
 4. THE MCP_Toggle SHALL Primary 설정(`.mcp.json`)을 변경한 후 Kiro 설정(`.kiro/settings/mcp.json`)에 단방향 동기화한다.
 5. THE MCP_Toggle SHALL `status` 명령으로 모든 MCP 서버의 현재 상태를 표시한다.
@@ -200,7 +200,7 @@
 
 #### Acceptance Criteria
 
-1. THE Sprint_Contract SHALL `schemas/sprint_contract.schema.json`에 정의된 JSON 스키마를 따른다. 필수 필드: task(문자열), module(enum: pptx/docx/wbs/trello/dooray/gdrive/datadog), steps(배열), acceptance_criteria(배열), risks(배열).
+1. THE Sprint_Contract SHALL `schemas/sprint_contract.schema.json`에 정의된 JSON 스키마를 따른다. 필수 필드: task(문자열), module(enum: pptx/docx/wbs/trello/dooray/google_workspace/datadog), steps(배열), acceptance_criteria(배열), risks(배열).
 2. THE `steps` 배열 각 항목 SHALL 다음 필드를 포함한다: id(정수), action(문자열), acceptance_criteria(문자열 배열). 선택 필드: dependencies(정수 배열), estimated_complexity(low/medium/high).
 3. THE Sprint_Contract SHALL 에이전트 디렉토리의 `contracts/` 하위에 `{timestamp}_{contract_id}.json` 형식으로 저장된다.
 4. IF Sprint_Contract JSON이 스키마 검증에 실패하면, THEN THE Orchestrator SHALL Planner에게 재생성을 요청한다.

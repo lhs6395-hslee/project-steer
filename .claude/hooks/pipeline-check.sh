@@ -19,7 +19,7 @@ fi
 TRANSCRIPT=$(echo "$INPUT" | jq -r '.transcript // ""' 2>/dev/null)
 
 # pptx/docx/dooray 등 모듈 작업 키워드 탐지
-MODULE_KEYWORDS="pptx|docx|dooray|gdrive|datadog|wbs|trello"
+MODULE_KEYWORDS="pptx|docx|dooray|google_workspace|datadog|wbs|trello"
 HAS_MODULE=$(echo "$TRANSCRIPT" | grep -iE "$MODULE_KEYWORDS" | head -1)
 
 if [[ -z "$HAS_MODULE" ]]; then

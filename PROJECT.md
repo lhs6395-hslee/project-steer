@@ -2,7 +2,7 @@
 
 ## 프로젝트 개요
 
-하네스 엔지니어링 기반 멀티 에이전트 파이프라인으로, 7개 업무 모듈(pptx, docx, wbs, trello, dooray, gdrive, datadog)의 산출물을 자동 생성·검증한다.
+하네스 엔지니어링 기반 멀티 에이전트 파이프라인으로, 7개 업무 모듈(pptx, docx, wbs, trello, dooray, google_workspace, datadog)의 산출물을 자동 생성·검증한다.
 
 기술 스펙 레퍼런스: `specs/ai-agent-engineering-spec-2026.md`
 
@@ -80,7 +80,7 @@
 | wbs | — | Excel 직접 조작 |
 | dooray | dooray | `uvx dooray-mcp` |
 | datadog | datadog | `npx @winor30/mcp-server-datadog` |
-| gdrive | google-workspace | `uvx workspace-mcp` |
+| google_workspace | google-workspace | `uvx workspace-mcp` |
 
 토글: executor subagent의 `mcpServers` inline 정의로 자동 연결/해제
 
@@ -124,7 +124,7 @@ Planner가 생성하는 실행 계획 JSON (`schemas/sprint_contract.schema.json
 ```json
 {
   "task": "작업 목표",
-  "module": "pptx|docx|wbs|trello|dooray|gdrive|datadog",
+  "module": "pptx|docx|wbs|trello|dooray|google_workspace|datadog",
   "mode": "create|modify",
   "recon_step_id": 1,
   "steps": [

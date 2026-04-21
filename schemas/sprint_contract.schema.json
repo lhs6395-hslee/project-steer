@@ -5,7 +5,7 @@
   "required": ["task", "module", "mode", "steps", "acceptance_criteria", "risks"],
   "properties": {
     "task": { "type": "string" },
-    "module": { "type": "string", "enum": ["pptx", "docx", "wbs", "trello", "dooray", "gdrive", "datadog"] },
+    "module": { "type": "string", "enum": ["pptx", "docx", "wbs", "trello", "dooray", "google_workspace", "datadog"] },
     "mode": { "type": "string", "enum": ["create", "modify"], "description": "create: 신규 생성, modify: 기존 파일 수정 (recon step 포함)" },
     "recon_step_id": { "type": "integer", "description": "mode=modify일 때 recon step의 id. Orchestrator가 이 step을 먼저 실행 후 나머지 병렬 시작" },
     "steps": {

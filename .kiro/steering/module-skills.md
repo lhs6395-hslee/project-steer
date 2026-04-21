@@ -16,7 +16,7 @@ fileMatchPattern: "modules/**/*"
 | wbs | `modules/wbs/SKILL.md` | 작업 분해 구조 |
 | trello | `modules/trello/SKILL.md` | 보드/카드 관리 |
 | dooray | `modules/dooray/SKILL.md` | 태스크/마일스톤 관리 |
-| gdrive | `modules/gdrive/SKILL.md` | 파일/폴더 관리 |
+| google_workspace | `modules/google_workspace/SKILL.md` | 파일/폴더 관리 |
 | datadog | `modules/datadog/SKILL.md` | 모니터링/대시보드 |
 
 ## 규칙

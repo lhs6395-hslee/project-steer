@@ -79,7 +79,7 @@ sync_pipeline.sh, mcp-toggle.sh
 
 ## Module Skills
 
-`modules/{name}/SKILL.md`: pptx, docx, wbs, trello, dooray, gdrive, datadog
+`modules/{name}/SKILL.md`: pptx, docx, wbs, trello, dooray, google_workspace, datadog
 
 ## PPTX Module: Subtitle Rules
 

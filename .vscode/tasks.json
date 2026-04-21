@@ -26,7 +26,7 @@
       "id": "module",
       "type": "pickString",
       "description": "대상 모듈",
-      "options": ["pptx", "docx", "wbs", "trello", "dooray", "gdrive", "datadog"]
+      "options": ["pptx", "docx", "wbs", "trello", "dooray", "google_workspace", "datadog"]
     }
   ]
 }

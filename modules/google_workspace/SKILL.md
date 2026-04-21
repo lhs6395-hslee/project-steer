@@ -1,5 +1,5 @@
 ---
-name: module-gdrive
+name: module-google_workspace
 description: >
   Manages Google Drive file operations including upload, download, organization,
   and document editing. Use when user asks to "upload file", "download from Drive",
@@ -8,7 +8,7 @@ description: >
 metadata:
   author: harness-team
   version: 1.1.0
-  module: gdrive
+  module: google_workspace
   category: file-management
   mcp-server: google-workspace
   checklist:

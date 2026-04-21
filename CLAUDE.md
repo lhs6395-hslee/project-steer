@@ -36,7 +36,7 @@
 **복잡한 작업 → 파이프라인 필수:**
 - 다중 산출물 생성 (3개 이상)
 - 데이터 검증이 필요한 작업
-- 외부 API 연동 (dooray, gdrive, datadog)
+- 외부 API 연동 (dooray, google_workspace, datadog)
 
 **단순 작업 → 직접 실행 허용:**
 - 텍스트/색상/폰트 수정

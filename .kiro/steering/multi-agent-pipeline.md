@@ -14,7 +14,7 @@ inclusion: auto
 
 ## 필수 실행 규칙 (CRITICAL)
 
-모듈 작업(pptx, docx, wbs, trello, dooray, gdrive, datadog)은 반드시 하네스 파이프라인으로 실행한다.
+모듈 작업(pptx, docx, wbs, trello, dooray, google_workspace, datadog)은 반드시 하네스 파이프라인으로 실행한다.
 싱글 에이전트로 직접 수행하는 것은 금지한다.
 
 ### Kiro 실행 모델 (속도 최적화)
@@ -89,7 +89,7 @@ bash scripts/mcp-toggle.sh <server> off
 - trello → trello
 - dooray → dooray
 - datadog → datadog
-- gdrive → google-workspace
+- google_workspace → google-workspace
 
 ## 설정 흐름
 

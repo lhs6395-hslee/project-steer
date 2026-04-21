@@ -56,7 +56,7 @@ The Orchestrator loads the appropriate checklist based on the target module.
 | milestone_alignment | Tasks align with project milestones |
 | notification_setup | Notifications are configured correctly |
 
-## gdrive (File Management)
+## google_workspace (File Management)
 
 | Criterion | Description |
 |-----------|-------------|

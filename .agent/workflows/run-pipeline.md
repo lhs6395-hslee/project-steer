@@ -47,4 +47,4 @@ bash scripts/orchestrate.sh "<task>" "mod1,mod2"  # Agent_Team
 
 ## Available Modules
 
-pptx, docx, wbs, trello, dooray, datadog, gdrive
+pptx, docx, wbs, trello, dooray, datadog, google_workspace
