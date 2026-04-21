@@ -1,83 +1,39 @@
 ---
 name: module-google_workspace
 description: >
-  Manages Google Drive file operations including upload, download, organization,
-  and document editing. Use when user asks to "upload file", "download from Drive",
-  "organize files", "edit document", "산출물 업로드", "파일 다운로드",
-  "Drive 정리", "문서 수정", or "폴더 관리".
+  Google Workspace 서비스 통합 모듈. Gmail, Drive, Calendar, Docs, Sheets 등
+  12개 서비스를 단일 MCP 서버(workspace-mcp)로 제어한다.
 metadata:
   author: harness-team
-  version: 1.1.0
+  version: 2.0.0
   module: google_workspace
-  category: file-management
   mcp-server: google-workspace
-  checklist:
-    - completeness
-    - file_organization
-    - permission_correctness
-    - naming_convention
-    - folder_structure
 ---
 
-# Google Drive Module
+# Google Workspace Module
 
-## Instructions
+MCP 서버: `uvx workspace-mcp` — 12개 서비스 100+ 도구
 
-### Capabilities
+`[공식]` github.com/taylorwilsdon/google_workspace_mcp
 
-- 산출물 업로드 및 다운로드
-- 문서 수정 (Google Docs/Sheets 연동)
-- 폴더 계층 구조 생성 및 관리
-- 공유 권한 설정
-- 네이밍 컨벤션 적용
+## 서비스 목록
 
-### Workflow 1: 산출물 업/다운로드
+| 서비스 | SKILL.md | 상태 | 주요 용도 |
+|--------|---------|------|---------|
+| Gmail | `gmail/SKILL.md` | ✅ 설계 완료 | 이메일 발송·수신·검색·레이블 관리 |
+| Drive | `drive/SKILL.md` | ✅ 설계 완료 | 파일 업/다운로드·폴더 관리·공유 |
+| Calendar | — | 예정 | 일정 생성·조회·가용성 확인 |
+| Docs | — | 예정 | 문서 생성·수정·내보내기 |
+| Sheets | — | 예정 | 스프레드시트 읽기/쓰기·포맷 |
+| Slides | — | 예정 | 프레젠테이션 생성·수정 |
+| Chat | — | 예정 | 메시지 발송·스페이스 관리 |
+| Tasks | — | 예정 | 할일 생성·관리 |
+| Contacts | — | 예정 | 연락처 검색·관리 |
+| Forms | — | 예정 | 폼 생성·응답 수집 |
 
-#### Step 1: 대상 파일 확인
-- 업로드/다운로드 대상 파일 목록 확인
-- 대상 폴더 경로 확인
-- 파일 형식 및 크기 검증
+## 공통 규칙
 
-#### Step 2: 파일 전송
-- 지정 폴더에 파일 업로드 또는 다운로드
-- 네이밍 컨벤션 적용 (프로젝트명_날짜_버전)
-- 중복 파일 처리 (덮어쓰기/버전 관리)
-
-#### Step 3: 검증
-- 파일 전송 완료 확인
-- 파일 무결성 검증
-- 공유 권한 자동 설정
-
-### Workflow 2: 문서 수정
-
-#### Step 1: 문서 열기
-- Google Drive에서 대상 문서 식별
-- 문서 유형 확인 (Docs, Sheets, Slides)
-- 현재 내용 읽기
-
-#### Step 2: 수정 실행
-- 요청된 변경 사항 적용
-- 서식 유지 및 일관성 확인
-- 변경 이력 코멘트 추가
-
-#### Step 3: 검증 및 공유
-- 수정 내용 정확성 확인
-- 관련자에게 수정 알림
-- 버전 히스토리 확인
-
-### Workflow 3: 폴더 구조 관리
-
-#### Step 1: 구조 설계
-- 프로젝트 기반 폴더 계층 설계
-- 네이밍 컨벤션 정의
-- 권한 모델 계획
-
-#### Step 2: 생성 및 정리
-- 폴더 계층 순서대로 생성
-- 기존 파일 올바른 위치로 이동
-- 네이밍 컨벤션 일괄 적용
-
-#### Step 3: 권한 설정
-- 폴더별 공유 권한 설정
-- 권한 상속 확인
-- 접근 모델 문서화
+- 인증: OAuth 2.0/2.1 자동 처리 (workspace-mcp 내장)
+- 서비스 캐시: 30분 (단일/멀티 유저 모두 지원)
+- 작업 전 반드시 해당 서비스 `SKILL.md` 읽기
+- 파이프라인 판단 기준: `CLAUDE.md` + 각 서비스 SKILL.md 참조
