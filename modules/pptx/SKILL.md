@@ -46,6 +46,52 @@ PPTX 생성은 두 가지 방식을 조합한다:
 - 유틸리티 스크립트는 `modules/pptx/utils/`에 배치
 - 템플릿(`modules/pptx/templates/pptx_template.pptx`)에서 시작하여 슬라이드를 추가/수정한다.
 
+#### 프레젠테이션 생성 옵션
+
+신규 프레젠테이션을 만들 때 아래 3가지 옵션 중 하나를 선택한다.
+**실행 전 항상 슬라이드 구성 Plan 표를 제시하고 사용자 승인 후 진행.**
+
+| 옵션 | 방식 | 소스 파일 | 파이프라인 | 선택 기준 |
+|------|------|---------|----------|---------|
+| **Option 1** | MCP 도구로 슬라이드/콘텐츠 직접 생성 | `pptx_template.pptx` | 필수 | 슬라이드 3개↑ 또는 복잡한 레이아웃 |
+| **Option 2** | 템플릿 base 슬라이드 복사 후 내용 채움 | `pptx_template.pptx` | 직접실행 허용 | 새 주제, 새 프레젠테이션 표준 방식 |
+| **Option 3** | 완성된 레이아웃 슬라이드 XML 복사 후 텍스트 교체 | `pptx_layout_intro.pptx` | 직접실행 허용 | 기존 검증 레이아웃을 그대로 재사용 |
+
+---
+
+**Option 1 — MCP 도구 직접 생성**
+
+1. `pptx_template.pptx`를 열고 불필요한 슬라이드 삭제
+2. `mcp__pptx__add_slide`로 슬라이드 추가
+3. 각 슬라이드에 `add_shape` / `manage_text` / `manage_image` / `add_table` 등 MCP 도구로 콘텐츠 배치
+4. 표지/목차/끝맺음 텍스트는 `populate_placeholder` 또는 python-pptx `replace_text_preserve_format`으로 교체
+5. `mcp__pptx__save_presentation`으로 저장
+6. python-pptx로 새 shape 직접 생성 금지 — 기존 shape 텍스트 교체만 허용
+7. 파이프라인 필수: Planner → Executor(병렬) → Reviewer(병렬)
+
+---
+
+**Option 2 — 템플릿 기반 zipfile 조립**
+
+1. `pptx_template.pptx`에서 표지/목차/끝맺음 슬라이드를 그대로 복사
+2. 본문 슬라이드: `pptx_template.pptx` **slide10.xml(idx 9)** 복사 × 필요한 장 수
+3. 각 본문 슬라이드에 python-pptx로 콘텐츠(텍스트/도형) 채움
+4. `presentation.xml` sldIdLst 재구성 (새 슬라이드 ID 순서대로)
+5. **sectionLst 재구성 필수**: 표지 / 목차 / 본문 / 끝맺음 4개 섹션을 새 슬라이드 ID로 매핑
+6. `pptx_integrity_check.py --fix` → `verify_margins.py` 순서로 검증, 모두 PASS 확인
+
+---
+
+**Option 3 — 레이아웃 재사용 zipfile 조립**
+
+1. 콘텐츠 계획 수립 → 각 슬라이드에 맞는 레이아웃 선택 (layout-spec.md 참조)
+2. `pptx_layout_intro.pptx`에서 선택한 레이아웃 슬라이드 XML을 복사
+3. 표지/목차/끝맺음도 `pptx_layout_intro.pptx`의 해당 슬라이드에서 복사
+4. python-pptx로 텍스트만 교체 — 레이아웃 구조/도형/좌표 변경 금지
+5. 소스는 `pptx_layout_intro.pptx`만 사용 (`pptx_template.pptx` 혼용 금지)
+6. **sectionLst 재구성 필수**: Option 2와 동일 (4개 섹션 → 새 슬라이드 ID 매핑)
+7. `pptx_integrity_check.py --fix` → `verify_margins.py` 순서로 검증, 모두 PASS 확인
+
 ### MCP 도구 → python-pptx 유틸 매핑
 
 | 작업 | MCP (필수) | python-pptx 유틸 (허용 범위) |
@@ -66,7 +112,8 @@ PPTX 생성은 두 가지 방식을 조합한다:
 
 ### 참조 파일
 
-- 템플릿: `modules/pptx/templates/pptx_template.pptx`
+- 템플릿: `modules/pptx/templates/pptx_template.pptx` (Option 2 소스)
+- 레이아웃: `modules/pptx/templates/pptx_layout_intro.pptx` (Option 3 소스 — 완성된 레이아웃 슬라이드)
 - 레이아웃 스펙: `modules/pptx/references/layout-spec.md` (shape 좌표 EMU)
 - 스타일 가이드: `modules/pptx/templates/pptx_style_guide.md` (색상, 폰트, 레이아웃 상수)
 
