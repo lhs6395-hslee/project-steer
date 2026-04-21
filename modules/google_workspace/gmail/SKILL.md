@@ -151,10 +151,38 @@ Step 4 (migrate): gmail_batch_modify로 기존 메일 재분류
 
 ### 레이블 설계 원칙
 
-- 계층 구분자: `/` (예: `업무/AWS`, `업무/프로젝트/MSK`)
+- 계층 구분자: `/` (예: `IT수행부문/Cloud팀/SI Part`)
 - 색상 코드: backgroundColor + textColor 쌍으로 지정
 - 자동 분류 필터는 레이블 생성 직후 등록
 - 시스템 레이블(INBOX, SENT 등)은 수정 금지
+
+### 표준 레이블 구조 (lhs6395@gsneotek.com 기준)
+
+```
+IT사업본부/                          ← 사내 조직 메일
+  ├─ IT사업본부/IT사업기획팀
+  ├─ IT사업본부/IT영업부문
+  └─ IT사업본부/IT수행부문/
+       ├─ IT사업본부/IT수행부문/NCC팀
+       ├─ IT사업본부/IT수행부문/Cloud팀/
+       │    ├─ IT사업본부/IT수행부문/Cloud팀/SI Part    ← 본인 소속
+       │    └─ IT사업본부/IT수행부문/Cloud팀/DX Part
+       ├─ IT사업본부/IT수행부문/CDN팀
+       ├─ IT사업본부/IT수행부문/IT개발팀
+       ├─ IT사업본부/IT수행부문/IT수행지원Part
+       └─ IT사업본부/IT수행부문/AI센터Part
+AWS/                                 ← AWS 관련
+  ├─ AWS/Support                    (케이스, 기술지원)
+  └─ AWS/Alert                      (Health, Billing 알림)
+Datadog/                             ← 모니터링 알림
+  ├─ Datadog/Alert                  (Triggered/Recovered)
+  └─ Datadog/Digest                 (Daily/Weekly)
+My Mail/                             ← 개인 분류
+  ├─ My Mail/Task                   (WiseN 티켓, Dooray 업무)
+  └─ My Mail/News                   (Medium 등 뉴스레터)
+```
+
+**삭제 대상**: `Sent Messages`(시스템 중복), `Notes`(미사용), `GS Neotek`(→ IT사업본부/ 흡수), `AWS Case Open`(→ AWS/Support 통합)
 
 ---
 
