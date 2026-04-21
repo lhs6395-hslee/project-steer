@@ -25,12 +25,12 @@
 
 ### M1: PPTX (프레젠테이션)
 
-- MCP 도구로 새 콘텐츠 추가, python-pptx 유틸리티로 기존 shape 텍스트 교체
-- 템플릿 기반: `modules/pptx/templates/pptx_template.pptx` (8개 레이아웃)
-- 레이아웃 스펙: `modules/pptx/references/layout-spec.md`
-- 스타일 가이드: `modules/pptx/templates/pptx_style_guide.md`
-- 타이틀 잘림 검증: 340pt 초과 시 `\n` 삽입
-- 표지 → 목차 → 본문(N-N. 제목) → Thank You 구조
+세부 실행 규칙: `modules/pptx/SKILL.md` | 재발 방지: `modules/pptx/MISTAKES.md`
+
+- 생성 옵션: Option 1 (MCP 직접), Option 2 (template zipfile), Option 3 (layout_intro zipfile)
+- 템플릿: `modules/pptx/templates/pptx_template.pptx`, `pptx_layout_intro.pptx`
+- 레이아웃 스펙: `modules/pptx/references/layout-spec.md` (L01~L36 + Thank You)
+- 슬라이드 구조: 표지 → 목차 → 본문 → 끝맺음
 
 ### M2: DOCX (문서)
 

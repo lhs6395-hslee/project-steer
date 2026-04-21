@@ -72,9 +72,12 @@ Sync: `bash scripts/agents/sync_pipeline.sh --from claude_code --to all`
 재시도 시 `retry_fixes` 반영 여부 확인 (없으면 FAIL).
 제약 위반 시 score 0.3 상한.
 
-## PPTX Rules
+## 모듈별 규칙
 
-- 중제목 텍스트 박스 크기(width/height) 변경 금지, 최대 2줄, 단어 중간 줄바꿈 금지
-- 본문 슬라이드는 템플릿 pptx_template.pptx 10페이지(idx 9) 복사 후 내용 교체 — 독립 생성 금지
-- Executor 완료 후 반드시 `pptx_integrity_check.py --fix` 실행
-- rels/media/CT 3중 일관성 유지, 템플릿 이미지(image1~9) 삭제 금지
+모듈 작업 시 해당 `modules/<module>/SKILL.md`를 반드시 읽는다. 모듈별 실행 규칙(MCP 사용법, 검증 절차, 직접실행 기준 등)은 루트가 아닌 모듈 디렉토리에 있다.
+
+| 모듈 | 규칙 파일 |
+|------|---------|
+| pptx | `modules/pptx/SKILL.md` + `modules/pptx/MISTAKES.md` |
+| docx | `modules/docx/SKILL.md` (예정) |
+| dooray | `modules/dooray/SKILL.md` (예정) |
