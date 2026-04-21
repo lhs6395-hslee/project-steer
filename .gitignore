@@ -39,4 +39,10 @@ results/pptx/*_REVIEWED*.pptx
 results/pptx/*_BACKUP*.pptx
 results/pptx/~$*.pptx
 
-# scripts/utils/*.py — all utility modules are tracked
+# Claude Code worktrees (embedded repos, should not be committed)
+.claude/worktrees/
+
+# Backup files
+*.bak
+*.bak_*
+results/pptx/*.bak*
