@@ -187,7 +187,7 @@ python-pptx XML 분석으로 잡을 수 없는 렌더링 문제를 이미지로 
 SLIDE_NUM=$((target_slide_index + 1))
 OUTPUT_DIR="/tmp/slide_review_${SLIDE_NUM}"
 
-python modules/pptx/utils/pptx_to_pdf.py results/pptx/AWS_MSK_Expert_Intro.pptx \
+python modules/pptx/utils/pptx_to_pdf.py <결과물_pptx_경로> \
   --output-dir $OUTPUT_DIR \
   --slides $SLIDE_NUM \
   --dpi 150
@@ -196,7 +196,7 @@ python modules/pptx/utils/pptx_to_pdf.py results/pptx/AWS_MSK_Expert_Intro.pptx 
 **Read 도구로 이미지 시각 확인 (MANDATORY):**
 
 ```python
-Read(f"/tmp/slide_review_{SLIDE_NUM}/slide-{SLIDE_NUM:02d}.png")
+Read(f"/tmp/slide_review_{SLIDE_NUM}/slide-{SLIDE_NUM:02d}.png")  # 파일명은 pdftoppm 출력 패턴에 따라 조정
 ```
 
 **시각적 확인 항목:**

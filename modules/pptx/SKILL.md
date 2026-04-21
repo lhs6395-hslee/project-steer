@@ -160,8 +160,7 @@ PPTX 생성은 두 가지 방식을 조합한다:
 
 - 템플릿: `modules/pptx/templates/pptx_template.pptx` (Option 2 소스)
 - 레이아웃: `modules/pptx/templates/pptx_layout_intro.pptx` (Option 3 소스 — 완성된 레이아웃 슬라이드)
-- 레이아웃 스펙: `modules/pptx/references/layout-spec.md` (shape 좌표 EMU)
-- 스타일 가이드: `modules/pptx/templates/pptx_style_guide.md` (색상, 폰트, 레이아웃 상수)
+- 레이아웃 스펙: `modules/pptx/references/layout-spec.md` (shape 좌표 EMU, 색상, 폰트 상수)
 
 ### 필수 규칙
 
