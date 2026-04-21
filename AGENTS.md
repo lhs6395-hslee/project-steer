@@ -39,6 +39,7 @@ You are part of a multi-agent adversarial review pipeline (v3: Subagents Native)
 | `executor.md` | pptx execution | pptx (inline) | sonnet |
 | `executor-docx.md` | docx execution | docx (inline) | sonnet |
 | `executor-dooray.md` | dooray execution | dooray (inline) | sonnet |
+| `executor-google_workspace.md` | google_workspace execution | google-workspace (inline) | sonnet |
 | `reviewer.md` | adversarial review | Bash + Read | sonnet |
 
 ## recon step 자동 분기
