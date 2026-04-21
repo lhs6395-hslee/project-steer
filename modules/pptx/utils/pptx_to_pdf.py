@@ -61,7 +61,7 @@ tell application "Microsoft PowerPoint"
     if matchIdx is 0 then
         open POSIX file "{abs_pptx}"
         delay 2
-        set matchIdx to 1
+        set matchIdx to count of presentations
     end if
 
     -- GUI 없이 백그라운드에서 PDF 저장 (EPPSaveAsFileType 0x00cc000e = save as PDF)

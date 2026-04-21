@@ -20,10 +20,19 @@ paths:
    - 본문 슬라이드는 **반드시 템플릿 10페이지(idx 9)**에서 복사. 이전 슬라이드(결과물)에서 복사 금지
    - 다중 슬라이드 삽입 시 기존 파일을 패치하지 말고, **원본을 base로 깨끗하게 재조립** (MISTAKES #30)
    - 원본의 max_rId/max_sldId를 구한 후 순차 증가. rId 충돌 금지
-   - 삽입 후 반드시 아래 검증 2종 **순서대로** 실행:
+   - 삽입 후 반드시 아래 검증 4종 **순서대로** 실행:
      1. `pptx_integrity_check.py --fix` → OOXML 구조 검증/자동수정
      2. `verify_margins.py` → 여백/좌표 검증
-   - 두 검증 모두 PASS해야 작업 완료. FAIL 시 좌표 수정 후 재검증
+     3. `check_textbox_overflow.py --fix` → 텍스트 오버플로우 감지 및 자동 수정
+     4. `fix_panel_positions.py` → roundRect 패널 내 **왼쪽 정렬** TextBox 비율 기반 자동 배치 (가운데/오른쪽 정렬 제외)
+   - 네 검증 모두 PASS해야 작업 완료. FAIL 시 수정 후 재검증
+12. **동적 배치 규칙 — 콘텐츠 생성 후 반드시 적용:**
+    - L12 변화율 배지 있음 → 내용 TextBox cy 동적 제한: `content_max_bottom = badge_top - 91440`
+    - Swim Lane/로드맵 내부 task → row 배경 대비 상/하 0.10" 여백 (`inner_cy = row_cy - 182880`)
+    - roundRect 패널 내 왼쪽 정렬 TextBox → **x/cx만** 비율로 조정 (y 변경 금지!)
+      `safe_x = panel_left + 0.0764 × panel_cx` / `safe_right = panel_right - 0.0764 × panel_cx`
+      → y 변경 시 큰제목→소제목→구분선→본문 순서 무너져 겹침 발생
+    - `pptx_safe_edit.py::fix_text_corner_overlap()` — x-only 자동 수정 함수
 10. **새 도형 프로그래밍 생성 시 OOXML 스펙 준수** (MISTAKES #29):
     - `p:txBody` 자식: `[a:bodyPr, a:lstStyle, a:p...]`만 허용
     - `a:rPr` 자식 순서: `[ln, solidFill, ..., latin, ea, cs, ...]` (fill → font)

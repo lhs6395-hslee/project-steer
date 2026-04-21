@@ -387,6 +387,11 @@ def check_text_corner_overlap(slide_xml, slide_idx: int = None) -> list:
         texts = [e.text for e in txBody.iter(f'{{{A_NS}}}t') if e.text and e.text.strip()]
         if not texts:
             continue
+        # Skip center/right-aligned TextBoxes — ratio fix applies only to left-aligned content
+        paras = txBody.findall(f'.//{{{A_NS}}}pPr')
+        algns = {p.get('algn', 'l') for p in paras}
+        if algns and algns <= {'ctr', 'r'}:  # all paragraphs are center or right
+            continue
         tl = int(off.get('x', 0))
         tt = int(off.get('y', 0))
         tw = int(ext.get('cx', 0))
@@ -435,6 +440,102 @@ def check_text_corner_overlap(slide_xml, slide_idx: int = None) -> list:
                                               ('BL', in_bl_zone), ('BR', in_br_zone)] if f],
                 })
     return issues
+
+
+_PANEL_INNER_RATIO_X = 0.0764  # 7.64% — 패널 내 TextBox 시작 x 비율 (실측 2026-04-21)
+_PANEL_TITLE_RATIO_Y = 0.1177  # 11.77% — 제목 TextBox 시작 y 비율 (실측 2026-04-21)
+_PANEL_CONTENT_RATIO_Y = 0.2214  # 22.14% — 내용 TextBox 시작 y 비율 (실측 2026-04-21)
+# 공식: safe_x = panel_left + RATIO_X × panel_cx
+#        title_y  = panel_top  + TITLE_RATIO_Y × panel_cy
+#        content_y = panel_top + CONTENT_RATIO_Y × panel_cy
+
+
+def fix_text_corner_overlap(slide_xml, slide_idx: int = None,
+                            ratio_x: float = _PANEL_INNER_RATIO_X,
+                            ratio_title_y: float = _PANEL_TITLE_RATIO_Y,
+                            ratio_content_y: float = _PANEL_CONTENT_RATIO_Y) -> tuple:
+    """
+    roundRect 패널 내 왼쪽 정렬 TextBox의 x/cx만 조정하여 corner zone 회피.
+
+    코너 존 조건: (tl < rl+radius) AND (tt < rt+radius)
+    → x를 safe_x(≥ rl+radius) 로 이동하면 TL/TR/BL/BR 모든 코너 존 해소.
+    → y는 변경하지 않음 — y 변경 시 형제 도형들과 겹침 발생.
+
+    safe_x     = panel_left + ratio_x × panel_cx        (7.64%, 코너 반경보다 큰 여백)
+    safe_right = panel_right - ratio_x × panel_cx       (대칭 오른쪽 안전 경계)
+    safe_cx    = safe_right - safe_x
+
+    적용 대상: 왼쪽 정렬 텍스트가 있는 shape (algn="ctr"/"r" 제외)
+    반환: (patched_xml_bytes, list_of_fix_messages)
+    """
+    issues = check_text_corner_overlap(slide_xml, slide_idx)
+    if not issues:
+        return ET.tostring(slide_xml, xml_declaration=True, encoding='UTF-8', standalone=True), []
+
+    fixes = []
+    sp_map = {}
+    for sp in slide_xml.findall(f'.//{{{PRS_NS}}}sp'):
+        nvSpPr = sp.find(f'{{{PRS_NS}}}nvSpPr')
+        if nvSpPr is not None:
+            cNvPr = nvSpPr.find(f'{{{PRS_NS}}}cNvPr')
+            if cNvPr is not None:
+                sp_map[cNvPr.get('name', '')] = sp
+
+    from collections import defaultdict
+    affected_panels = set(issue['roundrect'] for issue in issues)
+    panel_tb_map = defaultdict(set)
+    for issue in issues:
+        panel_tb_map[issue['roundrect']].add(issue['text_shape'])
+
+    for rr_name in affected_panels:
+        rr_sp = sp_map.get(rr_name)
+        if rr_sp is None:
+            continue
+        spPr = rr_sp.find(f'{{{PRS_NS}}}spPr')
+        xfrm = spPr.find(f'{{{A_NS}}}xfrm') if spPr is not None else None
+        if xfrm is None:
+            continue
+        off = xfrm.find(f'{{{A_NS}}}off'); ext = xfrm.find(f'{{{A_NS}}}ext')
+        rl = int(off.get('x', 0)); rt = int(off.get('y', 0))
+        rw = int(ext.get('cx', 0)); rh = int(ext.get('cy', 0))
+        panel_right = rl + rw
+
+        # x-only 안전 경계 (좌우 대칭, corner_radius 이상의 여백)
+        safe_x     = rl + int(ratio_x * rw)
+        safe_right = panel_right - int(ratio_x * rw)
+        safe_cx    = safe_right - safe_x
+
+        for tb_name in panel_tb_map[rr_name]:
+            tb_sp = sp_map.get(tb_name)
+            if tb_sp is None:
+                continue
+            tb_spPr = tb_sp.find(f'{{{PRS_NS}}}spPr')
+            tb_xfrm = tb_spPr.find(f'{{{A_NS}}}xfrm') if tb_spPr is not None else None
+            if tb_xfrm is None:
+                continue
+            tb_off = tb_xfrm.find(f'{{{A_NS}}}off')
+            tb_ext = tb_xfrm.find(f'{{{A_NS}}}ext')
+            orig_x = int(tb_off.get('x', 0))
+            orig_cx = int(tb_ext.get('cx', 0))
+            orig_y = int(tb_off.get('y', 0))
+
+            # x가 이미 safe_x 이상이고 right edge가 safe_right 이하면 무시
+            if orig_x >= safe_x and (orig_x + orig_cx) <= safe_right:
+                continue
+
+            new_x  = max(safe_x, orig_x)
+            new_cx = safe_cx  # safe_right - safe_x (좌우 대칭 폭)
+
+            tb_off.set('x', str(new_x))
+            tb_ext.set('cx', str(new_cx))
+            fixes.append(
+                f'X-FIX [{tb_name}] in [{rr_name}]: '
+                f'x {orig_x/914400:.3f}"→{new_x/914400:.3f}" '
+                f'y {orig_y/914400*2.54:.3f}cm (unchanged) '
+                f'cx {orig_cx/914400:.3f}"→{new_cx/914400:.3f}"'
+            )
+
+    return ET.tostring(slide_xml, xml_declaration=True, encoding='UTF-8', standalone=True), fixes
 
 
 def ensure_shape_border(sp_elem, border_color_hex: str = None, border_none: bool = False):

@@ -87,7 +87,10 @@ for shape in slide.shapes:
    **중제목 레이블 (좌측):**
    - 위치: x≈0.388" (354288 EMU), y≈0.610" (557760 EMU)
    - 크기: w≈2.975" (2719800 EMU), h≈1.020" (932280 EMU)
-   - 형식: "LXX. [레이아웃명]" (예: "L11. Comparison Table")
+   - 형식: **"N. 섹션명"** — 섹션 번호 + 섹션명 (예: "1. AS-IS / TO-BE", "3. 도구 선택 프레임워크")
+   - 하위 섹션이 있으면 **"N-M. 섹션명"** (예: "1-1. 아키텍처 개요")
+   - ⚠️ "LXX. [레이아웃명]" 형식(예: "L09. AS-IS / TO-BE")은 `pptx_layout_intro.pptx` 레이아웃 제작 전용 — 일반 발표자료에 사용 금지
+   - ⚠️ 번호 없이 섹션명만 있는 경우(예: "AS-IS / TO-BE") → major issue
    - 폰트: Freesentation, 20pt Bold
    - margin: 모두 0 필수
    
@@ -110,6 +113,57 @@ for shape in slide.shapes:
    ```
    
    레이블 또는 설명글 중 하나라도 없으면 major issue.
+
+### Step 2.3: 텍스트 오버플로우 검증 (MANDATORY)
+
+모든 슬라이드에서 텍스트가 TextBox 경계를 넘치는지 검증한다.
+
+```bash
+python modules/pptx/utils/check_textbox_overflow.py results/pptx/<파일명>.pptx
+```
+
+- EXIT CODE 0: 오버플로우 없음 → PASS
+- EXIT CODE 1: 오버플로우 감지 → 자동 수정 후 재검증
+
+**자동 수정 (--fix 플래그):**
+```bash
+python modules/pptx/utils/check_textbox_overflow.py results/pptx/<파일명>.pptx --fix
+```
+- 최소 cx 탐색 + 좌/우 여백 대칭 중앙 배치 자동 적용
+- 수정 후 반드시 재실행하여 PASS 확인
+
+**오버플로우 감지 시 major issue** — 수정 없이 approved 불가.
+
+### Step 2.4: roundRect 패널 위치 검증 (MANDATORY)
+
+본문 슬라이드에 roundRect 패널이 존재할 경우 **왼쪽 정렬** TextBox의 비율 기반 자동 배치를 검증한다.
+
+```bash
+python modules/pptx/utils/fix_panel_positions.py results/pptx/<파일명>.pptx
+```
+
+- "No panel position adjustments needed." → PASS
+- 수정 발생 → Executor가 fix_panel_positions.py를 실행하지 않은 것 → major issue
+
+**적용 조건 (두 조건 모두 충족 시):**
+- roundRect 패널(`a:prstGeom prst="roundRect"`)이 존재
+- 패널 내부에 **왼쪽 정렬**(algn="l" 또는 algn 미지정) TextBox가 있음
+
+**제외 조건:**
+- 가운데/오른쪽 정렬(`algn="ctr"` / `algn="r"`) TextBox → 자동 제외됨
+- 수정 발생 시 자동 적용 후 재검증
+
+**검증 방법:**
+```python
+from modules.pptx.utils.pptx_safe_edit import check_text_corner_overlap
+import lxml.etree as ET, zipfile
+with zipfile.ZipFile('results/pptx/<파일명>.pptx') as z:
+    xml = ET.fromstring(z.read('ppt/slides/slideN.xml'))
+issues = check_text_corner_overlap(xml, slide_idx=N)
+# issues가 있으면 fix_panel_positions.py 미실행 → major issue
+```
+
+**패널 위치 미적용 시 major issue** — 수정 없이 approved 불가.
 
 ### Step 2.5: 시각적 검증 (슬라이드 PNG 렌더링)
 

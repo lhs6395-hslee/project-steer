@@ -78,7 +78,20 @@ PPTX 생성은 두 가지 방식을 조합한다:
 3. 각 본문 슬라이드에 python-pptx로 콘텐츠(텍스트/도형) 채움
 4. `presentation.xml` sldIdLst 재구성 (새 슬라이드 ID 순서대로)
 5. **sectionLst 재구성 필수**: 표지 / 목차 / 본문 / 끝맺음 4개 섹션을 새 슬라이드 ID로 매핑
-6. `pptx_integrity_check.py --fix` → `verify_margins.py` 순서로 검증, 모두 PASS 확인
+6. TOC 재구성 + 중제목 라벨 업데이트:
+   ```bash
+   python modules/pptx/utils/fix_toc.py results/pptx/<파일>.pptx \
+     --sections "섹션1" "섹션2" ... \
+     --labels 3:"L09. AS-IS":"설명" 4:"L12. KPI":"설명" ...
+   ```
+   - 섹션이 6개 이상이면 두 번째 목차 슬라이드 자동 생성 (5개씩 페이징)
+   - `--labels` : 본문 슬라이드 번호별 중제목 라벨(TextBox 17) + 설명(TextBox 18) 교체
+7. 아래 검증 3종 **순서대로** 실행, 모두 PASS 확인:
+   ```bash
+   python modules/pptx/utils/pptx_integrity_check.py results/pptx/<파일>.pptx --fix
+   python modules/pptx/utils/verify_margins.py results/pptx/<파일>.pptx
+   python modules/pptx/utils/check_textbox_overflow.py results/pptx/<파일>.pptx --fix
+   ```
 
 ---
 
@@ -90,7 +103,17 @@ PPTX 생성은 두 가지 방식을 조합한다:
 4. python-pptx로 텍스트만 교체 — 레이아웃 구조/도형/좌표 변경 금지
 5. 소스는 `pptx_layout_intro.pptx`만 사용 (`pptx_template.pptx` 혼용 금지)
 6. **sectionLst 재구성 필수**: Option 2와 동일 (4개 섹션 → 새 슬라이드 ID 매핑)
-7. `pptx_integrity_check.py --fix` → `verify_margins.py` 순서로 검증, 모두 PASS 확인
+7. TOC 재구성 + 중제목 라벨 업데이트 (Option 2와 동일):
+   ```bash
+   python modules/pptx/utils/fix_toc.py results/pptx/<파일>.pptx \
+     --sections "섹션1" "섹션2" ...  --labels 3:"L09. AS-IS":"설명" ...
+   ```
+8. 아래 검증 3종 **순서대로** 실행, 모두 PASS 확인:
+   ```bash
+   python modules/pptx/utils/pptx_integrity_check.py results/pptx/<파일>.pptx --fix
+   python modules/pptx/utils/verify_margins.py results/pptx/<파일>.pptx
+   python modules/pptx/utils/check_textbox_overflow.py results/pptx/<파일>.pptx --fix
+   ```
 
 ### MCP 도구 → python-pptx 유틸 매핑
 
@@ -105,6 +128,8 @@ PPTX 생성은 두 가지 방식을 조합한다:
 | 기존 텍스트 교체 | — | `modules/pptx/utils/pptx_text_utils.py` |
 | 슬라이드 삭제/정렬 | — | `modules/pptx/utils/delete_extra_slides.py`, `reorder_slides.py` |
 | 좌표 검증/안전 저장 | — | `modules/pptx/utils/pptx_safe_edit.py` |
+| 텍스트 오버플로우 검증/수정 | — | `modules/pptx/utils/check_textbox_overflow.py` |
+| TOC 재구성 + 중제목 라벨 업데이트 | — | `modules/pptx/utils/fix_toc.py` |
 | ZIP/XML 수정 | — | `modules/pptx/utils/pptx_zip_cleaner.py` |
 | 프레젠테이션 병합 | — | `modules/pptx/utils/merge_presentations.py` |
 

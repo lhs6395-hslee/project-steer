@@ -35,7 +35,14 @@
 9개 shape. 배경 이미지 위에 텍스트 오버레이.
 참조 페이지: P1 (idx 0) — 템플릿 표지 예시
 
-### 템플릿 원본 좌표 (수정 전)
+**소스 파일별 제목/부제 shape 이름:**
+
+| 소스 | 제목 shape | 부제 shape | 연도 | 날짜 |
+|------|-----------|-----------|------|------|
+| `pptx_template.pptx` | TextBox 19 | TextBox 25 | TextBox 28 | TextBox 10 |
+| `pptx_layout_intro.pptx` | TextBox 1 | TextBox 2 | TextBox 28 | TextBox 10 |
+
+### 원본 좌표 (pptx_template.pptx 기준)
 
 | idx | 이름 | type | left | top | width | height | 용도 |
 |-----|------|------|------|-----|-------|--------|------|
@@ -49,23 +56,41 @@
 | 7 | TextBox 28 | TEXT_BOX | 357415 | 29028 | 1940700 | 397808 | **연도** (좌상단) |
 | 8 | TextBox 10 | TEXT_BOX | 3138715 | 29028 | 1940700 | 397808 | **날짜** (우상단) |
 
-### 산출물 적용 좌표 (수정 후)
+### 표지 제목/부제 width 제약 (필수 — Option 1/2/3 공통)
 
-표지 제목은 50pt(프리젠테이션 7 Bold)로 렌더링되며, 영문 긴 제목은 3줄까지 허용한다.
-제목/부제 텍스트박스는 슬라이드 좌우 중앙 배치하고, 제목+부제 블록은 상단 바~하단 구분선 사이에서 수직 중앙 배치한다.
+**대제목이 기준. 소제목은 대제목 cx에 맞춤. 좌우 여백 대칭.**
 
-| shape | 속성 | 원본값 | 산출물 적용값 | 변경 이유 |
-|-------|------|--------|-------------|----------|
-| [2] 제목 | left | 3138715 (3.43") | 1526616 (1.67") | 좌우 여백 동일 (중앙 배치) |
-| [2] 제목 | width | 5395685 (5.90") | 9144000 (10.0") | 50pt 영문 제목 한 줄에 수용 |
-| [2] 제목 | height | 1906474 (2.09") | 2560320 (2.8") | 3줄 수용 (50pt × 1.2 × 3) |
-| [2] 제목 | top | 1846736 (2.02") | 1490472 (1.63") | 수직 중앙 배치 |
-| [5] 부제 | left | 3138716 (3.43") | 1526616 (1.67") | 제목과 동일 중앙 배치 |
-| [5] 부제 | width | 5395685 (5.90") | 9144000 (10.0") | 제목과 동일 |
-| [5] 부제 | top | 3754494 (4.11") | 동적 계산 | 제목 bottom + 0.15" 간격 |
-| [8] 날짜 | 텍스트 | "00/00" | "MM/DD" | 오늘 날짜 기준 |
+규칙 순서:
+1. **대제목 cx**: 긴 줄 실측 픽셀 너비 + 0.2" 패딩으로 결정 (동적)
+2. **소제목 cx**: 대제목 cx와 동일 (소제목 텍스트 길이 기준으로 늘리지 않는다)
+3. **x (left)**: `(12192000 - cx) / 2` — 좌우 여백 자동 대칭
+4. 소제목이 cx 내에서 wrapping되어 2줄이 되는 것은 허용
 
-수정 대상: shape[2](제목), shape[5](부제), shape[7](연도), shape[8](날짜)
+예시 (Oracle DB 마이그레이션 / 실전 전략 가이드, 50pt 기준):
+- 긴 줄 "Oracle DB 마이그레이션" 실측 → cx = 5931264 (6.487")
+- 소제목 cx = 5931264 (동일)
+- x = (12192000 - 5931264) / 2 = 3130368 (3.422") → 좌여백 = 우여백 = 3.422"
+
+**금지**: 소제목 텍스트가 길다는 이유로 cx 늘리기, 대/소제목 cx 다르게 두기
+
+### 표지 생성 후 필수 실행 단계
+
+표지 슬라이드 텍스트 삽입 후 반드시 아래 순서로 cx/x를 보정한다:
+
+1. 표지 슬라이드를 PNG로 렌더링 (150 DPI 이상)
+2. 대제목 텍스트 영역(y 범위: title_top ~ title_bottom)에서 **가장 오른쪽 밝은 픽셀** 탐색
+3. `text_width_inch = (rightmost_px - left_margin_px) / image_width_px * 13.333`
+4. `cx = int((text_width_inch + 0.2) * 914400)` (0.2" 패딩)
+5. `x = (12192000 - cx) // 2` (좌우 여백 자동 대칭)
+6. 대제목·소제목 shape 모두 동일한 cx, x 적용
+7. 소제목 y = 제목 bottom + 0.15" (= 제목 y + 제목 cy + 137160 EMU)
+8. 소제목 overflow는 허용 (아래 빈 여백, 겹칠 요소 없음)
+
+### 텍스트 교체 규칙
+
+- **서식 보존 필수**: 기존 run의 XML을 복제하여 텍스트만 교체. `tf.clear()` + 새 run 생성 금지.
+- 이유: 템플릿의 scheme color(흰색), 폰트명, 크기가 보존되어야 함
+- shape[3], [4] (회사 소개)는 수정하지 않음 (원본 유지)
 
 ### 표지 텍스트 교체 규칙
 
@@ -85,13 +110,13 @@
 ## 목차 (layout_index: 4) — 2페이지~
 
 5개 shape. 한 페이지에 최대 5개 섹션. 6개 이상이면 새 목차 페이지 추가.
-참조 페이지: P2 (idx 1) — 템플릿 목차 예시
+참조 페이지: P2 (idx 1) — `pptx_layout_intro.pptx` slide2
 
 | idx | 이름 | type | left | top | width | height | 용도 |
 |-----|------|------|------|-----|-------|--------|------|
 | 0 | TextBox 18 | TEXT_BOX | 354805 | 545902 | 3112294 | 510768 | **"CONTENTS" 헤더** |
-| 1 | TextBox 48 | TEXT_BOX | 3367314 | 1715534 | 1161474 | 4616648 | **번호 열** ("1\n2\n3\n4\n5") |
-| 2 | TextBox 49 | TEXT_BOX | 4543668 | 1715534 | 3927349 | 4616648 | **섹션명 열** |
+| 1 | TextBox 48 | TEXT_BOX | 3367314 | 1715534 | 1161474 | 4616648 | **번호 열** (5줄, 250% line spacing) |
+| 2 | TextBox 49 | TEXT_BOX | 4543668 | 1715534 | 5129783 | 4616648 | **섹션명 열** (5줄, 250% line spacing) |
 | 3 | 그룹 52 | GROUP | 3806048 | 2760055 | 8385952 | 2761457 | 장식 그룹 |
 | 4 | 텍스트 개체 틀 1 | PLACEHOLDER | 354806 | 101016 | 2807494 | 250530 | 상단 바 |
 
@@ -99,32 +124,57 @@
 
 ### 목차 텍스트 교체 규칙
 
-- **서식 보존 필수**: 표지와 동일하게 `replace_multiline_preserve_format` 사용. scheme color, 폰트명, 크기 보존.
-- **5줄 패딩**: 템플릿 원본이 5줄 구조이므로, 섹션이 5개 미만이면 빈 문자열("")로 나머지 줄 채움
-- **섹션명 자동 너비**: `auto_fit_textbox_width`로 가장 긴 섹션명에 맞춰 텍스트박스 너비 자동 조정 (24pt 기준)
-- **번호 열**: 서식 보존, alignment CENTER 유지
+- **서식 보존 필수**: 기존 run의 XML에서 첫 번째 run 서식만 유지, 나머지 run 제거 후 텍스트 교체
+- **5줄 패딩**: 5개 미만 섹션은 빈 문자열("")로 나머지 줄 채움 (paragraph 구조 보존)
+- **spAutoFit**: TextBox 48/49 모두 spAutoFit 설정 → 내용 많아도 auto-grow
 
-### 목차 페이징 구현
+### 목차 페이징 구현 (zipfile 직접실행 방식)
 
 6개 이상 섹션 시 추가 목차 페이지를 생성한다.
 
-**방식**: 첫 번째 목차 슬라이드의 spTree 자식 요소를 통째로 복제하여 새 슬라이드에 삽입. 이렇게 하면 CONTENTS 헤더, 장식 그룹, 번호/섹션명 서식이 모두 보존된다.
+**방식**: `pptx_layout_intro.pptx`의 slide2.xml을 deepcopy하여 새 슬라이드(slide3.xml 등)로 삽입.
 
 ```
-1. add_slide(layout_index=4)로 빈 목차 슬라이드 생성
-2. 새 슬라이드의 spTree에서 기존 자식 제거 (grpSpPr 제외)
-3. 첫 번째 목차의 spTree 자식을 deepcopy하여 새 spTree에 추가
-4. shape[1](번호열), shape[2](섹션명열) 텍스트만 replace_multiline_preserve_format으로 교체
-5. shape[2]에 auto_fit_textbox_width 적용
+1. layout_intro slide2.xml deepcopy → slide3.xml
+2. slide3 rels = slide2 rels 동일 (slideLayout5.xml 참조)
+3. TextBox 48 / TextBox 49 텍스트만 교체 (섹션 6-10)
+4. presentation.xml sldIdLst에 새 sldId 추가 (max_id+1)
+5. [Content_Types].xml에 slide3.xml Override 추가
 ```
 
-**주의**: `add_slide` 후 shape를 직접 추가하는 방식(TextBox 생성)은 CONTENTS 헤더, 장식 그룹 등이 누락되므로 사용하지 않는다.
+**주의**: CT에 실제 없는 slide 참조가 남으면 PowerPoint가 repair하며 이전 캐시로 채움 → 조립 후 반드시 CT 참조 수 == 실제 slide*.xml 수 일치 확인.
 
 페이징 규칙:
 - 섹션 1~5: 첫 번째 목차 페이지
-- 섹션 6~10: 두 번째 목차 페이지 (동일 레이아웃으로 새 슬라이드 추가)
+- 섹션 6~10: 두 번째 목차 페이지
 - 섹션 11~15: 세 번째 목차 페이지 ...
 - 각 페이지의 번호 열은 해당 페이지의 시작 번호부터 (예: 6\n7\n8\n9\n10)
+
+**섹션(Section) 매핑 — CRITICAL**
+
+목차 슬라이드가 몇 장이든 **모두** `목차` 섹션에 배정해야 한다. 슬라이드 수 기준으로 섹션 경계를 추정하면 반드시 오배정 발생.
+
+```python
+# toc_count 명시적 계산
+import math
+toc_count = math.ceil(len(content_sections) / 5)  # 5개씩 페이징
+
+# sectionLst 작성 시 목차 슬라이드 sldId 전체 등록
+toc_sld_ids = [cover_next_id + 1 + i for i in range(toc_count)]
+
+# 섹션 매핑: 표지(1) / 목차(toc_count) / 본문(N) / 끝맺음(1)
+section_map = {
+    "표지":   [cover_sld_id],
+    "목차":   toc_sld_ids,            # ← 반드시 toc_count개 전부
+    "본문":   body_sld_ids,
+    "끝맺음": [thankyou_sld_id],
+}
+
+# 조립 후 검증 (필수)
+assert len(목차_섹션_sldIds) == toc_count, f"목차 섹션 sldId 수 불일치: {len(목차_섹션_sldIds)} != {toc_count}"
+```
+
+> **재발 이력**: Oracle_DB_Migration_Guide_v3.pptx — 목차 2장 중 두 번째(slide3, sldId=363)가 본문 섹션으로 오배정됨. MISTAKES.md #33 참조.
 
 ---
 
@@ -872,6 +922,85 @@ PHASE_COLORS = [
 - **요소 간 최소 간격**: 0.2"
 - **요소 겹침 금지**: 텍스트가 텍스트박스를 넘어서 다른 요소와 겹치지 않도록 사전 검증
 - **카드 내부 요소 범위 검증**: CardTitle, CardBody, Icon은 반드시 부모 Card의 y ~ y+h 범위 안에 있어야 함. 카드 y를 변경할 때 내부 요소도 반드시 같이 이동. 검증식: `card_top ≤ element_top AND element_bottom ≤ card_bottom`
+
+### 동적 배치 규칙 (Dynamic Positioning — 필수 적용)
+
+콘텐츠 생성 후 반드시 아래 규칙으로 TextBox 위치를 동적 조정한다.
+
+#### ① 변화율 배지-내용 TextBox 겹침 방지 (L12 Before/After)
+
+```
+변화율 배지가 존재하는 경우, 내용 TextBox 최대 높이를 동적으로 제한한다.
+
+content_max_bottom = badge_top - 0.10" gap
+content_cy         = content_max_bottom - content_top
+
+적용 대상: 좌/우 내용 TextBox (S213, S214)
+기준값: badge_top = 5,029,200 EMU → content_max_bottom = 4,937,760 EMU
+결과: content cy = 1,173,300 EMU (1.281")
+```
+
+변화율 배지가 없으면 원래 스펙 높이(1,947,040 EMU) 유지.
+
+#### ② 패널 내부 도형 최소 여백 (Swim Lane / 로드맵)
+
+```
+row 배경 도형 안의 task 도형은 상/하 최소 0.10" 여백 필수.
+
+inner_top    = row_bg_top + 91,440 EMU (0.10")
+inner_bottom = row_bg_bottom - 91,440 EMU (0.10")
+inner_cy     = inner_bottom - inner_top = row_cy - 182,880 EMU
+```
+
+#### ③ roundRect 패널 내 TextBox safe_x (x-only 비율 기반)
+
+```
+TextBox x/cx만 조정하여 TL/TR/BL/BR 코너 존 회피. y는 변경하지 않는다.
+→ y 변경 시 형제 도형(소제목·구분선·본문)과 겹침 발생.
+
+safe_x     = panel_left + 0.0764 × panel_cx   (좌측 안전 경계)
+safe_right = panel_right - 0.0764 × panel_cx  (우측 안전 경계, 대칭)
+safe_cx    = safe_right - safe_x
+
+예시 (L09/L12, panel_cx = 5,303,520 EMU = 5.800"):
+  offset     = 0.0764 × 5,303,520 = 405,189 EMU (0.443")
+  safe_x     (좌 패널) = 457,200 + 405,189 = 862,389 EMU (0.943")
+  safe_right (좌 패널) = 5,760,720 - 405,189 = 5,355,531 EMU (5.857")
+  safe_cx    = 5,355,531 - 862,389 = 4,493,142 EMU (4.914")
+```
+
+**왜 x만 조정하는가:**
+- corner_radius = 0.354" (adj=16667 기준) — x가 panel_left + 0.354" 이상이면 TL/BL 존 해소
+- x를 safe_x(0.443")로 이동하면 TL/TR/BL/BR 모든 코너 존 동시 해소
+- y를 변경하면 큰제목 → 소제목 → 구분선 → 본문 순서가 무너져 겹침 발생
+
+#### ④ 패널 내 도형 겹침 절대 금지
+
+```
+roundRect 패널 내부 TextBox/shape들은 y축으로 겹쳐서는 안 된다.
+각 도형의 bottom ≤ 다음 도형의 top.
+
+구조 예시 (큰제목 → 소제목 → 구분선 → 본문):
+  S207 큰제목:  top=T1, bottom=T1+cy1
+  S209 소제목:  top=T1+cy1 (또는 이상), bottom=T2
+  S211 구분선:  top≥T2, bottom=T2+line_cy
+  S213 본문:    top≥T2+line_cy, bottom≤badge_top-gap (변화율 배지 있을 때)
+```
+
+도형 겹침 검증: `check_textbox_overflow.py` 또는 python-pptx로 직접 y 범위 비교.
+
+`pptx_safe_edit.fix_text_corner_overlap()` — x/cx만 비율 기반 자동 적용 (y 변경 없음).
+적용 대상: roundRect 패널 내 왼쪽 정렬 TextBox (L09/L10/L12/L14 등 패널 레이아웃 전체).
+
+#### ④ 중제목 레이블 형식 (번호 포함 필수)
+
+```
+형식: "N. 섹션명"  (하위 섹션: "N-M. 섹션명")
+예: "1. AS-IS / TO-BE", "3. 도구 선택 프레임워크"
+⚠ 번호 없는 섹션명만 사용 금지 ("AS-IS / TO-BE" 단독 → violation)
+```
+
+fix_toc.py rebuild_toc()는 slide_labels=None 시 자동으로 번호를 생성한다.
 
 
 ---
