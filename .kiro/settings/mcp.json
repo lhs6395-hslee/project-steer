@@ -35,7 +35,7 @@
       "env": {
         "GOOGLE_OAUTH_CREDENTIALS": "${GOOGLE_OAUTH_CREDENTIALS}"
       },
-      "disabled": true,
+      "disabled": false,
       "autoApprove": []
     },
     "docx": {
@@ -57,7 +57,7 @@
       "env": {
         "DOORAY_API_TOKEN": "${DOORAY_API_TOKEN}"
       },
-      "disabled": true,
+      "disabled": false,
       "autoApprove": []
     },
     "pptx": {
