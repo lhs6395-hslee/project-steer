@@ -6,12 +6,12 @@ description: >
 model: sonnet
 permissionMode: bypassPermissions
 effort: high
-maxTurns: 15
+maxTurns: 25
 mcpServers:
   pptx:
     type: stdio
-    command: /Users/toule/.local/bin/uvx
-    args: ["--from", "office-powerpoint-mcp-server", "ppt_mcp_server"]
+    command: /Users/toule/.local/bin/ppt_mcp_server
+    args: []
 ---
 
 # Executor Agent

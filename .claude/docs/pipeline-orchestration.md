@@ -11,14 +11,20 @@
 1. @planner → Sprint_Contract JSON 생성 (순차 1회)
    → 완료 시 보고: "✅ [Planner] input: N, output: N tokens"
 2. Sprint_Contract의 dependency level 분석
-3. level 0 steps → executor subagents 동시 spawn
-   → 각 완료 시 보고: "✅ [Executor] STEP N input: N, output: N tokens"
-4. level 0 완료 후 → level 1 steps → executor subagents 동시 spawn
-   → 각 완료 시 보고: "✅ [Executor] STEP N input: N, output: N tokens"
-5. 전체 executor 완료 → reviewer subagents 동시 spawn
+3. **Executor 시작 전: 전체 step 목록을 ◻ 체크리스트로 출력**
+   → 각 step 완료 시마다 해당 항목을 ◼로 갱신한 전체 목록 재출력
+   출력 형식:
+   ◼ STEP 1: <step 제목> (완료)
+   ◻ STEP 2: <step 제목> (진행중 또는 대기)
+   ◻ STEP 3: <step 제목>
+4. level 0 steps → executor subagents 동시 spawn
+   → 각 완료 시 보고: "✅ [Executor] STEP N input: N, output: N tokens" + 체크리스트 재출력
+5. level 0 완료 후 → level 1 steps → executor subagents 동시 spawn
+   → 각 완료 시 보고: "✅ [Executor] STEP N input: N, output: N tokens" + 체크리스트 재출력
+6. 전체 executor 완료 → reviewer subagents 동시 spawn
    → 각 완료 시 보고: "✅ [Reviewer] STEP N input: N, output: N tokens"
-6. 실패 step만 재시도 (approved step 스킵, max 5회)
-7. 완료 보고 — 단계별 토큰 합산 + 비용 환산 테이블 출력:
+7. 실패 step만 재시도 (approved step 스킵, max 5회)
+8. 완료 보고 — 단계별 토큰 합산 + 비용 환산 테이블 출력:
    | 단계 | input tokens | output tokens | 소계 tokens | 비용 (USD) |
    |------|-------------|---------------|-------------|-----------|
    | Planner | N | N | N | $N.NNNN |
