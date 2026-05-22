@@ -1,4 +1,25 @@
 {
+  "permissions": {
+    "allow": [
+      "mcp__google-workspace__get_gmail_thread_content",
+      "mcp__google-workspace__get_gmail_messages_content_batch",
+      "mcp__google-workspace__search_gmail_messages",
+      "mcp__google-workspace__list_gmail_labels",
+      "mcp__google-workspace__list_gmail_filters",
+      "mcp__google-workspace__send_gmail_message",
+      "mcp__google-workspace__batch_modify_gmail_message_labels",
+      "mcp__google-workspace__manage_gmail_label",
+      "mcp__google-workspace__manage_gmail_filter",
+      "mcp__google-workspace__draft_gmail_message",
+      "mcp__13a256e9-97e6-4bc0-b47e-e111540f2b0e__search_threads",
+      "mcp__13a256e9-97e6-4bc0-b47e-e111540f2b0e__get_thread",
+      "mcp__dooray__dooray_search_members",
+      "mcp__dooray__dooray_get_task",
+      "mcp__scheduled-tasks__list_scheduled_tasks",
+      "mcp__scheduled-tasks__create_scheduled_task",
+      "mcp__scheduled-tasks__update_scheduled_task"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {

@@ -32,6 +32,7 @@ __pycache__/
 *.tmp
 *.tmp.*
 .hypothesis/
+.playwright-mcp/
 
 # Prevent backup/reviewed PPTX files (user request: no unnecessary files)
 results/pptx/*_FIXED*.pptx
