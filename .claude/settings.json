@@ -17,7 +17,13 @@
       "mcp__dooray__dooray_get_task",
       "mcp__scheduled-tasks__list_scheduled_tasks",
       "mcp__scheduled-tasks__create_scheduled_task",
-      "mcp__scheduled-tasks__update_scheduled_task"
+      "mcp__scheduled-tasks__update_scheduled_task",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_screenshot",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_evaluate"
     ]
   },
   "hooks": {

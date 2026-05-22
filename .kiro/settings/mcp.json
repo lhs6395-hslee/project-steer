@@ -60,6 +60,15 @@
       "disabled": false,
       "autoApprove": []
     },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest"
+      ],
+      "env": {},
+      "disabled": false,
+      "autoApprove": []
+    },
     "pptx": {
       "command": "/Users/toule/.local/bin/uvx",
       "args": [
