@@ -47,3 +47,9 @@ results/pptx/~$*.pptx
 *.bak
 *.bak_*
 results/pptx/*.bak*
+
+# Terraform local state / provider cache
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
