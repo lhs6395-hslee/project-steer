@@ -53,3 +53,11 @@ results/pptx/*.bak*
 **/.terraform.lock.hcl
 *.tfstate
 *.tfstate.backup
+
+# Terraform build artifacts + plan files
+**/build/
+**/tfplan
+**/tfplan.binary
+
+# Workshop seed data (large + may contain proprietary samples)
+.scratch/agentic-ai/seed-data/
