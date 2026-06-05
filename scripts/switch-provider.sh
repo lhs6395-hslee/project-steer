@@ -14,7 +14,9 @@ GLOBAL_SETTINGS="$HOME/.claude/settings.json"
 
 # ── Profiles ──────────────────────────────────────────────
 bedrock_env() {
-  # Bedrock 검증된 최신 모델 ID (us-east-1, 2026-04-15 기준)
+  # Bedrock inference profile IDs (us-east-1, 2026-06 검증)
+  # Claude Code가 내부에서 모델명을 정규화하므로 정확한 cross-region inference profile ID 사용
+  # us.anthropic.claude-sonnet-4-5-20250929-v1:0 — Bedrock이 직접 권장하는 검증 모델
   cat <<'JSON'
 {
   "CLAUDE_CODE_USE_BEDROCK": "1",
@@ -22,7 +24,7 @@ bedrock_env() {
   "AWS_REGION": "us-east-1",
   "CLOUD_ML_REGION": "global",
   "ANTHROPIC_VERTEX_PROJECT_ID": "architect-hslee-3572",
-  "ANTHROPIC_DEFAULT_OPUS_MODEL": "us.anthropic.claude-opus-4-6-v1",
+  "ANTHROPIC_DEFAULT_OPUS_MODEL": "us.anthropic.claude-opus-4-5-20251101-v1:0",
   "ANTHROPIC_DEFAULT_SONNET_MODEL": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
   "ANTHROPIC_DEFAULT_HAIKU_MODEL": "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 }
@@ -119,6 +121,39 @@ switch_to() {
     bedrock)
       new_env=$(bedrock_env)
       new_model="$bedrock_model"
+      # Bedrock 모델 사전 검증 — 실제 API 호출로 활성화 여부 확인
+      echo "Verifying Bedrock model access..."
+      if command -v python3 >/dev/null 2>&1 && python3 -c "import boto3" 2>/dev/null; then
+        verify_result=$(python3 - <<'PYEOF' 2>&1
+import boto3, json, sys
+try:
+    rt = boto3.client('bedrock-runtime', region_name='us-east-1')
+    rt.invoke_model(
+        modelId='us.anthropic.claude-sonnet-4-5-20250929-v1:0',
+        body=json.dumps({"messages":[{"role":"user","content":"ping"}],
+                         "max_tokens":5,"anthropic_version":"bedrock-2023-05-31"}),
+        contentType='application/json', accept='application/json'
+    )
+    print("OK")
+except Exception as e:
+    print(f"FAIL: {e}")
+PYEOF
+)
+        if [[ "$verify_result" == "OK" ]]; then
+          echo "✅ Bedrock model verified: us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+        else
+          echo ""
+          echo "⚠️  WARNING: Bedrock model verification failed."
+          echo "   Error: $verify_result"
+          echo ""
+          echo "   If Claude Code shows 'model identifier is invalid' after switching:"
+          echo "   1. Enable models at: https://console.aws.amazon.com/bedrock/home#/modelaccess"
+          echo "   2. OR run: /model   inside Claude Code to manually select the model"
+          echo "   3. OR switch back: $(basename "$0") vertex"
+          echo ""
+          echo "   Proceeding with switch anyway..."
+        fi
+      fi
       ;;
     vertex)
       new_env=$(vertex_env)
